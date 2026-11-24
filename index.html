@@ -227,7 +227,9 @@ async function boot(){
     AU.onAuthStateChanged(F.auth,u=>{
       if(unsub){unsub();unsub=null;}
       user=u; renderAcct();
-      if(!u){gate('PC와 휴대폰에서 같은 할 일을 보려면<br>Google 계정으로 로그인해 주세요.',true);return;}
+      if(!u){
+        if(INAPP){gate('카카오톡 안에서는 Google 로그인이 안 돼요.<br>아래 버튼으로 <b>Safari/Chrome</b>에서 열어 주세요.',false);showExternal();return;}
+        gate('PC와 휴대폰에서 같은 할 일을 보려면<br>Google 계정으로 로그인해 주세요.',true);return;}
       gate(null); setSync('불러오는 중…');
       unsub=FS.onSnapshot(FS.doc(F.db,'work',u.uid),snap=>{
         if(snap.metadata.hasPendingWrites) return;
@@ -245,6 +247,19 @@ async function boot(){
     });
   }catch(e){gate('연결이 안 됐어요. 인터넷을 확인하고 새로고침해 주세요.',false);}
 }
+const UA=navigator.userAgent||'';
+const INAPP=/KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\//i.test(UA);
+function showExternal(){
+  const url=location.href.split('#')[0];
+  const b=document.createElement('button');b.className='g';b.textContent='Safari / Chrome으로 열기';
+  b.onclick=()=>{
+    if(/KAKAOTALK/i.test(UA)) location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(url);
+    else if(/Android/i.test(UA)) location.href='intent://'+url.replace(/^https?:\/\//,'')+'#Intent;scheme=https;package=com.android.chrome;end';
+    else {try{navigator.clipboard.writeText(url)}catch(e){} $('#gateMsg').innerHTML='주소를 복사했어요. Safari를 열고 붙여 넣어 주세요.<br><small>'+esc(url)+'</small>';}
+  };
+  const box=$('#gate .box'); if(!box.querySelector('.ext')){b.classList.add('ext');box.insertBefore(b,$('#loginBtn'));}
+}
+if(INAPP&&/KAKAOTALK/i.test(UA)) location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(location.href.split('#')[0]);
 function renderAcct(){
   const el=$('#acct'); if(!el) return;
   el.innerHTML=user?`<span title="${esc(user.email)}">${esc(user.email||'로그인됨')}</span><button id="logoutBtn">로그아웃</button>`:'';
@@ -508,8 +523,8 @@ window.addEventListener('storage',e=>{if(e.key===KEY){S=load();render();}});
 $('#loginBtn').onclick=()=>{
   const p=new F.AU.GoogleAuthProvider();
   F.AU.signInWithPopup(F.auth,p).catch(e=>{
-    if(e&&/popup-blocked|operation-not-supported/.test(e.code)) F.AU.signInWithRedirect(F.auth,p);
-    else if(!(e&&/popup-closed|cancelled-popup/.test(e.code))) $('#gateMsg').textContent='로그인이 안 됐어요 ('+(e&&e.code)+')';
+    if(e&&/popup-closed|cancelled-popup/.test(e.code)) return;
+    $('#gateMsg').innerHTML=e&&/popup-blocked/.test(e.code)?'팝업이 막혔어요. 버튼을 한 번 더 눌러 주세요.':'로그인이 안 됐어요 ('+esc(e&&e.code)+')<br>Safari나 Chrome에서 열어 주세요.';
   });
 };
 document.addEventListener('click',e=>{if(e.target.id==='logoutBtn'&&confirm('로그아웃할까요?')) F.AU.signOut(F.auth);});
