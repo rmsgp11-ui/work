@@ -279,6 +279,7 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
 </div></div>
 <input type="file" id="fileIn" accept="application/json" hidden>
 <input type="file" id="impIn" accept="application/json,.json" hidden>
+<input type="file" id="secIn" accept="application/json,.json" hidden>
 
 <script>
 (()=>{
@@ -679,6 +680,7 @@ function openClient(id){
   const tel=(c.phone||'').replace(/[^\d+]/g,''), u=unpaidList(id);
   drawer(dh(esc(c.name),`<span class="chip ${c.type==='법인'?'acc':''}">${esc(c.type)}</span>`)+`<div class="db">
     <div class="links">${tel?`<a href="tel:${tel}">📞 ${esc(c.contact||c.ceo||'전화')}</a><a href="sms:${tel}">💬 문자</a>`:''}${c.email?`<a href="mailto:${esc(c.email)}">✉️ 메일</a>`:''}<a href="#" data-a="clientTask">+ 할 일</a></div>
+    <div class="box" id="vaultBox"></div>
     <div class="box"><h4>수금 ${u.length?`<span class="chip red">미수 ${u.length}개월</span>`:'<span>칸을 누르면 바꿀 수 있어요</span>'}</h4>
       <div class="pstrip">${months.map(k=>{const cell=pcell(id,k),st=pstat(cell);return `<div class="pc ${st} ${k===cur?'cur':''}" data-paycell="${id}|${k}"><b>${+k.slice(2)}월</b>${st==='paid'?(cell.a>=1000?won(Math.round(cell.a/1000))+'k':won(cell.a)):st?PS[st].n.replace('CMS 확인','CMS').replace('해당없음','–'):'·'}</div>`}).join('')}</div></div>
     <div class="box"><h4>세무 일정 <span>${evs.length}</span></h4>${evs.length?evs.map(e=>`<div class="ck" data-ck="${esc(e.key)}|${id}"><span class="chk ${isDone(e,id)?'on':''}"></span><span class="tb"><b style="color:${TT[e.t].c}">${esc(e.label)}</b></span><span class="chip ${diffDays(e.date)<0&&!isDone(e,id)?'red':''}">${md(e.date)}</span></div>`).join(''):'<p class="note">앞뒤 석 달 안에 일정이 없어요. 아래 세무 설정을 확인하세요.</p>'}</div>
@@ -699,6 +701,7 @@ function openClient(id){
       <div class="r2">${f('adjFee','세무조정료','number')}${f('payInfo','결제 정보')}</div>
       <div><label>메모</label><textarea data-cf2="memo">${esc(c.memo||'')}</textarea></div></div></div>
     <div style="display:flex;justify-content:flex-end"><button class="del" data-a="clientDel">거래처 삭제</button></div></div>`,'client');
+  renderVault(id);
 }
 
 function openPayCell(cid,ym){
@@ -785,6 +788,90 @@ JSON으로만: {"order":["id",...],"why":{"id":"이유"},"summary":""}
     const why={};for(const k in (o.why||{}))if(ids.has(k))why[k]=String(o.why[k]).slice(0,40);
     S.ai={order,why,summary:String(o.summary||'').slice(0,80),at:Date.now()}; ui.sort='ai'; save(); render(); toast('AI가 순서를 정리했어요');
   }catch(e){toast(e.message); render();}
+}
+
+/* ---------- 보안 정보 (기기에서 AES-GCM 암호화, 비밀번호는 저장하지 않음) ---------- */
+const te=new TextEncoder(),td=new TextDecoder();
+const b64=u=>{u=new Uint8Array(u);let s='';for(let i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s)};
+const ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+let VK=null,vkT=null,passRes=null;
+function vTimer(){clearTimeout(vkT);vkT=setTimeout(()=>{VK=null;if(ui.drawer==='client')renderVault(ui.openClient);},10*60*1000);}
+async function deriveKey(p,salt){const base=await crypto.subtle.importKey('raw',te.encode(p),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:310000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
+async function seal(k,o){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,te.encode(JSON.stringify(o)));return {iv:b64(iv),ct:b64(ct)};}
+async function unseal(k,b){return JSON.parse(td.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(b.iv)},k,ub64(b.ct))));}
+function askPass(title,note,twice){return new Promise(res=>{
+  passRes=res;
+  $('#mbox').innerHTML=`<h3>${title}</h3>${note?`<p class="note">${note}</p>`:''}<input type="password" id="vp1" placeholder="보안 비밀번호" autocomplete="new-password">${twice?'<input type="password" id="vp2" placeholder="한 번 더" autocomplete="new-password">':''}
+    <div style="display:flex;gap:8px"><button class="btn g" id="vpNo" style="flex:1;justify-content:center">취소</button><button class="btn" id="vpOk" style="flex:1;justify-content:center">확인</button></div>`;
+  $('#modal').classList.add('on'); setTimeout(()=>{const i=$('#vp1');if(i)i.focus()},60);
+  const done=v=>{passRes=null;$('#modal').classList.remove('on');res(v);};
+  const ok=()=>{const a=$('#vp1').value;if(twice&&a!==$('#vp2').value)return toast('두 비밀번호가 달라요');if(twice&&a.length<8)return toast('8자 이상으로 만들어 주세요');done(a);};
+  $('#vpNo').onclick=()=>done(null); $('#vpOk').onclick=ok;
+  $('#mbox').querySelectorAll('input').forEach(i=>i.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing)ok();});
+});}
+async function unlockVault(){
+  if(VK){vTimer();return true;}
+  if(!window.crypto||!crypto.subtle){toast('이 브라우저에서는 보안 정보를 쓸 수 없어요');return false;}
+  if(!S.vault){
+    const p=await askPass('보안 비밀번호 만들기','주민번호·홈택스 계정을 암호화할 비밀번호예요(8자 이상). 어디에도 저장되지 않아서, 잊으면 보안 정보를 다시 가져와야 해요.',true);
+    if(!p) return false;
+    const salt=crypto.getRandomValues(new Uint8Array(16)),k=await deriveKey(p,salt);
+    S.vault={salt:b64(salt),check:await seal(k,{ok:1}),data:{}}; VK=k; save(); vTimer(); return true;
+  }
+  const p=await askPass('보안 정보 잠금 해제','10분 동안 열려 있다가 자동으로 잠겨요.'); if(!p) return false;
+  try{const k=await deriveKey(p,ub64(S.vault.salt));await unseal(k,S.vault.check);VK=k;vTimer();return true;}
+  catch(e){toast('비밀번호가 맞지 않아요');return false;}
+}
+const rrnMask=s=>s?String(s).slice(0,8)+'******':'';
+async function renderVault(id){
+  const el=$('#vaultBox'); if(!el||ui.openClient!==id) return;
+  const has=!!(S.vault&&S.vault.data&&S.vault.data[id]);
+  if(!VK){el.innerHTML=`<h4>🔒 보안 정보 <span>${has?'저장됨':'없음'}</span></h4><p class="note" style="margin-bottom:8px">대표자 주민번호와 홈택스 아이디·비밀번호는 이 기기에서 암호화해 저장해요.</p><button class="btn g s" data-a="vUnlock">${S.vault?'잠금 해제':'보안 비밀번호 만들기'}</button>`;return;}
+  let v={rrn:'',htId:'',htPw:''}; if(has){try{v=Object.assign(v,await unseal(VK,S.vault.data[id]));}catch(e){}}
+  ui.vcur={id,v};
+  const row=(lab,k,shown)=>`<div class="ck" style="cursor:default"><span class="tb"><span class="ts">${lab}</span><b data-vshow="${k}" style="font-variant-numeric:tabular-nums">${esc(shown)||'—'}</b></span>${v[k]?`${k!=='htId'?`<button class="chip" data-vreveal="${k}">보기</button>`:''}<button class="chip" data-vcopy="${k}">복사</button>`:''}</div>`;
+  el.innerHTML=`<h4>🔓 보안 정보 <button class="chip" data-a="vLock">잠그기</button></h4>${row('대표자 주민번호','rrn',rrnMask(v.rrn))}${row('홈택스 아이디','htId',v.htId)}${row('홈택스 비밀번호','htPw',v.htPw?'••••••••':'')}
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="btn g s" data-a="vEdit">수정</button>${v.htId?'<a class="btn g s" href="https://hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a>':''}</div>`;
+}
+function vEdit(){
+  const v=ui.vcur.v;
+  $('#mbox').innerHTML=`<h3>보안 정보 수정</h3><div><label class="lab">대표자 주민번호</label><input id="vRrn" value="${esc(v.rrn)}" placeholder="000000-0000000" autocomplete="off"></div>
+    <div><label class="lab">홈택스 아이디</label><input id="vId" value="${esc(v.htId)}" autocomplete="off"></div>
+    <div><label class="lab">홈택스 비밀번호</label><input id="vPw" type="password" value="${esc(v.htPw)}" autocomplete="new-password"></div>
+    <div style="display:flex;gap:8px"><button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">취소</button><button class="btn" data-a="vSave" style="flex:1;justify-content:center">저장</button></div>`;
+  $('#modal').classList.add('on');
+}
+async function vSave(){
+  if(!VK) return toast('잠겨 있어요. 다시 열어 주세요');
+  const id=ui.vcur.id,o={rrn:$('#vRrn').value.trim(),htId:$('#vId').value.trim(),htPw:$('#vPw').value};
+  S.vault.data[id]=await seal(VK,o); save(); $('#modal').classList.remove('on'); vTimer(); renderVault(id); toast('암호화해서 저장했어요');
+}
+async function importSecrets(file){
+  let d;try{d=JSON.parse(await file.text());}catch(e){return toast('파일을 읽지 못했어요');}
+  if(d.kind!=='workapp-secrets'||!Array.isArray(d.items)) return toast('보안정보 가져오기용 파일이 아니에요');
+  if(!S.clients.length) return toast('거래처를 먼저 가져와 주세요');
+  if(!await unlockVault()) return;
+  let n=0,miss=0;
+  for(const it of d.items){
+    const c=(it.bizno&&S.clients.find(c=>c.bizno===it.bizno))||S.clients.find(c=>norm(c.name)===norm(it.name)&&c.type===it.type);
+    if(!c){miss++;continue;}
+    let cur={};if(S.vault.data[c.id]){try{cur=await unseal(VK,S.vault.data[c.id])}catch(e){}}
+    const o={rrn:it.rrn||cur.rrn||'',htId:it.htId||cur.htId||'',htPw:it.htPw||cur.htPw||''};
+    S.vault.data[c.id]=await seal(VK,o); n++;
+  }
+  save(); render(); toast(`보안 정보 ${n}곳 암호화해서 넣었어요${miss?` · 못 찾은 곳 ${miss}`:''}. 받은 파일은 지워 주세요`);
+}
+function importAddr(text){
+  let n=0,miss=0;
+  text.split(/\r?\n/).forEach(line=>{
+    const m=line.match(/(\d{3})-?(\d{2})-?(\d{5})/); if(!m) return;
+    const bz=`${m[1]}-${m[2]}-${m[3]}`, c=S.clients.find(c=>c.bizno===bz); if(!c){miss++;return;}
+    const cells=line.split(/\t|\s{3,}/).map(x=>x.trim()).filter(Boolean);
+    let addr=cells.filter(x=>/(특별시|광역시|자치시|도|시|군|구)\s|로\s?\d|길\s?\d/.test(x)).sort((a,b)=>b.length-a.length)[0];
+    if(!addr) addr=line.slice(line.indexOf(m[0])+m[0].length).trim();
+    if(addr&&addr.length>5){c.addr=addr;n++;}
+  });
+  save(); render(); toast(`주소 ${n}곳 넣었어요${miss?` · 거래처에 없는 사업자번호 ${miss}개`:''}`);
 }
 
 /* ---------- 가져오기 ---------- */
@@ -884,16 +971,31 @@ document.addEventListener('click',e=>{
   if((el=q('[data-subdel]'))){const x=S.tasks.find(t=>t.id===ui.openTask);x.subs=x.subs.filter(s=>s.id!==el.dataset.subdel);save();openTask(x.id);return;}
   if((el=q('[data-logdel]'))){if(confirm('이 기록을 삭제할까요? (할 일은 남아요)')){S.logs=S.logs.filter(l=>l.id!==el.dataset.logdel);save();render();}return;}
   if((el=q('.lg'))&&!q('select')&&!q('button')){el.classList.toggle('open');return;}
+  if((el=q('[data-vreveal]'))){const k=el.dataset.vreveal,b=$(`[data-vshow="${k}"]`);if(!ui.vcur||!b)return;b.textContent=ui.vcur.v[k];vTimer();setTimeout(()=>{if(b.isConnected)b.textContent=k==='rrn'?rrnMask(ui.vcur.v[k]):'••••••••'},10000);return;}
+  if((el=q('[data-vcopy]'))){const v=ui.vcur&&ui.vcur.v[el.dataset.vcopy];if(!v)return;navigator.clipboard.writeText(v).then(()=>toast('복사했어요'),()=>toast('복사하지 못했어요'));vTimer();return;}
   el=q('[data-a]'); if(!el) return; const a=el.dataset.a;
   if(el.tagName==='A') e.preventDefault();
   const acts={
     close:closeDrawer, modalClose:()=>$('#modal').classList.remove('on'),
     theme:()=>{S.theme=S.theme==='dark'?'light':'dark';save();render();$('#modal').classList.remove('on');},
     backup:()=>{const b=document.createElement('a');b.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));b.download=`업무-백업-${todayStr()}.json`;b.click();toast('백업 파일을 저장했어요');},
-    restore:()=>$('#fileIn').click(), import:()=>$('#impIn').click(),
+    restore:()=>$('#fileIn').click(),
+    import:()=>{$('#mbox').innerHTML=`<h3>가져오기</h3>
+      <button class="btn g" data-a="impClients" style="justify-content:center">거래처 파일 (거래처_가져오기.json)</button>
+      <button class="btn g" data-a="impSecrets" style="justify-content:center">🔒 보안정보 파일 (주민번호·홈택스)</button>
+      <button class="btn g" data-a="impAddr" style="justify-content:center">🏠 사업장 주소 붙여넣기</button>
+      <button class="btn" data-a="modalClose" style="justify-content:center">닫기</button>`;$('#modal').classList.add('on');},
+    impClients:()=>$('#impIn').click(), impSecrets:()=>$('#secIn').click(),
+    impAddr:()=>{$('#mbox').innerHTML=`<h3>사업장 주소 붙여넣기</h3><p class="note">홈택스나 엑셀에서 <b>사업자번호와 주소가 같은 줄</b>에 있는 표를 복사해 붙여 넣으세요. 사업자번호로 거래처를 찾아 주소를 넣어요.</p>
+      <textarea id="addrTxt" style="width:100%;min-height:180px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 11px" placeholder="123-45-67890	서울특별시 ○○구 ○○로 12"></textarea>
+      <div style="display:flex;gap:8px"><button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">취소</button><button class="btn" data-a="addrGo" style="flex:1;justify-content:center">넣기</button></div>`;},
+    addrGo:()=>{const t=$('#addrTxt').value;$('#modal').classList.remove('on');importAddr(t);},
+    vUnlock:async()=>{if(await unlockVault())renderVault(ui.openClient);},
+    vLock:()=>{VK=null;clearTimeout(vkT);renderVault(ui.openClient);toast('잠갔어요');},
+    vEdit, vSave,
     settings:()=>{$('#mbox').innerHTML=`<h3>설정</h3><button class="btn g" data-a="theme" style="justify-content:center">${S.theme==='dark'?'☀️ 밝게':'🌙 어둡게'}</button><button class="btn g" data-a="import" style="justify-content:center">거래처 가져오기</button><div style="display:flex;gap:8px"><button class="btn g" data-a="backup" style="flex:1;justify-content:center">백업</button><button class="btn g" data-a="restore" style="flex:1;justify-content:center">복원</button></div>${user?`<p class="note">${esc(acctName())}</p><button class="btn g" data-a="logout" style="justify-content:center">로그아웃</button>`:''}<button class="btn" data-a="modalClose" style="justify-content:center">닫기</button>`;$('#modal').classList.add('on');},
     login:()=>{const p=new F.AU.GoogleAuthProvider();F.AU.signInWithPopup(F.auth,p).catch(er=>{if(er&&/popup-closed|cancelled-popup/.test(er.code))return;$('#gateMsg').innerHTML=er&&/popup-blocked/.test(er.code)?'팝업이 막혔어요. 버튼을 한 번 더 눌러 주세요.':'로그인이 안 됐어요 ('+esc(er&&er.code)+')';});},
-    logout:()=>{if(confirm('로그아웃할까요?')){$('#modal').classList.remove('on');F.AU.signOut(F.auth);}},
+    logout:()=>{if(confirm('로그아웃할까요?')){VK=null;$('#modal').classList.remove('on');F.AU.signOut(F.auth);}},
     extopen:()=>{const url=location.href.split('#')[0];if(/KAKAOTALK/i.test(UA))location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(url);else if(/Android/i.test(UA))location.href='intent://'+url.replace(/^https?:\/\//,'')+'#Intent;scheme=https;package=com.android.chrome;end';else{try{navigator.clipboard.writeText(url)}catch(x){}$('#gateMsg').innerHTML='주소를 복사했어요. Safari를 열고 붙여 넣어 주세요.';}},
     ingest:()=>openIngest(''), extract, addPicks, aisort:aiSort, aioff:()=>{ui.sort='due';render();},
     paste:async()=>{try{const t=await navigator.clipboard.readText();if(t)$('#inTxt').value=t;}catch(_){$('#inTxt').focus();toast('입력 칸을 길게 눌러 붙여넣기 해 주세요');}},
@@ -933,10 +1035,11 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){if($('#modal').classList.contains('on'))$('#modal').classList.remove('on');else if(ui.drawer)closeDrawer();}
 });
 $('#shade').onclick=closeDrawer;
-$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')$('#modal').classList.remove('on');});
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal'){$('#modal').classList.remove('on');if(passRes){const r=passRes;passRes=null;r(null);}}});
 $('#toastUndo').onclick=()=>{undoFn&&undoFn();undoFn=null;$('#toast').classList.remove('on');};
 $('#fileIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.tasks))throw 0;if(confirm(`할 일 ${d.tasks.length}개, 거래처 ${(d.clients||[]).length}곳으로 지금 데이터를 바꿀까요?`)){S=migrate(d);save();render();toast('복원했어요');}}catch(_){toast('백업 파일을 읽지 못했어요');}e.target.value='';$('#modal').classList.remove('on');};
 $('#impIn').onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value='';$('#modal').classList.remove('on');};
+$('#secIn').onchange=e=>{const f=e.target.files[0];$('#modal').classList.remove('on');if(f)importSecrets(f);e.target.value='';};
 document.addEventListener('dragstart',e=>{const c=e.target.closest&&e.target.closest('[draggable][data-task]');if(c)e.dataTransfer.setData('text/plain',c.dataset.task);});
 document.addEventListener('dragover',e=>{if(e.target.closest&&e.target.closest('[data-col]'))e.preventDefault();});
 document.addEventListener('drop',e=>{const col=e.target.closest&&e.target.closest('[data-col]');if(!col)return;e.preventDefault();const x=S.tasks.find(t=>t.id===e.dataTransfer.getData('text/plain'));if(x&&x.status!==col.dataset.col){setStatus(x,col.dataset.col);save();render();}});
@@ -950,7 +1053,7 @@ function takeShared(){const h=location.hash;
   if(h==='#paste'){history.replaceState(null,'',location.pathname+location.search);return '';}return null;}
 let pendingIn=takeShared();
 window.addEventListener('hashchange',()=>{const t=takeShared();if(t!==null&&(user||TEST))openIngest(t);});
-if(TEST){window.__app={get S(){return S},render,importData,openDay,openClient,openTask,events};if(pendingIn!==null){const t=pendingIn;pendingIn=null;setTimeout(()=>openIngest(t),100);}}
+if(TEST){window.__app={get S(){return S},render,importData,openDay,openClient,openTask,events,importSecrets,importAddr};if(pendingIn!==null){const t=pendingIn;pendingIn=null;setTimeout(()=>openIngest(t),100);}}
 render(); boot();
 })();
 </script>
