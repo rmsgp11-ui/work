@@ -98,6 +98,24 @@ h1{font-size:28px;margin:0;letter-spacing:-.03em}
 .dfoot{display:flex;justify-content:space-between;margin-top:auto;padding-top:10px;font-size:12px;color:var(--sub);align-items:center}
 .del{color:var(--red);font-weight:700}
 .x{position:absolute;top:14px;right:16px;font-size:22px;color:var(--sub)}
+.quick .ai{background:var(--soft);color:var(--ink);font-weight:700}
+.aibtn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-weight:700;white-space:nowrap}
+.aibtn:disabled{opacity:.5}
+.aisum{background:var(--panel);border:1px solid var(--gold);border-radius:12px;padding:12px 14px;margin:6px 0 10px;font-size:14px;display:flex;gap:10px;align-items:flex-start}
+.aisum b{color:var(--gold)} .aisum button{margin-left:auto;color:var(--sub);flex:none}
+.why{font-size:12px;color:var(--sub);display:block;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbody{flex:1;min-width:0}
+.rank{font-size:12px;font-weight:800;color:var(--gold);width:18px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
+.drawer h3{margin:0;font-size:19px}
+.drawer .note{font-size:13px;color:var(--sub);margin:0}
+.btnrow{display:flex;gap:8px}
+.btn{flex:1;padding:10px;border-radius:10px;background:var(--accent);color:var(--bg);font-weight:700}
+.btn.ghost{background:var(--soft);color:var(--ink)}
+.btn:disabled{opacity:.5}
+.pick{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.pick input[type=checkbox]{width:18px;height:18px;margin-top:3px;flex:none}
+.drawer .pick .pt{font-weight:600;border:0;background:none;padding:0;width:100%}
+.pick .pm{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .gate{position:fixed;inset:0;background:var(--bg);z-index:40;display:grid;place-items:center;padding:20px}
 .gate .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:32px 28px;max-width:360px;width:100%;text-align:center;box-shadow:var(--shadow)}
 .gate h2{margin:12px 0 6px;font-size:24px;letter-spacing:-.03em}
@@ -120,6 +138,7 @@ h1{font-size:28px;margin:0;letter-spacing:-.03em}
   .stats{grid-template-columns:repeat(2,1fr)}
   .board{grid-template-columns:1fr}
   .hint{display:none}
+  .quick .ai span{display:none}
 }
 </style>
 </head>
@@ -141,11 +160,12 @@ h1{font-size:28px;margin:0;letter-spacing:-.03em}
   <main>
     <div class="top"><button class="menu-btn" id="menuBtn">☰</button><h1 id="viewTitle">오늘</h1><span class="date" id="today"></span><span class="sync" id="sync"></span></div>
     <div class="stats" id="stats"></div>
-    <form class="quick" id="quick"><input id="qin" placeholder="할 일 추가…  (단축키 N)" autocomplete="off"><button>추가</button></form>
+    <form class="quick" id="quick"><input id="qin" placeholder="할 일 추가…  (단축키 N)" autocomplete="off"><button type="button" class="ai" id="aiInBtn" title="통화 요약·카톡 내용에서 할 일 뽑기">✨<span> 내용에서 뽑기</span></button><button>추가</button></form>
     <div class="hint">빠른 입력: <code>내일</code> <code>모레</code> <code>금요일</code> <code>12/5</code> 날짜 · <code>#프로젝트</code> · <code>!1</code> 긴급 <code>!2</code> 높음 <code>!3</code> 보통</div>
     <div class="toolbar" id="toolbar">
       <input id="search" placeholder="검색">
-      <select id="sort"><option value="due">마감일 순</option><option value="pri">우선순위 순</option><option value="new">최근 추가 순</option></select>
+      <button class="aibtn" id="aiSortBtn">✨ AI 정렬</button>
+      <select id="sort"><option value="ai">AI 추천 순</option><option value="due">마감일 순</option><option value="pri">우선순위 순</option><option value="new">최근 추가 순</option></select>
     </div>
     <div id="view"></div>
   </main>
@@ -165,6 +185,7 @@ h1{font-size:28px;margin:0;letter-spacing:-.03em}
 const KEY='workapp.v1';
 const FB_CONFIG={apiKey:"AIzaSyDbt4FrmyLyzQCMU98ZKUyp2QhSJfLgDIs",authDomain:"study-ho.firebaseapp.com",projectId:"study-ho",storageBucket:"study-ho.firebasestorage.app",messagingSenderId:"535637659184",appId:"1:535637659184:web:8f26bf8d8b0d1e187027f5"};
 const FV='https://www.gstatic.com/firebasejs/10.12.2/';
+const AI_URL='https://hihoho-ai.rmsgp11.workers.dev/work';
 const COLORS=['#3b6fd1','#2f8a5b','#d89a2b','#c8463d','#8a5bd1','#2a9bb0','#d1609b','#6b7280'];
 const STATUS={todo:'할 일',doing:'진행 중',done:'완료'};
 const PRI={1:'긴급',2:'높음',3:'보통',4:'없음'};
@@ -231,6 +252,7 @@ async function boot(){
         if(INAPP){gate('카카오톡 안에서는 Google 로그인이 안 돼요.<br>아래 버튼으로 <b>Safari/Chrome</b>에서 열어 주세요.',false);showExternal();return;}
         gate('PC와 휴대폰에서 같은 할 일을 보려면<br>Google 계정으로 로그인해 주세요.',true);return;}
       gate(null); setSync('불러오는 중…');
+      if(pendingIn!==null){const t=pendingIn;pendingIn=null;setTimeout(()=>openIngest(t),300);}
       unsub=FS.onSnapshot(FS.doc(F.db,'work',u.uid),snap=>{
         if(snap.metadata.hasPendingWrites) return;
         if(!snap.exists()){push();return;}            // 처음: 이 기기 데이터를 올림
@@ -260,11 +282,107 @@ function showExternal(){
   const box=$('#gate .box'); if(!box.querySelector('.ext')){b.classList.add('ext');box.insertBefore(b,$('#loginBtn'));}
 }
 if(INAPP&&/KAKAOTALK/i.test(UA)) location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(location.href.split('#')[0]);
+// ---------- AI ----------
+async function askAI(prompt){
+  if(!F||!F.auth.currentUser) throw new Error('로그인이 필요해요');
+  const tk=await F.auth.currentUser.getIdToken();
+  const r=await fetch(AI_URL,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+tk},body:JSON.stringify({prompt})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error==='rate_limited'?'오늘 AI 사용 횟수를 다 썼어요':'AI 연결 오류 ('+(d.error||r.status)+')');
+  const t=String(d.text||'');
+  if(/off_topic/.test(t)) throw new Error('AI 서버(Cloudflare Worker)를 업데이트해야 해요');
+  const m=t.match(/\{[\s\S]*\}/); if(!m) throw new Error('AI 답을 읽지 못했어요');
+  return JSON.parse(m[0]);
+}
+function nowInfo(){const d=new Date();return `${todayStr()} (${WD[d.getDay()]}요일) ${pad(d.getHours())}:${pad(d.getMinutes())}`;}
+function projName(id){const p=S.projects.find(p=>p.id===id);return p?p.name:'';}
+
+let picks=[];
+function openIngest(text){
+  ui.open=null; picks=[];
+  $('#drawer').innerHTML=`<button class="x" data-close>×</button>
+    <h3>✨ 내용에서 할 일 뽑기</h3>
+    <p class="note">익시오 통화 요약, 카톡 대화, 메일 등을 붙여 넣으면 AI가 내가 해야 할 일만 골라 마감일·우선순위를 정해 줘요.</p>
+    <textarea id="inTxt" placeholder="여기에 붙여 넣기" style="min-height:200px">${esc(text||'')}</textarea>
+    <div class="btnrow"><button class="btn ghost" id="pasteBtn">📋 붙여넣기</button><button class="btn" id="extractBtn">할 일 뽑기</button></div>
+    <div id="pickBox"></div>`;
+  $('#drawer').classList.add('on');$('#shade').classList.add('on');
+  if(text) setTimeout(()=>$('#extractBtn').click(),50);
+}
+async function extract(){
+  const txt=$('#inTxt').value.trim(); if(!txt) return;
+  const b=$('#extractBtn'); b.disabled=true; b.textContent='AI가 읽는 중…'; $('#pickBox').innerHTML='';
+  try{
+    const o=await askAI(`지금은 ${nowInfo()}이다. 아래는 사용자가 받은 통화 요약·메신저 대화·메모 등이다.
+이 내용에서 "사용자 본인"이 해야 할 일만 골라 업무 할 일 목록으로 만들어라. 상대방이 할 일, 이미 끝난 일, 단순 잡담·인사는 빼라.
+- title: 동사로 끝나는 짧은 한 줄 (예: "김 과장에게 견적서 메일 보내기"), 사람·회사 이름과 핵심 숫자는 살린다
+- due: "내일", "금요일까지", "다음 주 월요일" 같은 말을 오늘 기준 YYYY-MM-DD로 바꾼다. 언급이 없으면 null
+- pri: 1 긴급(오늘·내일 마감이거나 급하다고 함), 2 높음, 3 보통, 4 낮음
+- project: 기존 프로젝트 [${S.projects.map(p=>p.name).join(', ')}] 중 맞는 이름, 없으면 2~6글자 새 이름 또는 null
+- memo: 연락처, 장소, 금액, 조건 등 필요한 세부 내용 (없으면 "")
+- from: 이 할 일이 나온 근거가 된 원문 한 구절 (30자 이내)
+JSON으로만 답하라: {"tasks":[{"title":"","due":null,"pri":3,"project":null,"memo":"","from":""}]}
+할 일이 없으면 {"tasks":[]}
+
+<내용>
+${txt.slice(0,15000)}
+</내용>`);
+    picks=(o.tasks||[]).filter(t=>t&&t.title).map(t=>({title:String(t.title),due:/^\d{4}-\d{2}-\d{2}$/.test(t.due||'')?t.due:null,pri:[1,2,3,4].includes(+t.pri)?+t.pri:3,project:t.project?String(t.project):'',memo:String(t.memo||''),from:String(t.from||''),on:true}));
+    renderPicks();
+  }catch(e){$('#pickBox').innerHTML=`<p class="note" style="color:var(--red)">${esc(e.message)}</p>`;}
+  b.disabled=false; b.textContent='다시 뽑기';
+}
+function renderPicks(){
+  if(!picks.length){$('#pickBox').innerHTML='<p class="note">해야 할 일을 찾지 못했어요.</p>';return;}
+  $('#pickBox').innerHTML=`<label>찾은 할 일 ${picks.length}개 — 제목은 눌러서 고칠 수 있어요</label>`+picks.map((p,i)=>`
+    <div class="pick"><input type="checkbox" data-pk="${i}" ${p.on?'checked':''}>
+      <div style="flex:1;min-width:0"><input class="pt" data-pt="${i}" value="${esc(p.title)}">
+      <div class="pm">${p.due?`<span class="chip ${diffDays(p.due)<=0?'today':''}">${dueLabel(p.due)}</span>`:''}<span class="chip">${PRI[p.pri]}</span>${p.project?`<span class="chip">#${esc(p.project)}</span>`:''}</div>
+      ${p.memo?`<div class="why" style="white-space:normal">${esc(p.memo)}</div>`:''}${p.from?`<div class="why">“${esc(p.from)}”</div>`:''}</div></div>`).join('')+
+    `<div class="btnrow" style="margin-top:12px"><button class="btn" id="addPicks">선택한 할 일 추가</button></div>`;
+}
+function addPicks(){
+  const sel=picks.filter(p=>p.on&&p.title.trim()); if(!sel.length) return;
+  sel.forEach(p=>{
+    let pid=null;
+    if(p.project){let pr=S.projects.find(x=>x.name===p.project);if(!pr){pr={id:uid(),name:p.project,color:COLORS[S.projects.length%COLORS.length]};S.projects.push(pr);}pid=pr.id;}
+    S.tasks.push({id:uid(),title:p.title.trim(),project:pid,due:p.due,pri:p.pri,status:'todo',memo:(p.memo+(p.from?`\n\n근거: “${p.from}”`:'')).trim(),subs:[],created:Date.now(),doneAt:null});
+  });
+  save(); closeTask();
+  toast(`할 일 ${sel.length}개를 추가했어요`+(S.ai&&S.ai.order?' · AI 정렬을 다시 눌러 주세요':''));
+}
+async function aiSort(){
+  const list=S.tasks.filter(open); if(!list.length) return toast('정렬할 할 일이 없어요');
+  const b=$('#aiSortBtn'); b.disabled=true; b.textContent='✨ 정리 중…';
+  try{
+    const items=list.slice(0,120).map(x=>({id:x.id,t:x.title,due:x.due,pri:x.pri,st:x.status==='doing'?'진행중':'할일',proj:projName(x.project),memo:(x.memo||'').slice(0,120),subs:x.subs&&x.subs.length?`${x.subs.filter(s=>s.d).length}/${x.subs.length}`:undefined}));
+    const o=await askAI(`지금은 ${nowInfo()}이다. 아래는 한 사람의 업무 할 일 목록이다.
+지금부터 처리할 순서대로 전부 정렬하라. 기준: 기한 지남·오늘 마감 > 다른 사람이 기다리는 일(답장, 회신, 자료 전달) > 마감 임박 > 우선순위 > 이미 진행 중인 일 마무리 > 짧게 끝나는 일 먼저 > 나머지.
+각 할 일마다 왜 그 자리인지 15자 이내 이유를 붙여라. summary에는 오늘 무엇에 집중하면 되는지 한 문장(40자 이내).
+JSON으로만 답하라: {"order":["id",...],"why":{"id":"이유"},"summary":""}
+목록:
+${JSON.stringify(items)}`);
+    const ids=new Set(list.map(x=>x.id));
+    const order=(o.order||[]).filter(id=>ids.has(id));
+    list.forEach(x=>{if(!order.includes(x.id)) order.push(x.id);});
+    const why={}; for(const k in (o.why||{})) if(ids.has(k)) why[k]=String(o.why[k]).slice(0,40);
+    S.ai={order,why,summary:String(o.summary||'').slice(0,80),at:Date.now()};
+    ui.sort='ai'; save(); render(); toast('AI가 순서를 정리했어요');
+  }catch(e){toast(e.message);}
+  b.disabled=false; b.textContent='✨ AI 정렬';
+}
+function takeShared(){
+  const h=location.hash;
+  if(h.startsWith('#in=')){let t='';try{t=decodeURIComponent(h.slice(4));}catch(e){t=h.slice(4);}history.replaceState(null,'',location.pathname);return t;}
+  if(h==='#paste'){history.replaceState(null,'',location.pathname);return '';}
+  return null;
+}
+let pendingIn=takeShared();
 function renderAcct(){
   const el=$('#acct'); if(!el) return;
   el.innerHTML=user?`<span title="${esc(user.email)}">${esc(user.email||'로그인됨')}</span><button id="logoutBtn">로그아웃</button>`:'';
 }
-let ui={view:'today',proj:null,q:'',sort:'due',open:null};
+let ui={view:'today',proj:null,q:'',sort:(S.ai&&S.ai.order&&S.ai.order.length)?'ai':'due',open:null};
 let undoFn=null,toastT;
 
 // ---------- quick add parse ----------
@@ -312,7 +430,9 @@ function sorted(arr){
   const by={
     due:(a,b)=>(a.due||'9999')<(b.due||'9999')?-1:(a.due||'9999')>(b.due||'9999')?1:a.pri-b.pri,
     pri:(a,b)=>a.pri-b.pri||((a.due||'9999')<(b.due||'9999')?-1:1),
-    new:(a,b)=>b.created-a.created
+    new:(a,b)=>b.created-a.created,
+    ai:(a,b)=>{const o=(S.ai&&S.ai.order)||[];const ia=o.indexOf(a.id),ib=o.indexOf(b.id);
+      return (ia<0?1e9:ia)-(ib<0?1e9:ib)||((a.due||'9999')<(b.due||'9999')?-1:1)||a.pri-b.pri;}
   };
   return arr.slice().sort(by[ui.sort]);
 }
@@ -363,13 +483,19 @@ function chips(x){
   return out.join('');
 }
 function row(x){
+  const ai=ui.sort==='ai'&&S.ai&&x.status!=='done';
+  const why=ai&&S.ai.why?S.ai.why[x.id]:'';
+  const rank=ai&&S.ai.order?S.ai.order.indexOf(x.id):-1;
   return `<div class="task ${x.status==='done'?'done':''}" data-id="${x.id}">
+    ${ai?`<span class="rank">${rank>=0?rank+1:''}</span>`:''}
     <button class="chk p${x.pri}" data-chk="${x.id}" aria-label="완료"></button>
-    <span class="t">${esc(x.title)}</span>${x.memo?'<span class="memo-ic">📝</span>':''}${chips(x)}</div>`;
+    <span class="tbody"><span class="t" style="display:block">${esc(x.title)}</span>${why?`<span class="why">${esc(why)}</span>`:''}</span>${x.memo?'<span class="memo-ic">📝</span>':''}${chips(x)}</div>`;
 }
 function list(arr){
   if(!arr.length) return `<div class="list"><div class="empty">${ui.q?'검색 결과가 없어요':ui.view==='today'?'오늘 할 일을 다 끝냈어요 🎉':'할 일이 없어요'}</div></div>`;
   const s=sorted(arr);
+  const sum=ui.sort==='ai'&&S.ai&&S.ai.summary&&ui.view!=='done'?`<div class="aisum"><span>✨</span><span><b>AI 추천</b> · ${esc(S.ai.summary)}<br><small style="color:var(--sub)">${new Date(S.ai.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} 기준 · 할 일이 바뀌면 다시 눌러 주세요</small></span><button data-aioff title="마감일 순으로">✕</button></div>`:'';
+  if(ui.sort==='ai'&&ui.view!=='done') return sum+`<div class="list">${s.map(row).join('')}</div>`;
   if(ui.sort!=='due'||ui.view==='done'){
     const a=ui.view==='done'?arr.slice().sort((a,b)=>(b.doneAt||0)-(a.doneAt||0)):s;
     return `<div class="list">${a.map(row).join('')}</div>`;
@@ -527,6 +653,17 @@ $('#loginBtn').onclick=()=>{
     $('#gateMsg').innerHTML=e&&/popup-blocked/.test(e.code)?'팝업이 막혔어요. 버튼을 한 번 더 눌러 주세요.':'로그인이 안 됐어요 ('+esc(e&&e.code)+')<br>Safari나 Chrome에서 열어 주세요.';
   });
 };
+$('#aiInBtn').onclick=()=>openIngest('');
+$('#aiSortBtn').onclick=aiSort;
+$('#drawer').addEventListener('click',async e=>{
+  if(e.target.id==='extractBtn') extract();
+  if(e.target.id==='addPicks') addPicks();
+  if(e.target.id==='pasteBtn'){try{const t=await navigator.clipboard.readText();if(t){$('#inTxt').value=t;}}catch(_){$('#inTxt').focus();toast('입력 칸을 길게 눌러 붙여넣기 해 주세요');}}
+},true);
+$('#drawer').addEventListener('change',e=>{if(e.target.dataset.pk!==undefined){picks[+e.target.dataset.pk].on=e.target.checked;}},true);
+$('#drawer').addEventListener('input',e=>{if(e.target.dataset.pt!==undefined){picks[+e.target.dataset.pt].title=e.target.value;}},true);
+document.addEventListener('click',e=>{if(e.target.closest('[data-aioff]')){ui.sort='due';render();}});
+window.addEventListener('hashchange',()=>{const t=takeShared();if(t!==null&&user)openIngest(t);});
 document.addEventListener('click',e=>{if(e.target.id==='logoutBtn'&&confirm('로그아웃할까요?')) F.AU.signOut(F.auth);});
 render(); boot();
 })();
