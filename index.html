@@ -98,6 +98,17 @@ h1{font-size:28px;margin:0;letter-spacing:-.03em}
 .dfoot{display:flex;justify-content:space-between;margin-top:auto;padding-top:10px;font-size:12px;color:var(--sub);align-items:center}
 .del{color:var(--red);font-weight:700}
 .x{position:absolute;top:14px;right:16px;font-size:22px;color:var(--sub)}
+.gate{position:fixed;inset:0;background:var(--bg);z-index:40;display:grid;place-items:center;padding:20px}
+.gate .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:32px 28px;max-width:360px;width:100%;text-align:center;box-shadow:var(--shadow)}
+.gate h2{margin:12px 0 6px;font-size:24px;letter-spacing:-.03em}
+.gate p{color:var(--sub);margin:0 0 20px;font-size:14px}
+.gate .g{width:100%;padding:12px;border-radius:10px;background:var(--accent);color:var(--bg);font-weight:700}
+.gate small{display:block;margin-top:14px;color:var(--sub);font-size:12px}
+.acct{font-size:12px;color:var(--sub);padding:12px 10px 0;display:flex;align-items:center;gap:6px;overflow:hidden}
+.acct span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.acct button{color:var(--sub);text-decoration:underline;font-size:12px;flex:none}
+.sync{font-size:12px;color:var(--sub);margin-left:auto}
+.sync.err{color:var(--red);font-weight:700}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;transition:.25s;z-index:30;display:flex;gap:14px;align-items:center}
 .toast.on{transform:translateX(-50%)}
 .toast button{color:var(--gold);font-weight:700}
@@ -124,10 +135,11 @@ h1{font-size:28px;margin:0;letter-spacing:-.03em}
       <button id="backupBtn">백업</button>
       <button id="restoreBtn">복원</button>
     </div>
+    <div class="acct" id="acct"></div>
     <input type="file" id="fileIn" accept="application/json" hidden>
   </aside>
   <main>
-    <div class="top"><button class="menu-btn" id="menuBtn">☰</button><h1 id="viewTitle">오늘</h1><span class="date" id="today"></span></div>
+    <div class="top"><button class="menu-btn" id="menuBtn">☰</button><h1 id="viewTitle">오늘</h1><span class="date" id="today"></span><span class="sync" id="sync"></span></div>
     <div class="stats" id="stats"></div>
     <form class="quick" id="quick"><input id="qin" placeholder="할 일 추가…  (단축키 N)" autocomplete="off"><button>추가</button></form>
     <div class="hint">빠른 입력: <code>내일</code> <code>모레</code> <code>금요일</code> <code>12/5</code> 날짜 · <code>#프로젝트</code> · <code>!1</code> 긴급 <code>!2</code> 높음 <code>!3</code> 보통</div>
@@ -140,11 +152,19 @@ h1{font-size:28px;margin:0;letter-spacing:-.03em}
 </div>
 <div class="shade" id="shade"></div>
 <div class="drawer" id="drawer"></div>
+<div class="gate" id="gate"><div class="box">
+  <svg width="48" height="48" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1f2a44"/><path d="M18 33l9 9 19-20" stroke="#f2b84b" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <h2>업무</h2><p id="gateMsg">연결 중…</p>
+  <button class="g" id="loginBtn" style="display:none">Google로 로그인</button>
+  <small>카카오톡 안 브라우저에서는 로그인이 안 돼요. Chrome이나 Safari로 열어 주세요.</small>
+</div></div>
 <div class="toast" id="toast"><span id="toastMsg"></span><button id="toastUndo">되돌리기</button></div>
 
 <script>
 (()=>{
 const KEY='workapp.v1';
+const FB_CONFIG={apiKey:"AIzaSyDbt4FrmyLyzQCMU98ZKUyp2QhSJfLgDIs",authDomain:"study-ho.firebaseapp.com",projectId:"study-ho",storageBucket:"study-ho.firebasestorage.app",messagingSenderId:"535637659184",appId:"1:535637659184:web:8f26bf8d8b0d1e187027f5"};
+const FV='https://www.gstatic.com/firebasejs/10.12.2/';
 const COLORS=['#3b6fd1','#2f8a5b','#d89a2b','#c8463d','#8a5bd1','#2a9bb0','#d1609b','#6b7280'];
 const STATUS={todo:'할 일',doing:'진행 중',done:'완료'};
 const PRI={1:'긴급',2:'높음',3:'보통',4:'없음'};
@@ -182,7 +202,53 @@ function load(){
   try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.tasks) return s;}catch(e){}
   return seed();
 }
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function save(){S.updated=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}push();}
+
+// ---------- cloud sync (Firestore: work/{uid}) ----------
+let F=null,user=null,unsub=null,pushT=null,syncState='';
+function setSync(t,err){syncState=t;const el=$('#sync');if(el){el.textContent=t;el.className='sync'+(err?' err':'');}}
+function push(){
+  if(!F||!user) return; clearTimeout(pushT); setSync('저장 중…');
+  pushT=setTimeout(()=>{
+    F.FS.setDoc(F.FS.doc(F.db,'work',user.uid),{data:JSON.stringify(S),updated:S.updated||Date.now(),email:user.email||''})
+      .then(()=>setSync('☁️ 저장됨'))
+      .catch(e=>setSync('저장 안 됨 ('+(e&&e.code||'오류')+')',true));
+  },500);
+}
+function gate(msg,showBtn){
+  $('#gate').style.display=msg===null?'none':'grid';
+  if(msg!==null){$('#gateMsg').innerHTML=msg;$('#loginBtn').style.display=showBtn?'':'none';}
+}
+async function boot(){
+  try{
+    const [A,AU,FS]=await Promise.all([import(FV+'firebase-app.js'),import(FV+'firebase-auth.js'),import(FV+'firebase-firestore.js')]);
+    const app=A.initializeApp(FB_CONFIG);
+    F={AU,FS,auth:AU.getAuth(app),db:FS.getFirestore(app)};
+    AU.onAuthStateChanged(F.auth,u=>{
+      if(unsub){unsub();unsub=null;}
+      user=u; renderAcct();
+      if(!u){gate('PC와 휴대폰에서 같은 할 일을 보려면<br>Google 계정으로 로그인해 주세요.',true);return;}
+      gate(null); setSync('불러오는 중…');
+      unsub=FS.onSnapshot(FS.doc(F.db,'work',u.uid),snap=>{
+        if(snap.metadata.hasPendingWrites) return;
+        if(!snap.exists()){push();return;}            // 처음: 이 기기 데이터를 올림
+        const d=snap.data();
+        if((d.updated||0)>(S.updated||0)){
+          try{S=JSON.parse(d.data);localStorage.setItem(KEY,d.data);}catch(e){}
+          render(); if(ui.open&&!S.tasks.find(t=>t.id===ui.open)) closeTask();
+        }else if((d.updated||0)<(S.updated||0)) push();  // 이 기기가 더 최신(오프라인 중 수정)
+        setSync('☁️ 저장됨');
+      },e=>{
+        if(e&&e.code==='permission-denied') setSync('권한 없음 — Firestore 규칙 확인',true);
+        else setSync('연결 끊김',true);
+      });
+    });
+  }catch(e){gate('연결이 안 됐어요. 인터넷을 확인하고 새로고침해 주세요.',false);}
+}
+function renderAcct(){
+  const el=$('#acct'); if(!el) return;
+  el.innerHTML=user?`<span title="${esc(user.email)}">${esc(user.email||'로그인됨')}</span><button id="logoutBtn">로그아웃</button>`:'';
+}
 let ui={view:'today',proj:null,q:'',sort:'due',open:null};
 let undoFn=null,toastT;
 
@@ -437,9 +503,17 @@ document.addEventListener('keydown',e=>{
   if(!typing&&e.key==='/'){e.preventDefault();$('#search').focus();}
 });
 // refresh at midnight / when returning
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){S=load();render();}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)render();});
 window.addEventListener('storage',e=>{if(e.key===KEY){S=load();render();}});
-render();
+$('#loginBtn').onclick=()=>{
+  const p=new F.AU.GoogleAuthProvider();
+  F.AU.signInWithPopup(F.auth,p).catch(e=>{
+    if(e&&/popup-blocked|operation-not-supported/.test(e.code)) F.AU.signInWithRedirect(F.auth,p);
+    else if(!(e&&/popup-closed|cancelled-popup/.test(e.code))) $('#gateMsg').textContent='로그인이 안 됐어요 ('+(e&&e.code)+')';
+  });
+};
+document.addEventListener('click',e=>{if(e.target.id==='logoutBtn'&&confirm('로그아웃할까요?')) F.AU.signOut(F.auth);});
+render(); boot();
 })();
 </script>
 </body>
