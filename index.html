@@ -116,6 +116,44 @@ h1{font-size:28px;margin:0;letter-spacing:-.03em}
 .pick input[type=checkbox]{width:18px;height:18px;margin-top:3px;flex:none}
 .drawer .pick .pt{font-weight:600;border:0;background:none;padding:0;width:100%}
 .pick .pm{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.live{position:fixed;inset:0;background:var(--bg);z-index:35;display:none;flex-direction:column}
+.live.on{display:flex}
+.lhead{display:flex;align-items:center;gap:12px;padding:14px clamp(14px,3vw,28px);border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+.lhead h2{margin:0;font-size:18px;letter-spacing:-.02em}
+.rec{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums}
+.rec i{width:10px;height:10px;border-radius:50%;background:var(--sub)}
+.rec.on i{background:var(--red);animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+.lhead .sp{margin-left:auto;display:flex;gap:8px}
+.lbtn{padding:8px 14px;border-radius:9px;background:var(--soft);font-weight:700}
+.lbtn.main{background:var(--accent);color:var(--bg)}
+.lbtn.stop{background:var(--red);color:#fff}
+.lbody{flex:1;display:grid;grid-template-columns:1.1fr 1fr;min-height:0}
+.ltrans{overflow:auto;padding:18px clamp(14px,3vw,28px);border-right:1px solid var(--line);font-size:15px;line-height:1.75}
+.ltrans p{margin:0 0 6px}
+.ltrans .int{color:var(--sub)}
+.ltrans .ph{color:var(--sub);text-align:center;margin-top:12vh;line-height:1.8}
+.lai{overflow:auto;padding:18px clamp(14px,3vw,28px);display:flex;flex-direction:column;gap:14px}
+.lai h4{margin:0 0 6px;font-size:12px;color:var(--sub);font-weight:700;display:flex;justify-content:space-between}
+.lai .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.lai ul{margin:0;padding-left:18px}
+.lai li{margin:3px 0}
+.lai .ttl{font-size:17px;font-weight:800;letter-spacing:-.02em}
+.mine label{display:flex;gap:9px;align-items:flex-start;padding:5px 0;font-size:14px;color:var(--ink);margin:0}
+.mine input{margin-top:4px;flex:none}
+.upd{font-weight:400}
+.call{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer}
+.call .ch{display:flex;gap:10px;align-items:baseline}
+.call .ch b{font-size:16px}
+.call .ch span{color:var(--sub);font-size:12px;margin-left:auto;white-space:nowrap}
+.call .cs{color:var(--sub);font-size:14px;margin-top:4px}
+.call .cx{display:none;margin-top:10px;font-size:14px}
+.call.open .cx{display:block}
+.call .cx pre{white-space:pre-wrap;font:inherit;background:var(--bg);border-radius:8px;padding:10px;max-height:300px;overflow:auto;color:var(--sub);font-size:13px}
+.startcall{display:flex;align-items:center;gap:14px;background:var(--accent);color:var(--bg);border-radius:14px;padding:18px 20px;margin-bottom:18px;width:100%;text-align:left}
+.startcall b{font-size:17px;display:block}
+.startcall small{opacity:.75}
+@media (max-width:760px){.lbody{grid-template-columns:1fr;grid-template-rows:1fr 1fr}.ltrans{border-right:0;border-bottom:1px solid var(--line)}}
 .gate{position:fixed;inset:0;background:var(--bg);z-index:40;display:grid;place-items:center;padding:20px}
 .gate .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:32px 28px;max-width:360px;width:100%;text-align:center;box-shadow:var(--shadow)}
 .gate h2{margin:12px 0 6px;font-size:24px;letter-spacing:-.03em}
@@ -172,6 +210,22 @@ h1{font-size:28px;margin:0;letter-spacing:-.03em}
 </div>
 <div class="shade" id="shade"></div>
 <div class="drawer" id="drawer"></div>
+<div class="live" id="live">
+  <div class="lhead">
+    <h2>📞 실시간 통화 정리</h2>
+    <span class="rec" id="recState"><i></i><span id="recTime">대기 중</span></span>
+    <div class="sp">
+      <button class="lbtn main" id="liveToggle">🎙 듣기 시작</button>
+      <button class="lbtn" id="liveNow">✨ 지금 정리</button>
+      <button class="lbtn stop" id="liveEnd">통화 끝 · 저장</button>
+      <button class="lbtn" id="liveClose">닫기</button>
+    </div>
+  </div>
+  <div class="lbody">
+    <div class="ltrans" id="ltrans"><div class="ph"><b>전화가 오면</b> 노트북(휴대폰과 연결)에서 받고<br>「🎙 듣기 시작」을 누르세요.<br>통화 중 내용이 왼쪽에 받아써지고,<br>오른쪽에 요약·내 할 일이 자동 정리돼요.<br><small>Chrome 또는 Edge · 마이크 허용 필요</small></div></div>
+    <div class="lai" id="lai"></div>
+  </div>
+</div>
 <div class="gate" id="gate"><div class="box">
   <svg width="48" height="48" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1f2a44"/><path d="M18 33l9 9 19-20" stroke="#f2b84b" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <h2>업무</h2><p id="gateMsg">연결 중…</p>
@@ -378,6 +432,127 @@ function takeShared(){
   return null;
 }
 let pendingIn=takeShared();
+// ---------- 실시간 통화 정리 ----------
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let L=null; // live session
+function callsView(){
+  const calls=(S.calls||[]).slice().sort((a,b)=>b.at-a.at);
+  const fmt=t=>new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',weekday:'short',hour:'numeric',minute:'2-digit'});
+  return `<button class="startcall" id="openLive"><span style="font-size:28px">🎙</span><span><b>실시간 통화 정리 시작</b><small>노트북으로 전화를 받는 동안 받아쓰고, AI가 요약·할 일을 바로 정리해요</small></span></button>`+
+  (calls.length?calls.map(c=>`<div class="call" data-call="${c.id}">
+    <div class="ch"><b>${esc(c.title||'통화')}</b><span>${fmt(c.at)} · ${Math.max(1,Math.round((c.dur||0)/60))}분</span></div>
+    <div class="cs">${esc(c.summary||'')}</div>
+    <div class="cx">
+      ${c.points&&c.points.length?`<label>핵심 내용</label><ul>${c.points.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:''}
+      ${c.theirs&&c.theirs.length?`<label>상대가 할 일</label><ul>${c.theirs.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:''}
+      ${c.taskIds&&c.taskIds.length?`<label>추가한 할 일</label><ul>${c.taskIds.map(id=>S.tasks.find(t=>t.id===id)).filter(Boolean).map(t=>`<li>${esc(t.title)}${t.status==='done'?' ✓':''}</li>`).join('')}</ul>`:''}
+      <label>받아쓴 내용</label><pre>${esc(c.transcript||'')}</pre>
+      <button class="del" data-calldel="${c.id}">이 기록 삭제</button>
+    </div></div>`).join(''):`<div class="list"><div class="empty">아직 정리한 통화가 없어요</div></div>`);
+}
+function openLive(){
+  if(!SR){toast('이 브라우저는 받아쓰기를 지원하지 않아요. 노트북의 Chrome이나 Edge에서 열어 주세요.');return;}
+  if(L&&L.on){$('#live').classList.add('on');return;}
+  L={on:false,final:[],interim:'',start:0,elapsed:0,timer:null,ai:null,aiAt:0,aiLen:0,busy:false,rec:null,picked:{}};
+  $('#ltrans').innerHTML=$('#ltrans').dataset.ph||$('#ltrans').innerHTML; $('#ltrans').dataset.ph=$('#ltrans').innerHTML;
+  renderAI(); $('#live').classList.add('on'); setRec();
+}
+function transcript(){return L.final.join('\n');}
+function setRec(){
+  const t=Math.floor((L.elapsed+(L.on?Date.now()-L.start:0))/1000);
+  $('#recState').className='rec'+(L.on?' on':'');
+  $('#recTime').textContent=(L.on?'듣는 중 ':'멈춤 ')+`${Math.floor(t/60)}:${pad(t%60)}`;
+  $('#liveToggle').textContent=L.on?'⏸ 잠깐 멈춤':(L.final.length?'🎙 다시 듣기':'🎙 듣기 시작');
+}
+function startRec(){
+  const r=new SR(); r.lang='ko-KR'; r.continuous=true; r.interimResults=true;
+  r.onresult=e=>{
+    let inter='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const tx=e.results[i][0].transcript.trim();
+      if(e.results[i].isFinal){ if(tx) L.final.push(tx); } else inter+=tx+' ';
+    }
+    L.interim=inter.trim(); paintTrans(); maybeAI();
+  };
+  r.onerror=e=>{ if(e.error==='not-allowed'||e.error==='service-not-allowed'){L.on=false;setRec();toast('마이크 사용을 허용해 주세요 (주소창 왼쪽 자물쇠 아이콘)');} };
+  r.onend=()=>{ if(L&&L.on){ try{r.start();}catch(_){setTimeout(()=>{try{r.start()}catch(e){}},300);} } };
+  L.rec=r; r.start();
+}
+function toggleRec(){
+  if(!L) return;
+  if(L.on){L.on=false;L.elapsed+=Date.now()-L.start;try{L.rec.stop()}catch(e){};clearInterval(L.timer);}
+  else{L.on=true;L.start=Date.now();if(!L.final.length)$('#ltrans').innerHTML='';try{startRec();}catch(e){toast('받아쓰기를 시작하지 못했어요');L.on=false;}L.timer=setInterval(()=>{setRec();maybeAI();},1000);}
+  setRec();
+}
+function paintTrans(){
+  const el=$('#ltrans'); const atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<60;
+  el.innerHTML=L.final.map(t=>`<p>${esc(t)}</p>`).join('')+(L.interim?`<p class="int">${esc(L.interim)}</p>`:'');
+  if(atBottom) el.scrollTop=el.scrollHeight;
+}
+function maybeAI(){
+  const len=transcript().length;
+  if(L.busy||len<60) return;
+  if(len-L.aiLen>=120&&Date.now()-L.aiAt>35000) runAI(false);
+}
+async function runAI(final){
+  if(!L||L.busy) return; const tx=transcript(); if(tx.length<20){if(!final)toast('아직 받아쓴 내용이 적어요');return;}
+  L.busy=true; L.aiAt=Date.now(); L.aiLen=tx.length; renderAI('정리 중…');
+  try{
+    const o=await askAI(`지금은 ${nowInfo()}이다. 아래는 사용자(나)가 업무 통화를 스피커폰으로 하면서 받아쓴 내용이다(${final?'통화 끝':'통화 진행 중'}).
+음성 인식이라 오타, 끊김, 화자 구분 없음이 있다. 맥락으로 알아듣고 정리하라. 지어내지 말고 들은 내용만 쓴다.
+- title: 통화 제목 (상대·용건, 20자 이내. 예: "김과장 · 견적 일정")
+- summary: 한두 문장 요약
+- points: 결정된 것, 숫자, 날짜, 조건 등 핵심 (최대 6개, 짧게)
+- mine: 내가 해야 할 일 [{title:동사로 끝나는 한 줄, due:YYYY-MM-DD 또는 null, pri:1~4}]
+- theirs: 상대가 하기로 한 일 (짧게)
+JSON으로만 답하라: {"title":"","summary":"","points":[],"mine":[{"title":"","due":null,"pri":3}],"theirs":[]}
+
+<받아쓴 내용>
+${tx.slice(-18000)}
+</받아쓴 내용>`);
+    L.ai={title:String(o.title||''),summary:String(o.summary||''),points:(o.points||[]).map(String).slice(0,8),
+      mine:(o.mine||[]).filter(t=>t&&t.title).map(t=>({title:String(t.title),due:/^\d{4}-\d{2}-\d{2}$/.test(t.due||'')?t.due:null,pri:[1,2,3,4].includes(+t.pri)?+t.pri:3})),
+      theirs:(o.theirs||[]).map(String).slice(0,6)};
+    L.ai.mine.forEach(m=>{if(L.picked[m.title]===undefined)L.picked[m.title]=true;});
+    renderAI();
+  }catch(e){renderAI();toast(e.message);}
+  L.busy=false;
+}
+function renderAI(status){
+  const a=L&&L.ai;
+  const upd=status||(L&&L.aiAt?`${new Date(L.aiAt).toLocaleTimeString('ko-KR',{hour:'numeric',minute:'2-digit'})} 정리`:'');
+  if(!a){$('#lai').innerHTML=`<div class="box"><h4>AI 정리 <span class="upd">${esc(status||'')}</span></h4><p class="note" style="font-size:14px;color:var(--sub)">받아쓰기가 쌓이면 30~40초마다 요약, 핵심 내용, 내 할 일이 여기에 자동으로 정리돼요.</p></div>`;return;}
+  $('#lai').innerHTML=`
+    <div class="box"><h4>요약 <span class="upd">${esc(upd)}</span></h4><div class="ttl">${esc(a.title)}</div><div style="margin-top:4px">${esc(a.summary)}</div></div>
+    ${a.points.length?`<div class="box"><h4>핵심 내용</h4><ul>${a.points.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></div>`:''}
+    <div class="box mine"><h4>내 할 일 <span class="upd">체크한 것만 저장돼요</span></h4>${a.mine.length?a.mine.map((m,i)=>`<label><input type="checkbox" data-mine="${i}" ${L.picked[m.title]!==false?'checked':''}><span>${esc(m.title)} ${m.due?`<span class="chip ${diffDays(m.due)<=0?'today':''}">${dueLabel(m.due)}</span>`:''}${m.pri<=2?` <span class="chip late">${PRI[m.pri]}</span>`:''}</span></label>`).join(''):'<span style="color:var(--sub);font-size:14px">아직 없어요</span>'}</div>
+    ${a.theirs.length?`<div class="box"><h4>상대가 할 일</h4><ul>${a.theirs.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></div>`:''}`;
+}
+async function endCall(){
+  if(!L) return;
+  if(L.on) toggleRec();
+  const tx=transcript();
+  if(!tx.trim()){closeLive(true);return;}
+  $('#liveEnd').disabled=true; $('#liveEnd').textContent='마무리 정리 중…';
+  if(tx.length!==L.aiLen||!L.ai) await runAI(true);
+  const a=L.ai||{title:'통화',summary:'',points:[],mine:[],theirs:[]};
+  const callId=uid(), taskIds=[];
+  a.mine.filter(m=>L.picked[m.title]!==false).forEach(m=>{
+    const id=uid(); taskIds.push(id);
+    S.tasks.push({id,title:m.title,project:null,due:m.due,pri:m.pri,status:'todo',memo:`📞 ${a.title}\n${a.summary}`,subs:[],created:Date.now(),doneAt:null,call:callId});
+  });
+  S.calls=S.calls||[];
+  S.calls.push({id:callId,at:Date.now()-L.elapsed,dur:Math.round(L.elapsed/1000),title:a.title,summary:a.summary,points:a.points,theirs:a.theirs,taskIds,transcript:tx.slice(0,30000)});
+  if(S.calls.length>200) S.calls=S.calls.sort((x,y)=>y.at-x.at).slice(0,200);
+  save(); $('#liveEnd').disabled=false; $('#liveEnd').textContent='통화 끝 · 저장';
+  closeLive(true); ui.view='calls'; ui.proj=null; render();
+  toast(`통화를 저장했어요${taskIds.length?` · 할 일 ${taskIds.length}개 추가`:''}`);
+}
+function closeLive(force){
+  if(!force&&L&&transcript().trim()&&!confirm('저장하지 않고 닫을까요? (받아쓴 내용이 사라져요)')) return;
+  if(L&&L.on) toggleRec(); if(L) clearInterval(L.timer); L=null;
+  $('#live').classList.remove('on');
+}
 function renderAcct(){
   const el=$('#acct'); if(!el) return;
   el.innerHTML=user?`<span title="${esc(user.email)}">${esc(user.email||'로그인됨')}</span><button id="logoutBtn">로그아웃</button>`:'';
@@ -424,6 +599,7 @@ function views(){
     {id:'nodate',name:'날짜 없음',ic:'📥',f:x=>open(x)&&!x.due},
     {id:'board',name:'보드',ic:'🗂️',f:()=>true},
     {id:'done',name:'완료',ic:'✅',f:x=>x.status==='done'},
+    {id:'calls',name:'통화 기록',ic:'📞',f:()=>false},
   ];
 }
 function sorted(arr){
@@ -471,6 +647,9 @@ function render(){
     <div class="stat"><b>${doing}</b><span>진행 중</span></div>
     <div class="stat"><b>${doneWk}</b><span>이번 주 완료</span></div>`;
   $('#sort').value=ui.sort;
+  const isCalls=ui.view==='calls'&&!ui.proj;
+  $('#toolbar').style.display=isCalls?'none':'';
+  if(isCalls){$('#view').innerHTML=callsView();return;}
   const arr=current();
   $('#view').innerHTML = (ui.view==='board'&&!ui.proj)||(ui.proj&&ui.view==='board') ? board(arr) : list(arr);
 }
@@ -654,6 +833,18 @@ $('#loginBtn').onclick=()=>{
   });
 };
 $('#aiInBtn').onclick=()=>openIngest('');
+$('#liveToggle').onclick=toggleRec;
+$('#liveNow').onclick=()=>runAI(false);
+$('#liveEnd').onclick=endCall;
+$('#liveClose').onclick=()=>closeLive(false);
+$('#lai').addEventListener('change',e=>{const i=e.target.dataset.mine;if(i!==undefined&&L&&L.ai){L.picked[L.ai.mine[+i].title]=e.target.checked;}});
+document.addEventListener('click',e=>{
+  if(e.target.closest('#openLive')) return openLive();
+  const del=e.target.closest('[data-calldel]');
+  if(del){if(confirm('이 통화 기록을 삭제할까요? (추가한 할 일은 남아요)')){S.calls=S.calls.filter(c=>c.id!==del.dataset.calldel);save();render();}return;}
+  const c=e.target.closest('.call'); if(c) c.classList.toggle('open');
+});
+window.addEventListener('beforeunload',e=>{if(L&&transcript().trim()){e.preventDefault();e.returnValue='';}});
 $('#aiSortBtn').onclick=aiSort;
 $('#drawer').addEventListener('click',async e=>{
   if(e.target.id==='extractBtn') extract();
