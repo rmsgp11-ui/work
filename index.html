@@ -443,7 +443,9 @@ function rawEvents(Y,M){
   else if(Y>2027||(Y===2027&&M>=2)) add('L','gan','간이지급명세서 (근로·매월)',act.filter(emp));
   if(M===1) add(25,'vat','부가세 확정신고 (2기)',act.filter(c=>c.vat!=='면세'));
   if(M===7) add(25,'vat','부가세 확정신고 (1기)',act.filter(c=>c.vat==='일반'));
-  if(M===4||M===10){add(25,'vat',`부가세 예정신고 (${M===4?1:2}기)`,act.filter(c=>corp(c)&&c.vat==='일반'));add(25,'vatp','부가세 예정고지 납부',act.filter(c=>!corp(c)&&c.vat==='일반'));}
+  if(M===4||M===10){const pre=c=>c.vatPre||(corp(c)?'신고':'고지');
+    add(25,'vat',`부가세 예정신고 (${M===4?1:2}기)`,act.filter(c=>c.vat==='일반'&&pre(c)==='신고'));
+    add(25,'vatp','부가세 예정고지 납부',act.filter(c=>c.vat==='일반'&&pre(c)==='고지'));}
   if(M===2) add(10,'biz','사업장현황신고 (면세)',act.filter(c=>!corp(c)&&c.vat==='면세'));
   act.filter(corp).forEach(c=>{const fy=+c.fy||12,mm=k=>((fy+k-1)%12)+1;
     if(M===mm(3)) add('L','cit','법인세 신고·납부',[c]);
@@ -742,6 +744,7 @@ window.__importTalk=importTalk;
 /* 신고현황 엑셀 → 세무 일정 체크: __checks.mark([{bizno|cid,t,y,m,label}]) */
 window.__checks={
   clients:()=>S.clients.map(c=>({id:c.id,name:c.name,bizno:String(c.bizno||'').replace(/\D/g,''),wh:c.wh||'',type:c.type,vat:c.vat})),
+  setField:(list)=>{let n=0;list.forEach(([b,k,v])=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(b));if(c){c[k]=v;n++;}});save();if(!ui.drawer)render();return n;},
   mark:(list)=>{let ok=0,miss=[];for(const o of list){const c=o.cid?cl(o.cid):S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(o.bizno||'').replace(/\D/g,''));if(!c){miss.push(o.name||o.bizno);continue;}
     const e=rawEvents(o.y,o.m).find(e=>e.t===o.t&&(!o.label||e.label.startsWith(o.label)));if(!e){miss.push((o.name||c.name)+' '+o.t+' '+o.y+'-'+o.m);continue;}
     const k=`${e.t}|${e.raw}|${e.label}|${c.id}`;if(!S.checks[k])S.checks[k]=Date.now();ok++;}
@@ -1033,7 +1036,7 @@ function openClient(id){
     <div class="kvg">${kv('담당자',c.contact)}<div class="kv"><span>전화</span><b>${tel?`<a href="tel:${tel}">${esc(c.phone)}</a>`:'<i>—</i>'}</b></div>${kv('이메일',c.email,1)}${kv('업태 / 업종',[c.biz1,c.biz2].filter(Boolean).join(' / '))}</div>
     <div class="kvg one">${kv('사업장 주소',c.addr,1)}</div>
     ${c.memo?`<div class="memo">${esc(c.memo)}</div>`:''}</div>
-    <div class="box"><h4>세무 설정</h4><div class="kvg">${kv('구분',c.type)}${kv('과세유형',c.vat)}${kv('원천세',WHL[c.wh||''])}${c.type==='법인'?kv('결산월',(c.fy||12)+'월'):kv('성실신고',c.sincere?'대상 (6월)':'아님 (5월)')}${kv('상태',c.status||'계속사업')}${c.close?kv('폐업일',c.close):''}</div></div>`;
+    <div class="box"><h4>세무 설정</h4><div class="kvg">${kv('구분',c.type)}${kv('과세유형',c.vat)}${c.vat==='일반'?kv('부가세 예정',c.vatPre?({'신고':'예정신고','고지':'예정고지 납부','없음':'없음 (기준 미만)'})[c.vatPre]:(c.type==='법인'?'예정신고 (기본)':'예정고지 (기본)')):''}${kv('원천세',WHL[c.wh||''])}${c.type==='법인'?kv('결산월',(c.fy||12)+'월'):kv('성실신고',c.sincere?'대상 (6월)':'아님 (5월)')}${kv('상태',c.status||'계속사업')}${c.close?kv('폐업일',c.close):''}</div></div>`;
   const basicEdit=`<div class="box"><h4>기본 정보 수정 <button class="btn s" data-a="cEdit" style="margin-left:auto">완료</button></h4><div style="display:flex;flex-direction:column;gap:10px">
       ${f('name','상호')}<div class="r2">${f('ceo','대표자')}${f('bizno','사업자등록번호','text','000-00-00000')}</div>${c.type==='법인'?f('corpno','법인등록번호'):''}
       <div id="vaultBox"></div>
@@ -1046,6 +1049,7 @@ function openClient(id){
         <div><label>과세유형</label><select data-cf2="vat">${['일반','간이','면세'].map(v=>`<option ${c.vat===v?'selected':''}>${v}</option>`).join('')}</select></div></div>
       <div class="r2"><div><label>원천세</label><select data-cf2="wh">${[['당월','매월 (직원 있음)'],['반기','반기 납부'],['사업소득','사업소득(3.3%)만'],['직원없음','직원 없음'],['','모름']].map(([k,v])=>`<option value="${k}" ${(c.wh||'')===k?'selected':''}>${v}</option>`).join('')}</select></div>
         ${c.type==='법인'?`<div><label>결산월</label><select data-cf2="fy">${[...Array(12)].map((_,i)=>`<option value="${i+1}" ${(+c.fy||12)===i+1?'selected':''}>${i+1}월</option>`).join('')}</select></div>`:`<div><label>성실신고 대상</label><select data-cf2="sincere"><option value="0" ${!c.sincere?'selected':''}>아니요 (5월)</option><option value="1" ${c.sincere?'selected':''}>예 (6월)</option></select></div>`}</div>
+      <div><label>부가세 예정 (4·10월)</label><select data-cf2="vatPre">${[['','기본 (법인 신고 / 개인 고지)'],['신고','예정신고'],['고지','예정고지 납부'],['없음','없음 (고지 기준 미만·신고의무 없음)']].map(([k,v])=>`<option value="${k}" ${(c.vatPre||'')===k?'selected':''}>${v}</option>`).join('')}</select></div>
       <div class="r2"><div><label>개업일</label><input data-cf2="open" type="date" value="${esc(c.open||'')}"></div><div><label>폐업일</label><input data-cf2="close" type="date" value="${esc(c.close||'')}"></div></div>
       <div><label>상태</label><select data-cf2="status">${['','휴업','폐업'].map(v=>`<option value="${v}" ${(c.status||'')===v?'selected':''}>${v||'계속사업'}</option>`).join('')}</select></div></div></div>
     <div style="display:flex;justify-content:flex-end"><button class="del" data-a="clientDel">거래처 삭제</button></div>`;
