@@ -675,7 +675,7 @@ function importTalk(d){
   const have=new Set(S.logs.map(l=>l.key).filter(Boolean));let add=0,dup=0,skip=[],miss=[];
   for(const g of d['업체']){
     if(/내부/.test(g['구분']||'')){skip.push(g['업체명']);continue;}
-    const names=String(g['업체명']||'').replace(/대표\s*개인톡|\(.*?\)/g,m=>m.startsWith('(')?','+m.slice(1,-1):'').split(/[,，]/).map(x=>x.trim()).filter(Boolean);
+    const names=String(g['업체명']||'').replace(/대표\s*개인톡|\((?!주\)|유\))(.*?)\)/g,m=>m.startsWith('(')?','+m.slice(1,-1):'').split(/[,，]/).map(x=>x.trim()).filter(Boolean);
     const ids=[...new Set(names.map(n=>matchClient(n)||matchClient(n.replace(/[_\s].*$/,''))).filter(Boolean))];
     if(!ids.length){miss.push(g['업체명']);continue;}
     for(const h of g['히스토리']||[]){
