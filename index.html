@@ -863,7 +863,7 @@ function repCols(kind,Y){
 }
 const _rawC={};const rawC=(y,m)=>_rawC[y+'-'+m]||(_rawC[y+'-'+m]=rawEvents(y,m));
 function repCell(cid,col){
-  const evs=[];col.ev.forEach(([y,m,ts])=>rawC(y,m).forEach(e=>{if(ts.includes(e.t)&&e.ids.includes(cid))evs.push(e)}));
+  const c=cl(cid),op=c&&c.open||'',cz=c&&c.close||'';const evs=[];col.ev.forEach(([y,m,ts])=>rawC(y,m).forEach(e=>{if(ts.includes(e.t)&&e.ids.includes(cid)&&!(op&&e.raw<op)&&!(cz&&e.raw.slice(0,7)>addDays(cz,40).slice(0,7)))evs.push(e)}));
   if(!evs.length)return {na:true,evs};
   const keys=evs.map(e=>`${e.t}|${e.raw}|${e.label}|${cid}`),done=keys.every(k=>S.checks[k]);
   const due=evs.map(e=>nextBiz(e.raw)).sort()[0];
