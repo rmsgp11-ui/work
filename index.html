@@ -1157,7 +1157,7 @@ function vRepYe(p,past,cs,done,fin,ag){
       <input class="ri num ${typeof e.세액==='number'?(e.세액<0?'refund':'pay'):''}" data-rpi="${k}|e~${i}~세액" value="${num(e.세액)}" placeholder="차감징수(−환급)">
       <input class="ri wide" data-rpi="${k}|e~${i}~memo" value="${esc(e.memo||'')}" placeholder="메모"></div>`).join(''):'<div class="sub">직원 목록이 없어요</div>'}
       <div class="yee add"><input class="ri" data-yeadd="${k}" placeholder="＋ 직원 이름 입력 후 Enter"></div></div></td></tr>`:'';
-    return `<tr class="${ok?'ok':''}"><td class="nm"><button class="yet" data-yeo="${c.id}">${op?'▾':'▸'}</button><b ${c.ag?`data-agent="${c.id}"`:`data-client="${c.id}"`}>${esc(c.name)}</b><span>${E.length?`직원 ${E.length}명 · 전달 ${ed}`:''}${c.ag?' · 신고대리':''}</span></td>
+    return `<tr class="${ok?'ok':''}"><td class="nm" data-yeo="${c.id}" style="cursor:pointer"><span class="yet">${op?'▾':'▸'}</span><b>${esc(c.name)}</b><span>${E.length?`직원 ${E.length}명 · 전달 ${ed}`:''}${c.ag?' · 신고대리':''}</span></td>
     <td class="kinds">${YES.map(([f,n])=>`<button class="kp step ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
     <td><input class="ri num" data-rpi="${k}|인원" value="${E.length?E.length:num(r.인원)}" placeholder="인원" ${E.length?'readonly':''}></td>
     <td><input class="ri num ${typeof r.정산==='number'?(r.정산<0?'refund':'pay'):''}" data-rpi="${k}|정산" value="${num(r.정산)}" placeholder="추징(−환급)"></td>
