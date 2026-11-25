@@ -1186,7 +1186,7 @@ function rptSync(kind,per,cid,r){
     const R=whRow(r);rawEvents(y2,m2).filter(e=>e.t==='gan').forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;const v=e.label.includes('사업')?R.ganS:e.label.includes('근로')?R.ganG:null;if(v===null)return;if(v)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
   else if(kind==='ye'){const yr=+per.slice(0,4);rawEvents(yr+1,3).filter(e=>e.t==='jg'&&e.ids.includes(cid)).forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;if(r.제출)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
   else if(kind==='pit'||kind==='cit'){const yr=+per.slice(0,4),mid=per.includes('mid');const ts=kind==='pit'?(mid?['pitm']:['pit']):(mid?['citm']:['cit','citl']);const ey=mid?yr:yr+1;
-    for(let mm=1;mm<=12;mm++)rawEvents(ey,mm).filter(e=>ts.includes(e.t)&&e.ids.includes(cid)).forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;const ok=taxFin(kind,per)(r);if(ok)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
+    for(let mm=1;mm<=12;mm++)rawEvents(ey,mm).filter(e=>ts.includes(e.t)&&e.ids.includes(cid)).forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;const ok=r.hide||taxFin(kind,per)(r);if(ok)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
   else{const [Y,pk]=per.split('-');const pd=VP.find(x=>x[0]===pk);const ey=pk==='2f'?+Y+1:+Y;const G=r.고지==='고지',ok=G?r.전달:pk.endsWith('p')?r.전송:r.작성;
     rawEvents(ey,pd[2]).filter(e=>e.t===(G?'vatp':'vat')).forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;if(ok)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
 }
