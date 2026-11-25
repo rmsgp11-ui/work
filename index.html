@@ -180,7 +180,11 @@ body.wide main{max-width:1760px}
 .rsi.on{background:var(--acc2);box-shadow:inset 3px 0 0 var(--acc)}.rsi .t{flex:1;min-width:0}.rsi .t b{display:block;font-size:14px}.rsi .t span{font-size:11.5px;color:var(--sub)}
 .rsi .p{width:76px;text-align:right}.rsi .p span{font-size:12px;font-weight:700;color:var(--sub)}.rsi .p span.ok{color:var(--grn)}.rsi .p span.late{color:var(--red)}
 .yet{border:0;background:transparent;cursor:pointer;color:var(--sub);padding:0 4px 0 0;font-size:12px}.yesub td{background:var(--soft);padding:6px 12px 8px!important;text-align:left!important}.yee>*{text-align:left;justify-self:start}.yel{display:flex;flex-direction:column}.yee{display:grid;grid-template-columns:150px 170px 250px 130px minmax(120px,1fr);align-items:center;gap:12px;padding:5px 0 5px 26px;border-bottom:1px dashed var(--line);white-space:nowrap}.yee:last-child{border-bottom:0}.yee.yeh{font-size:11px;color:var(--sub);font-weight:600;padding-top:2px}.yee b{font-size:13px;overflow:hidden;text-overflow:ellipsis}.yee .sub{font-size:12px}.yee.ok b{color:var(--grn)}.yee .ks{display:flex;gap:4px}.yee .ri.num{width:120px}.yee .ri.wide{width:100%}.yee.add{display:block}.yee.add .ri{width:220px}
-.hks{grid-template-columns:repeat(5,1fr)}.hk em{display:block;font-style:normal;font-size:11px;color:var(--sub);margin-top:2px}.hk{cursor:pointer}
+.hks{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:6px}
+.hk{cursor:pointer;padding:14px 16px;border-left:4px solid var(--line);display:flex;flex-direction:column;gap:4px;min-width:0}.hk:hover{background:var(--soft)}
+.hk .kl{font-size:12px;color:var(--sub);font-weight:600}.hk b{font-size:26px;line-height:1.1;font-weight:800}.hk b small{font-size:13px;font-weight:600;margin-left:2px;color:var(--sub)}
+.hk em{font-style:normal;font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hk.bad{border-left-color:var(--red)}.hk.bad b{color:var(--red)}.hk.warn{border-left-color:var(--amb)}.hk.ok{border-left-color:var(--grn)}.hk.ok b{color:var(--sub)}
 .hgrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}@media(max-width:899px){.hgrid{grid-template-columns:1fr}.hks{grid-template-columns:repeat(2,1fr)}}
 .hr{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--line);cursor:pointer}.hr:first-child{border-top:0}.hr:hover{background:var(--soft)}.hr .t{flex:1;min-width:0}.hr .t b{display:block;font-size:14px}.hr .t span{font-size:12px;color:var(--sub)}.hr .t em{font-style:normal}.hr .t em.red{color:var(--red);font-weight:700}
 .hr .p{width:120px;text-align:right}.hr .p span{font-size:13px;font-weight:700;color:var(--red)}.hr .p span.ok{color:var(--grn)}.hr .p small{margin-left:6px;font-size:11px;color:var(--sub)}.hr .p i{display:block;height:5px;border-radius:9px;background:var(--soft);margin-top:5px;overflow:hidden}.hr .p i em{display:block;height:100%;background:var(--grn)}
@@ -664,17 +668,18 @@ function vHome(){
   const jobsChk=S.jobs.filter(j=>j.status==='check'||j.status==='fail'||(j.status==='done'&&j.review&&!j.reviewed)).length;
   const PL=homeProgLate(),R=homeRep();
   const logs=S.logs.slice().sort((a,b)=>b.at-a.at).slice(0,3);
-  const kpi=(tab,n,label,warn,sub)=>`<div class="card stat hk ${warn&&n?'warn':''}" data-tab="${tab}"><b>${n}</b><span>${label}</span>${sub?`<em>${sub}</em>`:''}</div>`;
+  const kpi=(tab,ic,label,val,sub,lv)=>`<div class="card hk ${lv||''}" data-tab="${tab}"><span class="kl">${ic} ${label}</span><b>${val}</b><em>${sub||''}</em></div>`;
+  const nx=evs[0],nxLeft=nx?nx.ids.length-doneCnt(nx):0;
   const repRow=r=>{const pc=r.tot?Math.round(r.done/r.tot*100):0,left=r.tot-r.done,d=diffDays(r.due);return `<div class="hr" data-hgo="${r.k}|${r.sel}|${r.y||''}">
     <div class="t"><b>${r.n}</b><span>${md(r.due)} · <em class="${left&&d<=7?'red':''}">${dday(r.due)}</em>${r.extra?' · '+r.extra:''}</span></div>
     <div class="p"><span class="${left?'':'ok'}">${left?`${left}곳 남음`:'완료'}</span><small>${r.done}/${r.tot}</small><i><em style="width:${pc}%"></em></i></div></div>`;};
   return head('홈',`<button class="btn g" data-a="ingest">✨ 톡·통화에서 할 일 뽑기</button>`)+`
-  <div class="stats hks">
-    ${kpi('cal',pastOpen.length,'지난 기한 미체크',1)}
-    ${kpi('cal',evs.length,'2주 내 세무 기한',1,evs[0]?`가장 빠른 ${md(evs[0].date)}`:'')}
-    ${kpi('tasks',todayTasks.length,'오늘 할 일',1,late?`기한 지남 ${late}`:'')}
-    ${kpi('prog',PL.n,'기장 밀린 거래처',1,`${PL.bm}월까지 기준`)}
-    ${kpi('jobs',jobsChk,'위하고 검토 대기',1)}
+  <div class="hks">
+    ${kpi('tasks','✅','오늘 할 일',`${todayTasks.length}<small>건</small>`,late?`기한 지남 ${late}건`:todayTasks.length?'오늘 마감 포함':'모두 처리했어요',late?'bad':todayTasks.length?'warn':'ok')}
+    ${kpi('cal','⏰','다음 마감',nx?dday(nx.date):'없음',nx?`${md(nx.date)} ${esc(nx.label)} · ${nxLeft}곳 남음`:'2주 안 기한 없음',nx&&diffDays(nx.date)<=3?'bad':nx&&diffDays(nx.date)<=7?'warn':'')}
+    ${kpi('cal','⚠️','놓친 기한',`${pastOpen.length}<small>건</small>`,pastOpen.length?'지난 기한 체크 필요':'없어요',pastOpen.length?'bad':'ok')}
+    ${kpi('prog','📊','기장 밀림',`${PL.n}<small>곳</small>`,`${PL.bm}월까지 기준`,PL.n?'warn':'ok')}
+    ${kpi('jobs','🤖','위하고 검토',`${jobsChk}<small>건</small>`,jobsChk?'확인 기다리는 작업':'대기 없음',jobsChk?'warn':'ok')}
   </div>
   ${!S.clients.length?`<div class="card" style="padding:16px;margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">거래처 데이터를 넣으면 세무 기한이 자동으로 달력에 들어가요.</span><button class="btn" data-a="import">거래처 가져오기</button></div>`:''}
   <div class="hgrid">
