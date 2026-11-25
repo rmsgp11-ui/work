@@ -159,8 +159,11 @@ body.wide main{max-width:1760px}
 .rmode{display:inline-flex;gap:0;margin-bottom:10px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}.rmode button{padding:8px 18px;border:0;background:transparent;font-weight:700;color:var(--sub);cursor:pointer}.rmode button.on{background:var(--acc);color:#fff}.rmode span{font-size:11px;opacity:.8}
 .agl{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);cursor:pointer;font-size:13px}.agl:first-of-type{border-top:0}.agl span{color:var(--sub);font-size:12px}
 .ri.num.pay{color:var(--red);font-weight:700}.ri.num.refund{color:var(--blu);font-weight:700}
-.rmain .rscroll{overflow:visible;max-height:none}.rmain .rtab{overflow:visible}.rmain .xt thead th{top:0}
-.rsplit .cleft{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px);overflow:auto}.rmain .xt{table-layout:auto;width:100%}
+.repframe .rsplit{flex:1;min-height:0;align-items:stretch}.repframe .cleft{min-height:0;overflow:auto}
+.repframe .rmain{display:flex;flex-direction:column;min-height:0}.repframe .rmain .rtab{flex:1;min-height:0;display:flex;flex-direction:column}
+.repframe .rmain .rscroll{flex:1;min-height:0;max-height:none;overflow-y:auto;overflow-x:hidden}.repframe .rmain>.note{flex:none}
+@media(max-width:899px){.repframe{height:auto}.repframe .rsplit{flex:none}}
+.rsi.sum{background:color-mix(in srgb,var(--acc) 6%,var(--panel));border-bottom:2px solid var(--line)}.rsi.sum.on{background:var(--acc2)}.rmain .xt{table-layout:auto;width:100%}
 .rmain .xt th,.rmain .xt td{padding:8px 6px}.rmain .xt td.nm{min-width:120px;max-width:190px}
 .rmain .kp{padding:2px 6px;font-size:11px;margin-right:2px}.rmain .kinds{white-space:normal;min-width:150px}
 .rmain .ri.dt{width:84px}.rmain .ri.num{width:96px}.rmain .kd .seg2{display:flex;margin:3px 0 0}
@@ -948,17 +951,17 @@ function rptHead(kind){const ag=ui.rmode==='ag';const list=ag?RT.filter(([k])=>k
 function vRep(){
   if(ui.rmode==='ag'&&ui.rk!=='pit'&&ui.rk!=='cit')ui.rk='pit';
   const kind=ui.rk||'wh';
-  if(kind==='pit'||kind==='cit'||kind==='ye')return rptHead(kind)+`<div class="csplit rsplit"><div class="cleft">${taxSide(kind)}</div><div class="rmain">${ui.rv==='grid'&&ui.rmode!=='ag'&&kind!=='ye'?vRepGrid(true):vRepTax(kind)}</div></div>`;
+  if(kind==='pit'||kind==='cit'||kind==='ye')return `<div class="fixframe repframe">`+rptHead(kind)+`<div class="csplit rsplit"><div class="cleft">${taxSide(kind)}</div><div class="rmain">${ui.rv==='grid'&&ui.rmode!=='ag'&&kind!=='ye'?vRepGrid(true):vRepTax(kind)}</div></div></div>`;
   if(kind!=='wh'&&kind!=='vat'&&kind!=='gan')return vRepGrid();
-  return rptHead(kind)+`<div class="csplit rsplit"><div class="cleft">${repSide(kind)}</div><div class="rmain">${ui.rv==='grid'?vRepGrid(true):kind==='wh'?vRepWh():kind==='gan'?vRepGan():vRepVat()}</div></div>`;
+  return `<div class="fixframe repframe">`+rptHead(kind)+`<div class="csplit rsplit"><div class="cleft">${repSide(kind)}</div><div class="rmain">${ui.rv==='grid'?vRepGrid(true):kind==='wh'?vRepWh():kind==='gan'?vRepGan():vRepVat()}</div></div></div>`;
 }
 function repSide(kind){
-  const Y=ui.ry||new Date().getFullYear(),T=todayStr();let items='';
+  const Y=ui.ry||new Date().getFullYear(),T=todayStr();let items='',SD=0,ST=0;
   const it=(sel,on,t,sub,done,tot,late)=>`<div class="rsi ${on?'on':''}" data-rsel="${sel}"><div class="t"><b>${t}</b><span>${sub}</span></div>${tot?`<div class="p"><span class="${done>=tot?'ok':late?'late':''}">${done}/${tot}</span><i><em style="width:${Math.round(done/tot*100)}%"></em></i></div>`:'<div class="p"><span class="sub">—</span></div>'}</div>`;
-  if(kind==='wh'||kind==='gan'){const cur=ui.rwm||pgAdd(pgNow(),-1);for(let m=1;m<=12;m++){const L=kind==='gan'?ganList(Y,m):whList(Y,m);if(L.due>addDays(T,70)&&!L.cs.length)continue;items+=it(`wh|${L.ym}`,ui.rv!=='grid'&&cur===L.ym,`${m}월 귀속`,`${kind==='gan'?'제출':'기한'} ${md(L.due)}`,L.done,L.cs.length,L.past&&L.done<L.cs.length);}}
-  else{const cur=ui.rvp||'2p';VP.forEach(([pk,n])=>{const L=vatList(Y,pk);items+=it(`vat|${pk}`,ui.rv!=='grid'&&cur===pk,n,`기한 ${md(L.due)}`,L.done,L.cs.length,L.past&&L.done<L.cs.length);});}
+  if(kind==='wh'||kind==='gan'){const cur=ui.rwm||pgAdd(pgNow(),-1);for(let m=1;m<=12;m++){const L=kind==='gan'?ganList(Y,m):whList(Y,m);if(L.due>addDays(T,70)&&!L.cs.length)continue;SD+=L.done;ST+=L.cs.length;items+=it(`wh|${L.ym}`,ui.rv!=='grid'&&cur===L.ym,`${m}월 귀속`,`${kind==='gan'?'제출':'기한'} ${md(L.due)}`,L.done,L.cs.length,L.past&&L.done<L.cs.length);}}
+  else{const cur=ui.rvp||'2p';VP.forEach(([pk,n])=>{const L=vatList(Y,pk);SD+=L.done;ST+=L.cs.length;items+=it(`vat|${pk}`,ui.rv!=='grid'&&cur===pk,n,`기한 ${md(L.due)}`,L.done,L.cs.length,L.past&&L.done<L.cs.length);});}
   return `<div class="calhead" style="margin-bottom:8px"><button class="nb" data-a="ryPrev">‹</button><b>${Y}년</b><button class="nb" data-a="ryNext">›</button></div>
-  <div class="card list rsl">${items}<div class="rsi ${ui.rv==='grid'?'on':''}" data-rsel="grid"><div class="t"><b>📅 한 해 한눈에</b><span>거래처 × 월 체크표</span></div></div></div>`;
+  <div class="card list rsl"><div class="rsi sum ${ui.rv==='grid'?'on':''}" data-rsel="grid"><div class="t"><b>📅 ${Y}년 한눈에</b><span>전체 요약 · 거래처×월</span></div><div class="p"><span class="${SD>=ST&&ST?'ok':''}">${SD}/${ST}</span><i><em style="width:${ST?Math.round(SD/ST*100):0}%"></em></i></div></div>${items}</div>`;
 }
 const rvSeg=()=>`<div class="seg" style="display:inline-flex;gap:6px;margin-left:8px"><button class="btn ${ui.rv!=='grid'?'':'g'} s" data-rv="tbl">현황표</button><button class="btn ${ui.rv==='grid'?'':'g'} s" data-rv="grid">한 해 한눈에</button></div>`;
 function whTarget(c,y,m){const [y2,m2]=m===12?[y+1,1]:[y,m+1];return rawEvents(y2,m2).find(e=>e.t==='wh'&&e.ids.includes(c.id));}
@@ -1066,9 +1069,9 @@ function taxList(kind,per,due){
 function taxSide(kind){
   const Y=ui.ry||new Date().getFullYear(),T=todayStr(),cur=ui.rtp||(kind==='pit'?`${Y-1}`:`${Y-1}`);
   const it=(sel,on,t,sub,done,tot,late)=>`<div class="rsi ${on?'on':''}" data-rtp="${sel}"><div class="t"><b>${t}</b><span>${sub}</span></div>${tot?`<div class="p"><span class="${done>=tot?'ok':late?'late':''}">${done}/${tot}</span><i><em style="width:${Math.round(done/tot*100)}%"></em></i></div>`:'<div class="p"><span class="sub">—</span></div>'}</div>`;
-  const items=taxPers(kind,Y).map(p=>{const L=taxList(kind,p.key,p.due);return it(p.key,ui.rv!=='grid'&&cur===p.key,p.n,`${p.sub} · 기한 ${md(p.due)}`,L.done,L.cs.length,L.past&&L.done<L.cs.length)}).join('');
+  let SD=0,ST=0;const items=taxPers(kind,Y).map(p=>{const L=taxList(kind,p.key,p.due);SD+=L.done;ST+=L.cs.length;return it(p.key,ui.rv!=='grid'&&cur===p.key,p.n,`${p.sub} · 기한 ${md(p.due)}`,L.done,L.cs.length,L.past&&L.done<L.cs.length)}).join('');
   return `<div class="calhead" style="margin-bottom:8px"><button class="nb" data-a="ryPrev">‹</button><b>${Y}년</b><button class="nb" data-a="ryNext">›</button></div>
-  <div class="card list rsl">${items}${ui.rmode==='ag'||kind==='ye'?'':`<div class="rsi ${ui.rv==='grid'?'on':''}" data-rsel="grid"><div class="t"><b>📅 한 해 한눈에</b><span>거래처 × 신고 체크표</span></div></div>`}</div>
+  <div class="card list rsl">${ui.rmode==='ag'||kind==='ye'?'':`<div class="rsi sum ${ui.rv==='grid'?'on':''}" data-rsel="grid"><div class="t"><b>📅 ${Y}년 한눈에</b><span>전체 요약 · 거래처×신고</span></div><div class="p"><span class="${SD>=ST&&ST?'ok':''}">${SD}/${ST}</span><i><em style="width:${ST?Math.round(SD/ST*100):0}%"></em></i></div></div>`}${items}</div>
   ${ui.rmode==='ag'?`<div class="card" style="margin-top:10px;padding:10px 14px"><div class="lab">등록된 신고대리 ${S.agents.length}곳</div>${S.agents.slice().sort((a,b)=>a.name.localeCompare(b.name,'ko')).map(a=>`<div class="agl" data-agent="${a.id}"><b>${esc(a.name)}</b><span>${esc(a.type)}${a.fee?' · '+won(a.fee)+'원':''}</span></div>`).join('')||'<p class="note">아직 없어요. 위의 ＋ 신고대리 등록으로 추가하세요.</p>'}</div>`:''}`;
 }
 function vRepTax(kind){
