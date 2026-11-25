@@ -454,7 +454,7 @@ const ds=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
 /* ---------- 상태 ---------- */
 function migrate(s){
   s=Object.assign({v:2,tasks:[],clients:[],pay:{},checks:{},logs:[],jobs:[],prog:{},rpt:{wh:{},vat:{}},projects:[],theme:'light',updated:0},s||{});
-  if(!Array.isArray(s.jobs))s.jobs=[];if(!Array.isArray(s.routines))s.routines=[];
+  if(!Array.isArray(s.jobs))s.jobs=[];if(!Array.isArray(s.autos))s.autos=[];if(!Array.isArray(s.routines))s.routines=[];
   if(!s.prog||typeof s.prog!=='object')s.prog={};
   if(!s.rpt)s.rpt={wh:{},vat:{}};['wh','vat','pit','cit'].forEach(k=>s.rpt[k]=s.rpt[k]||{});if(!Array.isArray(s.agents))s.agents=[];
   if(Array.isArray(s.calls)){s.calls.forEach(c=>s.logs.push({id:c.id,at:c.at,src:'통화',client:null,title:c.title,summary:c.summary,points:c.points||[],theirs:c.theirs||[],text:c.transcript||'',taskIds:c.taskIds||[]}));delete s.calls;}
@@ -620,11 +620,11 @@ function parse(text){
 }
 
 /* ---------- 화면 ---------- */
-const TABS=[{id:'home',n:'홈',ic:'🏠'},{id:'tasks',n:'할 일',ic:'✅'},{id:'rep',n:'신고 현황',sn:'신고',ic:'📋'},{id:'prog',n:'기장 진도',sn:'진도',ic:'📊'},{id:'cal',n:'세무달력',sn:'달력',ic:'📅'},{id:'clients',n:'거래처',ic:'🏢'},{id:'logs',n:'기록',ic:'📞'},{id:'jobs',n:'위하고 작업',sn:'위하고',ic:'🤖'},{id:'pay',n:'수금',ic:'💰'}];
+const TABS=[{id:'home',n:'홈',ic:'🏠'},{id:'tasks',n:'할 일',ic:'✅'},{id:'rep',n:'신고 현황',sn:'신고',ic:'📋'},{id:'prog',n:'기장 진도',sn:'진도',ic:'📊'},{id:'cal',n:'세무달력',sn:'달력',ic:'📅'},{id:'clients',n:'거래처',ic:'🏢'},{id:'logs',n:'기록',ic:'📞'},{id:'jobs',n:'위하고 작업',sn:'위하고',ic:'🤖'},{id:'auto',n:'자동화',ic:'⚙️'},{id:'pay',n:'수금',ic:'💰'}];
 const openT=t=>t.status!=='done';
 function badges(){
   const t=todayStr();
-  return {tasks:S.tasks.filter(x=>openT(x)&&x.due&&x.due<=t).length,pay:S.clients.filter(c=>unpaidList(c.id).length).length,jobs:S.jobs.filter(j=>j.status==='check'||j.status==='fail'||(j.status==='done'&&j.review&&!j.reviewed)).length};
+  return {tasks:S.tasks.filter(x=>openT(x)&&x.due&&x.due<=t).length,pay:S.clients.filter(c=>unpaidList(c.id).length).length,jobs:S.jobs.filter(j=>j.status==='check'||j.status==='fail'||(j.status==='done'&&j.review&&!j.reviewed)).length,auto:(S.autos||[]).reduce((a,r)=>a+(r.review||[]).filter(x=>!x.done).length,0)};
 }
 /* 매월 반복 할 일: 이번 달·다음 달 것을 미리 만들어 둠 */
 function runRoutines(){if(!S.routines||!S.routines.length)return false;const t=todayStr();let ch=false;
@@ -641,7 +641,7 @@ function render(){
   $('#nav').innerHTML=TABS.map(x=>`<button class="nav ${ui.tab===x.id?'on':''}" data-tab="${x.id}"><span class="ic">${x.ic}</span>${x.n}${b[x.id]?`<span class="n">${b[x.id]}</span>`:''}</button>`).join('');
   $('#tabs').innerHTML=TABS.map(x=>`<button class="${ui.tab===x.id?'on':''}" data-tab="${x.id}"><span class="ic">${x.ic}</span>${x.sn||x.n}${b[x.id]?`<span class="n">${b[x.id]}</span>`:''}</button>`).join('');
   $('#mtitle').textContent=TABS.find(x=>x.id===ui.tab).n;
-  $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs,jobs:vJobs,prog:vProg,rep:vRep})[ui.tab]();
+  $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs,jobs:vJobs,prog:vProg,rep:vRep,auto:vAuto})[ui.tab]();
   if(ui.syncT) setSync(ui.syncT,ui.syncE);
   if(ui.tab==='jobs')fillImgs();
   document.body.classList.toggle('wide',ui.tab==='clients'||ui.tab==='rep'||ui.tab==='prog'||ui.tab==='home');
@@ -884,6 +884,37 @@ window.__checks={
     const k=`${e.t}|${e.raw}|${e.label}|${c.id}`;if(!S.checks[k])S.checks[k]=Date.now();ok++;}
     save();if(!ui.drawer)render();return {ok,miss};}
 };window.__matchClient=n=>{const id=matchClient(n);const c=id&&cl(id);return c?c.name:null};
+
+
+/* ---------- 자동화 기록 (Claude 처리 내역) ---------- */
+function vAuto(){
+  const runs=(S.autos||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0));
+  if(!runs.length)return head('자동화')+`<div class="card" style="padding:28px;text-align:center;color:var(--sub)">아직 기록이 없어요. Claude가 처리하면 여기에 쌓여요.</div>`;
+  const n=v=>(+v||0).toLocaleString();
+  return head('자동화')+runs.map(r=>{
+    const T=r.clients.reduce((a,c)=>{c.items.forEach(i=>{a.s+=+i.sent||0;a.f+=+i.fail||0;a.d+=+i.ded||0;a.g+=+i.gen||0});return a},{s:0,f:0,d:0,g:0});
+    const open=(r.review||[]).filter(x=>!x.done).length;
+    const d=new Date(r.at);
+    return `<div class="card" style="padding:16px;margin-bottom:16px">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">
+        <b style="font-size:16px">${esc(r.title)}</b><span class="chip">${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}</span>
+        <span class="chip grn">전송 ${n(T.s)}</span><span class="chip ${T.f?'red':''}">미처리 ${n(T.f)}</span>
+        <span class="chip blu">카드 공제 ${n(T.d)} · 일반 ${n(T.g)}</span>${open?`<span class="chip amb">확인할 것 ${open}</span>`:''}
+      </div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="text-align:left;color:var(--sub);border-bottom:1px solid var(--line)"><th style="padding:6px 8px">업체</th><th style="padding:6px 8px">작업</th><th style="padding:6px 8px;text-align:right">전송</th><th style="padding:6px 8px;text-align:right">미처리</th><th style="padding:6px 8px">카드 공제/일반</th><th style="padding:6px 8px">미처리 사유</th></tr></thead>
+        <tbody>${r.clients.map(c=>c.items.map((i,k)=>`<tr style="border-bottom:1px solid var(--line)${k===0?';border-top:2px solid var(--line)':''}">
+          ${k===0?`<td rowspan="${c.items.length}" style="padding:6px 8px;vertical-align:top;font-weight:700;white-space:nowrap">${esc(c.name)}${c.note?`<div style="font-weight:400;color:var(--sub);font-size:12px">${esc(c.note)}</div>`:''}</td>`:''}
+          <td style="padding:6px 8px;white-space:nowrap">${esc(i.work)}</td>
+          <td style="padding:6px 8px;text-align:right;color:var(--grn);font-weight:600">${n(i.sent)}</td>
+          <td style="padding:6px 8px;text-align:right;${+i.fail?'color:var(--red);font-weight:600':'color:var(--sub)'}">${n(i.fail)}</td>
+          <td style="padding:6px 8px;white-space:nowrap">${i.ded!=null||i.gen!=null?`공제 ${n(i.ded)} · 일반 ${n(i.gen)}`:''}</td>
+          <td style="padding:6px 8px;color:var(--sub)">${esc(i.reason||'')}</td></tr>`).join('')).join('')}</tbody></table></div>
+      ${(r.review||[]).length?`<div class="sec" style="margin-top:14px"><h2>검토 중점사항</h2></div><div class="card list">${r.review.map((x,k)=>`<div class="row" data-arv="${r.id}|${k}" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--line)${x.done?';opacity:.5':''}">
+        <span style="font-size:16px">${x.done?'☑':'☐'}</span><div style="flex:1"><b>${esc(x.client||'')}</b>${x.client?' · ':''}<span style="${x.done?'text-decoration:line-through':''}">${esc(x.text)}</span></div></div>`).join('')}</div>`:''}
+    </div>`}).join('');
+}
+window.__autos={add:o=>{S.autos=S.autos||[];const r=Object.assign({id:uid(),at:Date.now()},o);r.review=(r.review||[]).map(x=>Object.assign({done:false},x));S.autos.push(r);save();if(!ui.drawer)render();return r.id;},list:()=>(S.autos||[]).map(r=>({id:r.id,title:r.title,at:r.at})),del:id=>{S.autos=(S.autos||[]).filter(r=>r.id!==id);save();render();}};
 
 /* ---------- 위하고 작업함 ---------- */
 const JK={pay:'급여대장 입력',etc:'이자·사업소득 입력',slip:'자동전표 처리',other:'기타'};
@@ -1735,6 +1766,7 @@ document.addEventListener('submit',e=>{
 });
 document.addEventListener('click',e=>{
   const T=e.target, q=s=>T.closest(s); let el;
+  if((el=q('[data-arv]'))){const [id,k]=el.dataset.arv.split('|');const r=(S.autos||[]).find(x=>x.id===id);if(r&&r.review[+k]){r.review[+k].done=!r.review[+k].done;save();render();}return;}
   if((el=q('[data-tab]'))){ui.tab=el.dataset.tab;if(ui.drawer)closeDrawer();else render();window.scrollTo(0,0);return;}
   if((el=q('[data-chk]'))){e.stopPropagation();const x=S.tasks.find(t=>t.id===el.dataset.chk);const prev=x.status;setStatus(x,x.status==='done'?'todo':'done');save();
     if(ui.drawer)refreshDrawer();else render();
