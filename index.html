@@ -133,6 +133,16 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
 .pc.cmsx{background:var(--ambS);color:var(--amb)} .pc.transfer{background:var(--bluS);color:var(--blu)}
 .pc.etc{background:var(--purS);color:var(--pur)}
 .pc.cur{border-color:var(--acc)}
+.pgg{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.pgk{padding:12px 14px;cursor:pointer}.pgk .t{display:flex;align-items:center;gap:6px;margin-bottom:8px}.pgk .t b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.pgb{display:grid;grid-template-columns:42px 1fr 36px;align-items:center;gap:8px;margin-top:5px;font-size:12px;color:var(--sub)}
+.pgb .bar{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;height:14px}
+.pgb .bar i{border-radius:3px;background:var(--soft)}
+.pgb .bar i.d{background:var(--grn)}.pgb .bar i.p{background:var(--amb)}.pgb .bar i.x{background:repeating-linear-gradient(45deg,var(--soft) 0 3px,var(--line) 3px 6px)}
+.pgb .bar i.fut{opacity:.35}.pgb .bar i.gap{box-shadow:inset 0 0 0 1.5px var(--red);background:var(--redS)}
+.pgb .n{text-align:right;font-weight:700;color:var(--txt,inherit)}.pgb.na .bar i{background:repeating-linear-gradient(45deg,var(--soft) 0 3px,var(--line) 3px 6px)}
+.pgmo{display:grid;grid-template-columns:42px 1fr 36px;gap:8px;font-size:10px;color:var(--sub);margin-bottom:2px}.pgmo div{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;text-align:center}
+.pglg{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin:4px 0 10px}.pglg span{display:inline-flex;align-items:center;gap:4px}.pglg i{width:12px;height:10px;border-radius:2px;display:inline-block}
 .pgh,.pgr{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,58px);gap:6px;align-items:center;padding:9px 12px;border-top:1px solid var(--line)}
 .pgh{border-top:0;font-size:12px;color:var(--sub);font-weight:600;padding-bottom:4px}.pgh span{text-align:center}
 .pgr .pn{min-width:0;cursor:pointer}.pgr .pn b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pgr .pn span{font-size:11px;color:var(--sub)}
@@ -779,11 +789,16 @@ function vProg(){
   const st=PG.map(([k,n],i)=>{const app=rows.filter(r=>!r.cells[i].na),ok=app.filter(r=>r.cells[i].ok).length;return `<div class="card stat ${ok<app.length?'warn':''}"><b>${ok}/${app.length}</b><span>${n} ${bm}월까지 완료</span></div>`}).join('');
   return head('기장 진도')+`
   <div class="calhead"><button class="nb" data-a="pgPrev">‹</button><b>${y}년 ${bm}월까지</b><button class="nb" data-a="pgNext">›</button>${b!==pgAdd(pgNow(),-1)?`<button class="btn g s" data-a="pgCur">지난달 기준</button>`:''}</div>
-  <p class="note" style="margin-bottom:12px">종합소득세·법인세 전에 1월부터 기준월까지 장부가 다 들어갔는지 보는 요약이에요. 칸을 누르면 월별로 체크할 수 있어요.</p>
+  <p class="note" style="margin-bottom:12px">종합소득세·법인세 전에 1월부터 기준월까지 장부가 다 들어갔는지 보는 요약이에요. 막대 한 칸이 한 달이에요. 업체를 누르면 월별로 고칠 수 있어요.</p>
   <div class="stats">${st}</div>
   <div class="seg" style="display:flex;gap:6px;margin:14px 0 8px"><button class="btn ${ui.pgf!=='late'?'':'g'} s" data-pgf="all">전체 ${rows.length}</button><button class="btn ${ui.pgf==='late'?'':'g'} s" data-pgf="late">밀린 곳 ${behind.length}</button></div>
-  <div class="card list"><div class="pgh"><span style="text-align:left">거래처</span>${PG.map(([,n])=>`<span>${n}</span>`).join('')}</div>
-  ${show.map(({c,cells})=>`<div class="pgr"><div class="pn" data-pgc="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.type||'')}${cells.some(x=>x.pend)?' · 확인 중 있음':''}</span></div>${cells.map((x,i)=>`<div class="pgc ${x.cls}" data-pgc="${c.id}|${PG[i][0]}">${x.t}</div>`).join('')}</div>`).join('')||'<div class="empty">'+(ui.pgf==='late'?'밀린 거래처가 없어요 👍':'거래처가 없어요')+'</div>'}</div>`;
+  <div class="pglg"><span><i style="background:var(--grn)"></i>완료</span><span><i style="background:var(--amb)"></i>진행·확인</span><span><i style="background:var(--redS);box-shadow:inset 0 0 0 1.5px var(--red)"></i>기준월까지 빈 달</span><span><i style="background:repeating-linear-gradient(45deg,var(--soft) 0 3px,var(--line) 3px 6px)"></i>해당없음</span></div>
+  <div class="pgg">${show.map(({c,cells})=>`<div class="card pgk" data-pgc="${c.id}"><div class="t"><b>${esc(c.name)}</b>${cells.every(x=>x.ok)?'<span class="chip grn">완료</span>':`<span class="chip amb">${cells.filter(x=>!x.ok).length}개 밀림</span>`}</div>
+    <div class="pgmo"><span></span><div>${[...Array(12)].map((_,i)=>`<span>${i+1}</span>`).join('')}</div><span></span></div>
+    ${PG.map(([k,n],i)=>{const x=cells[i];if(x.na)return `<div class="pgb na"><span>${n}</span><div class="bar">${'<i></i>'.repeat(12)}</div><span class="n">없음</span></div>`;
+      let dn=0;const seg=[...Array(12)].map((_,m)=>{const v=pgv(c.id,k,`${y}-${pad(m+1)}`);if(v==='d'||v==='x')dn+=m<bm?1:0;return `<i class="${v}${m+1>bm?' fut':(!v?' gap':'')}"></i>`}).join('');
+      return `<div class="pgb"><span>${n}</span><div class="bar">${seg}</div><span class="n" style="color:${x.ok?'var(--grn)':'var(--amb)'}">${dn}/${bm}</span></div>`}).join('')}
+  </div>`).join('')||'<div class="card"><div class="empty">'+(ui.pgf==='late'?'밀린 거래처가 없어요 👍':'거래처가 없어요')+'</div></div>'}`;
 }
 function openProg(cid,focus){
   const c=cl(cid);if(!c)return;const b=ui.pg,y=+b.slice(0,4),bm=+b.slice(5,7);
