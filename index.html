@@ -729,7 +729,15 @@ function importTalk(d){
   }
   save();render();return {add,dup,skip,miss};
 }
-window.__importTalk=importTalk;window.__matchClient=n=>{const id=matchClient(n);const c=id&&cl(id);return c?c.name:null};
+window.__importTalk=importTalk;
+/* 신고현황 엑셀 → 세무 일정 체크: __checks.mark([{bizno|cid,t,y,m,label}]) */
+window.__checks={
+  clients:()=>S.clients.map(c=>({id:c.id,name:c.name,bizno:String(c.bizno||'').replace(/\D/g,''),wh:c.wh||'',type:c.type,vat:c.vat})),
+  mark:(list)=>{let ok=0,miss=[];for(const o of list){const c=o.cid?cl(o.cid):S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(o.bizno||'').replace(/\D/g,''));if(!c){miss.push(o.name||o.bizno);continue;}
+    const e=rawEvents(o.y,o.m).find(e=>e.t===o.t&&(!o.label||e.label.startsWith(o.label)));if(!e){miss.push((o.name||c.name)+' '+o.t+' '+o.y+'-'+o.m);continue;}
+    const k=`${e.t}|${e.raw}|${e.label}|${c.id}`;if(!S.checks[k])S.checks[k]=Date.now();ok++;}
+    save();if(!ui.drawer)render();return {ok,miss};}
+};window.__matchClient=n=>{const id=matchClient(n);const c=id&&cl(id);return c?c.name:null};
 
 /* ---------- 위하고 작업함 ---------- */
 const JK={pay:'급여대장 입력',etc:'이자·사업소득 입력',slip:'자동전표 처리',other:'기타'};
