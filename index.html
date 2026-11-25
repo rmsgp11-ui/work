@@ -163,6 +163,8 @@ body.wide main{max-width:1760px}
 .xt tr.ok td{color:var(--sub)}.xt tr.ok td.nm b{font-weight:500}
 .st{min-width:72px;padding:5px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);font-size:12px;font-weight:700;color:var(--sub);cursor:pointer}
 .st.d{background:var(--grnS);border-color:transparent;color:var(--grn)}.st.l{background:var(--redS);border-color:var(--red);color:var(--red)}
+.ri.dt{border-color:var(--line);background:var(--panel);width:96px}.ri.dt.off{border-style:dashed;background:transparent}.ri.dt:focus{border-color:var(--acc);outline:none}
+.xt .ri.dt::placeholder{color:var(--sub);opacity:.6}
 .kd{white-space:nowrap}.kd .ri{width:88px}.seg2{display:inline-flex;gap:2px;margin-left:4px}.seg2 .kp{margin:0;padding:2px 7px}
 .kinds{white-space:nowrap}.kp{padding:3px 8px;margin-right:3px;border-radius:99px;border:1px dashed var(--line);background:transparent;color:color-mix(in srgb,var(--sub) 45%,transparent);font-size:11.5px;font-weight:600;cursor:pointer}
 .kp.on{border:1px solid transparent;background:var(--acc2);color:var(--acc)}.kp.step.on{background:var(--grnS);color:var(--grn)}
@@ -936,10 +938,10 @@ function vRepWh(){
   const row=({c,r})=>{const k=`wh|${ym}|${c.id}`,ok=r.st==='완료';return `<tr class="${ok?'ok':''}"><td class="nm" data-client="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.type||'')} · ${esc(r.wt||({'당월':'매월','반기':'반기','사업소득':'매월'})[c.wh]||'-')}</span></td>
     <td><button class="st ${ok?'d':past?'l':''}" data-rpt="${k}|st">${ok?'✓ 완료':past?'미완료':'진행 전'}</button></td>
     <td class="kinds">${WF.map(([f,n])=>`<button class="kp ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
-    ${y>=2027?`<td>${r.급여?`<input class="ri" data-rpi="${k}|ganG" value="${esc(r.ganG||'')}" placeholder="제출일">`:'<span class="sub">·</span>'}</td>`:''}
-    <td>${r.일용?`<input class="ri" data-rpi="${k}|ganD" value="${esc(r.ganD||'')}" placeholder="제출일">`:'<span class="sub">·</span>'}</td>
-    <td>${r.사업||r.기타?`<input class="ri" data-rpi="${k}|ganS" value="${esc(r.ganS||'')}" placeholder="제출일">`:'<span class="sub">·</span>'}</td>
-    <td class="kd">${r.일용?`<input class="ri" data-rpi="${k}|kdDate" value="${esc(r.kdDate||'')}" placeholder="전송일"><span class="seg2">${['공단','FAX'].map(w=>`<button class="kp ${r.kdWay===w?'on':''}" data-rkw="${k}|${w}">${w}</button>`).join('')}</span>`:'<span class="sub">·</span>'}</td>
+    ${y>=2027?`<td><input class="ri dt ${r.급여?'':'off'}" data-rpi="${k}|ganG" value="${esc(r.ganG||'')}" placeholder="${r.급여?'제출일':'·'}"></td>`:''}
+    <td><input class="ri dt ${r.일용?'':'off'}" data-rpi="${k}|ganD" value="${esc(r.ganD||'')}" placeholder="${r.일용?'제출일':'·'}"></td>
+    <td><input class="ri dt ${r.사업||r.기타?'':'off'}" data-rpi="${k}|ganS" value="${esc(r.ganS||'')}" placeholder="${r.사업||r.기타?'제출일':'·'}"></td>
+    <td class="kd"><input class="ri dt ${r.일용?'':'off'}" data-rpi="${k}|kdDate" value="${esc(r.kdDate||'')}" placeholder="${r.일용?'전송일':'·'}"><span class="seg2">${['공단','FAX'].map(w=>`<button class="kp ${r.kdWay===w?'on':''}" data-rkw="${k}|${w}">${w}</button>`).join('')}</span></td>
     <td class="memo"><input class="ri wide" data-rpi="${k}|memo" value="${esc(r.memo||'')}" placeholder="메모"></td></tr>`};
   const todo=cs.filter(x=>x.r.st!=='완료'),dn=cs.filter(x=>x.r.st==='완료'),nc=y>=2027?8:7;
   return rptHead('wh')+`<div class="calhead"><button class="nb" data-a="rwPrev">‹</button><b>${m}월 귀속</b><button class="nb" data-a="rwNext">›</button><span class="note">${y}년 · 신고기한 <b style="color:${past&&todo.length?'var(--red)':'inherit'}">${md(due)}</b></span>${rvSeg()}</div>
@@ -1521,6 +1523,7 @@ document.addEventListener('change',e=>{
   if(d.logclient){const l=S.logs.find(x=>x.id===d.logclient);l.client=el.value||null;save();return;}
   if(d.mine!==undefined&&L&&L.ai){L.picked[L.ai.mine[+d.mine].title]=el.checked;return;}
 });
+document.addEventListener('dblclick',e=>{const el=e.target;if(el.classList&&el.classList.contains('dt')&&!el.value){const d=new Date();el.value=`${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}`;el.dispatchEvent(new Event('change',{bubbles:true}));}});
 document.addEventListener('keydown',e=>{
   if(e.target.id==='dSubNew'&&e.key==='Enter'&&!e.isComposing&&e.target.value.trim()){const x=S.tasks.find(t=>t.id===ui.openTask);x.subs=x.subs||[];x.subs.push({id:uid(),t:e.target.value.trim(),d:false});save();openTask(x.id);$('#dSubNew').focus();}
   if(e.key==='Escape'){if($('#modal').classList.contains('on'))$('#modal').classList.remove('on');else if(ui.drawer)closeDrawer();}
