@@ -628,11 +628,11 @@ function badges(){
 }
 /* 매월 반복 할 일: 이번 달·다음 달 것을 미리 만들어 둠 */
 function runRoutines(){if(!S.routines||!S.routines.length)return false;const t=todayStr();let ch=false;
-  for(const r of S.routines){for(const ym of [pgNow(),pgAdd(pgNow(),1)]){const y=+ym.slice(0,4),m=+ym.slice(5,7),d=Math.min(+r.day,lastDay(y,m)),due=`${ym}-${pad(d)}`,rk=`${r.id}:${ym}`;
+  for(const r of S.routines){for(const ym of [pgNow(),pgAdd(pgNow(),1)]){const y=+ym.slice(0,4),m=+ym.slice(5,7),d=Math.min(+r.day,lastDay(y,m)),rk=`${r.id}:${ym}`;let due=`${ym}-${pad(d)}`;if(r.biz&&isOff(due)){/* 가장 가까운 평일(같은 거리면 앞날) */for(let k=1;k<7;k++){const b=addDays(due,-k),f=addDays(due,k);if(!isOff(b)){due=b;break;}if(!isOff(f)){due=f;break;}}}
     if(S.tasks.some(x=>x.rk===rk))continue;if(due<(r.from||'')||due<t&&ym===pgNow()&&(r.created||0)>Date.parse(due))continue;
     S.tasks.push({id:uid(),rk,title:r.title+(r.time?` (${r.time})`:''),client:null,due,pri:r.pri||2,status:'todo',memo:r.memo||'매월 반복 할 일',subs:[],created:Date.now(),doneAt:null});ch=true;}}
   return ch;}
-function routineBox(){const R=S.routines||[];return `<div class="card rtn"><b>🔁 매월 반복</b>${R.map(r=>`<span class="chip">${r.day}일${r.time?' '+esc(r.time):''} · ${esc(r.title)} <button class="del" data-rtdel="${r.id}" title="반복 끄기">×</button></span>`).join('')}<button class="btn g s" data-a="rtAdd">＋ 추가</button></div>`;}
+function routineBox(){const R=S.routines||[];return `<div class="card rtn"><b>🔁 매월 반복</b>${R.map(r=>`<span class="chip">${r.day}일${r.biz?'(평일)':''}${r.time?' '+esc(r.time):''} · ${esc(r.title)} <button class="del" data-rtdel="${r.id}" title="반복 끄기">×</button></span>`).join('')}<button class="btn g s" data-a="rtAdd">＋ 추가</button></div>`;}
 function render(){
   if(ui._rr!==todayStr()){ui._rr=todayStr();if(runRoutines())save();}
   document.documentElement.classList.toggle('dark',S.theme==='dark');
