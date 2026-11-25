@@ -829,15 +829,15 @@ async function renderVault(id){
   if(!VK){el.innerHTML=`<h4>🔒 보안 정보 <span>${has?'저장됨':'없음'}</span></h4><p class="note" style="margin-bottom:8px">대표자 주민번호와 홈택스 아이디·비밀번호는 이 기기에서 암호화해 저장해요.</p><button class="btn g s" data-a="vUnlock">${S.vault?'잠금 해제':'보안 비밀번호 만들기'}</button>`;return;}
   let v={rrn:'',htId:'',htPw:''}; if(has){try{v=Object.assign(v,await unseal(VK,S.vault.data[id]));}catch(e){}}
   ui.vcur={id,v};
-  const row=(lab,k,shown)=>`<div class="ck" style="cursor:default"><span class="tb"><span class="ts">${lab}</span><b data-vshow="${k}" style="font-variant-numeric:tabular-nums">${esc(shown)||'—'}</b></span>${v[k]?`${k!=='htId'?`<button class="chip" data-vreveal="${k}">보기</button>`:''}<button class="chip" data-vcopy="${k}">복사</button>`:''}</div>`;
-  el.innerHTML=`<h4>🔓 보안 정보 <button class="chip" data-a="vLock">잠그기</button></h4>${row('대표자 주민번호','rrn',rrnMask(v.rrn))}${row('홈택스 아이디','htId',v.htId)}${row('홈택스 비밀번호','htPw',v.htPw?'••••••••':'')}
+  const row=(lab,k,shown)=>`<div class="ck" style="cursor:default"><span class="tb"><span class="ts">${lab}</span><b data-vshow="${k}" style="font-variant-numeric:tabular-nums">${esc(shown)||'—'}</b></span>${v[k]?`<button class="chip" data-vcopy="${k}">복사</button>`:''}</div>`;
+  el.innerHTML=`<h4>🔓 보안 정보 <button class="chip" data-a="vLock">잠그기</button></h4>${row('대표자 주민번호','rrn',v.rrn)}${row('홈택스 아이디','htId',v.htId)}${row('홈택스 비밀번호','htPw',v.htPw)}
     <div style="display:flex;gap:8px;margin-top:8px"><button class="btn g s" data-a="vEdit">수정</button>${v.htId?'<a class="btn g s" href="https://hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a>':''}</div>`;
 }
 function vEdit(){
   const v=ui.vcur.v;
   $('#mbox').innerHTML=`<h3>보안 정보 수정</h3><div><label class="lab">대표자 주민번호</label><input id="vRrn" value="${esc(v.rrn)}" placeholder="000000-0000000" autocomplete="off"></div>
     <div><label class="lab">홈택스 아이디</label><input id="vId" value="${esc(v.htId)}" autocomplete="off"></div>
-    <div><label class="lab">홈택스 비밀번호</label><input id="vPw" type="password" value="${esc(v.htPw)}" autocomplete="new-password"></div>
+    <div><label class="lab">홈택스 비밀번호</label><input id="vPw" type="text" value="${esc(v.htPw)}" autocomplete="new-password"></div>
     <div style="display:flex;gap:8px"><button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">취소</button><button class="btn" data-a="vSave" style="flex:1;justify-content:center">저장</button></div>`;
   $('#modal').classList.add('on');
 }
