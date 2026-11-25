@@ -154,6 +154,15 @@ body.wide main{max-width:1760px}
 .pc.cmsx{background:var(--ambS);color:var(--amb)} .pc.transfer{background:var(--bluS);color:var(--blu)}
 .pc.etc{background:var(--purS);color:var(--pur)}
 .pc.cur{border-color:var(--acc)}
+.rtab{padding:0;overflow:hidden}.rscroll{overflow:auto;max-height:calc(100vh - 260px)}
+.rt{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+.rt th,.rt td{padding:6px 6px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.rt thead th{position:sticky;top:0;background:var(--panel);z-index:2;font-weight:600}.rt thead th b{display:block;font-size:12px}.rt thead th span{display:block;font-size:10px;color:var(--sub);font-weight:400}.rt thead th em{display:block;font-style:normal;font-size:11px;color:var(--acc);font-weight:700}
+.rt .nm{position:sticky;left:0;background:var(--panel);z-index:1;text-align:left;min-width:150px;max-width:220px;cursor:pointer}.rt thead .nm{z-index:3}.rt thead .nm span{display:inline;margin-left:4px}
+.rt td.nm b{display:block;overflow:hidden;text-overflow:ellipsis;font-weight:600}.rt td.nm span{font-size:11px;color:var(--sub)}
+.rt tbody tr:hover td{background:var(--soft)}.rt td.na{color:var(--line)}
+.rc{min-width:44px;padding:4px 6px;border-radius:7px;border:1px solid transparent;background:var(--soft);color:var(--sub);font-size:12px;font-weight:600;cursor:pointer}
+.rc.d{background:var(--grnS);color:var(--grn)}.rc.l{background:var(--redS);color:var(--red);border-color:var(--red)}
 .pgtab{padding:0;overflow:hidden}
 .pgrw{display:grid;grid-template-columns:minmax(150px,1.1fr) repeat(4,minmax(0,1fr));gap:14px;align-items:center;padding:9px 14px;border-top:1px solid var(--line)}
 .pgrw:hover{background:var(--soft)}.pgrw.hd{border-top:0;font-size:12px;color:var(--sub);padding-top:10px;padding-bottom:6px;position:sticky;top:0;background:var(--panel);z-index:1}.pgrw.hd:hover{background:var(--panel)}
@@ -276,7 +285,7 @@ body.wide main{max-width:1760px}
   .head{margin-bottom:12px}
   .head .sp{margin-left:0;width:100%}
   .head .sp .btn{flex:1;justify-content:center}
-  .tabs{display:grid;grid-template-columns:repeat(8,1fr);position:fixed;bottom:0;left:0;right:0;z-index:15;background:var(--panel);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .tabs{display:grid;grid-template-columns:repeat(9,1fr);position:fixed;bottom:0;left:0;right:0;z-index:15;background:var(--panel);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
   .tabs button{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11px;color:var(--sub);font-weight:600;position:relative}
   .tabs button .ic{font-size:19px;line-height:1.2;filter:grayscale(1);opacity:.55}
   .tabs button.on{color:var(--acc)}
@@ -535,7 +544,7 @@ function parse(text){
 }
 
 /* ---------- 화면 ---------- */
-const TABS=[{id:'home',n:'홈',ic:'🏠'},{id:'tasks',n:'할 일',ic:'✅'},{id:'cal',n:'세무달력',sn:'달력',ic:'📅'},{id:'clients',n:'거래처',ic:'🏢'},{id:'pay',n:'수금',ic:'💰'},{id:'logs',n:'기록',ic:'📞'},{id:'jobs',n:'위하고 작업',sn:'위하고',ic:'🤖'},{id:'prog',n:'기장 진도',sn:'진도',ic:'📊'}];
+const TABS=[{id:'home',n:'홈',ic:'🏠'},{id:'tasks',n:'할 일',ic:'✅'},{id:'cal',n:'세무달력',sn:'달력',ic:'📅'},{id:'clients',n:'거래처',ic:'🏢'},{id:'pay',n:'수금',ic:'💰'},{id:'logs',n:'기록',ic:'📞'},{id:'jobs',n:'위하고 작업',sn:'위하고',ic:'🤖'},{id:'prog',n:'기장 진도',sn:'진도',ic:'📊'},{id:'rep',n:'신고 현황',sn:'신고',ic:'📋'}];
 const openT=t=>t.status!=='done';
 function badges(){
   const t=todayStr();
@@ -548,7 +557,7 @@ function render(){
   $('#nav').innerHTML=TABS.map(x=>`<button class="nav ${ui.tab===x.id?'on':''}" data-tab="${x.id}"><span class="ic">${x.ic}</span>${x.n}${b[x.id]?`<span class="n">${b[x.id]}</span>`:''}</button>`).join('');
   $('#tabs').innerHTML=TABS.map(x=>`<button class="${ui.tab===x.id?'on':''}" data-tab="${x.id}"><span class="ic">${x.ic}</span>${x.sn||x.n}${b[x.id]?`<span class="n">${b[x.id]}</span>`:''}</button>`).join('');
   $('#mtitle').textContent=TABS.find(x=>x.id===ui.tab).n;
-  $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs,jobs:vJobs,prog:vProg})[ui.tab]();
+  $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs,jobs:vJobs,prog:vProg,rep:vRep})[ui.tab]();
   if(ui.syncT) setSync(ui.syncT,ui.syncE);
   if(ui.tab==='jobs')fillImgs();
   document.body.classList.toggle('wide',ui.tab==='clients');
@@ -840,6 +849,43 @@ function jobAct(v){const [a,id]=v.split('|'),j=S.jobs.find(x=>x.id===id);if(!j)r
   else if(a==='unrev'){j.reviewed=null;}
   save();render();}
 
+
+/* ---------- 신고 현황 ---------- */
+const RT=[['wh','원천세'],['vat','부가세'],['gan','간이지급명세서'],['pit','소득세'],['cit','법인세']];
+function repCols(kind,Y){
+  const M12=[...Array(12)].map((_,i)=>i+1), nx=m=>m===12?[Y+1,1]:[Y,m+1];
+  if(kind==='wh')return M12.map(m=>({h:m+'월',sub:'귀속',ev:[[...nx(m),['wh']]]}));
+  if(kind==='gan')return M12.map(m=>({h:m+'월',sub:'귀속',ev:[[...nx(m),['gan']]]}));
+  if(kind==='vat')return [{h:'1기 예정',sub:'4/25',ev:[[Y,4,['vat','vatp']]]},{h:'1기 확정',sub:'7/25',ev:[[Y,7,['vat']]]},{h:'2기 예정',sub:'10/25',ev:[[Y,10,['vat','vatp']]]},{h:'2기 확정',sub:`${String(Y+1).slice(2)}.1/25`,ev:[[Y+1,1,['vat']]]}];
+  if(kind==='pit')return [{h:`${Y-1}년 귀속 확정`,sub:'5·6월',ev:[[Y,5,['pit']],[Y,6,['pit']]]},{h:'중간예납',sub:'11/30',ev:[[Y,11,['pitm']]]},{h:'사업장현황',sub:'2/10',ev:[[Y,2,['biz']]]}];
+  if(kind==='cit')return [{h:'법인세 신고',sub:'결산+3개월',ev:M12.map(m=>[Y,m,['cit']])},{h:'지방소득세',sub:'결산+4개월',ev:M12.map(m=>[Y,m,['citl']])},{h:'중간예납',sub:'결산+8개월',ev:M12.map(m=>[Y,m,['citm']])}];
+  return [];
+}
+const _rawC={};const rawC=(y,m)=>_rawC[y+'-'+m]||(_rawC[y+'-'+m]=rawEvents(y,m));
+function repCell(cid,col){
+  const evs=[];col.ev.forEach(([y,m,ts])=>rawC(y,m).forEach(e=>{if(ts.includes(e.t)&&e.ids.includes(cid))evs.push(e)}));
+  if(!evs.length)return {na:true,evs};
+  const keys=evs.map(e=>`${e.t}|${e.raw}|${e.label}|${cid}`),done=keys.every(k=>S.checks[k]);
+  const due=evs.map(e=>nextBiz(e.raw)).sort()[0];
+  return {done,keys,due,late:!done&&due<todayStr(),evs};
+}
+function vRep(){
+  for(const k in _rawC)delete _rawC[k];
+  const kind=ui.rk||'wh',Y=ui.ry||new Date().getFullYear(),cols=repCols(kind,Y);
+  let rows=S.clients.slice().sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'ko')).map(c=>({c,cells:cols.map(col=>repCell(c.id,col))})).filter(r=>r.cells.some(x=>!x.na));
+  if(ui.rq){const q=norm(ui.rq);rows=rows.filter(r=>norm([r.c.name,r.c.ceo,r.c.bizno].join(' ')).includes(q));}
+  if(ui.rlate)rows=rows.filter(r=>r.cells.some(x=>x.late));
+  const tot=cols.map((_,i)=>{const app=rows.filter(r=>!r.cells[i].na);return [app.filter(r=>r.cells[i].done).length,app.length]});
+  const late=rows.reduce((a,r)=>a+r.cells.filter(x=>x.late).length,0);
+  return head('신고 현황')+`
+  <div class="fbar" style="margin-bottom:10px">${RT.map(([k,n])=>`<button class="fchip ${kind===k?'on':''}" data-rk="${k}">${n}</button>`).join('')}</div>
+  <div class="calhead"><button class="nb" data-a="ryPrev">‹</button><b>${Y}년</b><button class="nb" data-a="ryNext">›</button>
+    <button class="btn ${ui.rlate?'':'g'} s" data-a="rLate">기한 지난 미완료${late?` ${late}`:''}</button>
+    <input class="search" data-in="rq" placeholder="거래처 검색" value="${esc(ui.rq||'')}" style="max-width:220px;margin-left:auto"></div>
+  <div class="card rtab"><div class="rscroll"><table class="rt"><thead><tr><th class="nm">거래처 <span>${rows.length}곳</span></th>${cols.map((c,i)=>`<th><b>${c.h}</b><span>${c.sub}</span><em>${tot[i][1]?tot[i][0]+'/'+tot[i][1]:''}</em></th>`).join('')}</tr></thead>
+  <tbody>${rows.map(({c,cells})=>`<tr><td class="nm" data-client="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.type||'')}${c.wh?' · '+esc(WHN[c.wh]||''):''}</span></td>${cells.map((x,i)=>x.na?'<td class="na">·</td>':`<td><button class="rc ${x.done?'d':x.late?'l':''}" data-rc="${c.id}|${i}" title="${esc(x.evs.map(e=>e.label+' '+md(nextBiz(e.raw))).join(', '))}">${x.done?'✓':x.late?'미완':md(x.due)}</button></td>`).join('')}</tr>`).join('')||`<tr><td colspan="${cols.length+1}" class="empty">해당하는 거래처가 없어요</td></tr>`}</tbody></table></div></div>
+  <div class="pglg" style="margin-top:10px"><span><i style="background:var(--grn)"></i>완료</span><span><i style="background:var(--redS);border:1px solid var(--red)"></i>기한 지났는데 미완료</span><span><i style="background:var(--soft)"></i>예정 (날짜 = 기한)</span><span>· 해당 없음 · 칸을 누르면 완료/취소</span></div>`;
+}
 /* ---------- 기장 진도 ---------- */
 const PG=[['card','카드'],['bank','통장'],['tax','계산서'],['pay','급여']];
 const PGN={card:'카드 전표',bank:'통장 전표',tax:'전자세금계산서·계산서',pay:'급여 회계전표'};
@@ -1291,6 +1337,8 @@ document.addEventListener('click',e=>{
   if((el=q('[data-jzoom]'))){const im=el.querySelector('img');if(im&&im.src){const w=window.open();if(w)w.document.write(`<title>첨부 사진</title><body style="margin:0;background:#111"><img src="${im.src}" style="max-width:100%;display:block;margin:auto">`);}return;}
   if((el=q('[data-pgm],[data-pgall],[data-pgna]'))){pgClick(el);return;}
   if((el=q('[data-pgc]'))){const [c,k]=el.dataset.pgc.split('|');openProg(c,k);return;}
+  if((el=q('[data-rk]'))){ui.rk=el.dataset.rk;render();return;}
+  if((el=q('[data-rc]'))){const [cid,i]=el.dataset.rc.split('|');const col=repCols(ui.rk||'wh',ui.ry||new Date().getFullYear())[+i];for(const k in _rawC)delete _rawC[k];const x=repCell(cid,col);if(x.na)return;if(x.done)x.keys.forEach(k=>delete S.checks[k]);else x.keys.forEach(k=>S.checks[k]=Date.now());save();render();return;}
   if((el=q('[data-pgf]'))){ui.pgf=el.dataset.pgf;render();return;}
   if((el=q('[data-pgt]'))){ui.pgt=ui.pgt===el.dataset.pgt?'':el.dataset.pgt;render();return;}
   if((el=q('[data-pgk]'))){ui.pgk=ui.pgk===el.dataset.pgk?'':el.dataset.pgk;render();return;}
@@ -1328,7 +1376,7 @@ document.addEventListener('click',e=>{
     calPrev:()=>{let {y,m}=ui.cal;m--;if(m<1){m=12;y--}ui.cal={y,m};render();}, calNext:()=>{let {y,m}=ui.cal;m++;if(m>12){m=1;y++}ui.cal={y,m};render();},
     calToday:()=>{const d=new Date();ui.cal={y:d.getFullYear(),m:d.getMonth()+1};render();},
     pmPrev:()=>{ui.pm=ymAdd(ui.pm,-1);render();}, pmNext:()=>{ui.pm=ymAdd(ui.pm,1);render();}, pmCur:()=>{ui.pm=curYM();render();},
-    talkImport:()=>$('#talkIn').click(), pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
+    talkImport:()=>$('#talkIn').click(), ryPrev:()=>{ui.ry=(ui.ry||new Date().getFullYear())-1;render();}, ryNext:()=>{ui.ry=(ui.ry||new Date().getFullYear())+1;render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
     pgPrev:()=>{ui.pg=pgAdd(ui.pg,-1);render();}, pgNext:()=>{ui.pg=pgAdd(ui.pg,1);render();}, pgCur:()=>{ui.pg=pgAdd(pgNow(),-1);render();},
     newClient:()=>{const n=prompt('상호');if(!n||!n.trim())return;const c={id:uid(),order:S.clients.length+1,type:'법인',name:n.trim(),bizno:'',ceo:'',corpno:'',contact:'',phone:'',biz1:'',biz2:'',fee:null,adjFee:null,wh:'',email:'',vat:'일반',fy:12,sincere:false,payDay:null,cms:'',payInfo:'',addr:'',memo:''};S.clients.push(c);save();render();openClient(c.id);},
     clientDel:()=>{const c=cl(ui.openClient);if(!c||!confirm(`${c.name}을(를) 삭제할까요? (할 일·기록은 남아요)`))return;S.clients=S.clients.filter(x=>x.id!==c.id);delete S.pay[c.id];S.tasks.forEach(t=>{if(t.client===c.id)t.client=null});save();closeDrawer();},
@@ -1341,6 +1389,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('input',e=>{
   const el=e.target,d=el.dataset;
+  if(d.in==='rq'){ui.rq=el.value;clearTimeout(ui._st);ui._st=setTimeout(()=>{if(ui.tab!=='rep')return;const tmp=document.createElement('div');tmp.innerHTML=vRep();const r=$('.rtab'),nr=tmp.querySelector('.rtab');if(r&&nr)r.replaceWith(nr);},150);return;}
   if(d.in==='pq'){ui.pq=el.value;clearTimeout(ui._st);ui._st=setTimeout(()=>{if(ui.tab!=='prog')return;const tmp=document.createElement('div');tmp.innerHTML=vProg();const r=$('#sres'),nr=tmp.querySelector('#sres');if(r&&nr)r.replaceWith(nr);},150);return;}
   if(d.in==='q'||d.in==='cq'){ui[d.in]=el.value;clearTimeout(ui._st);ui._st=setTimeout(()=>{const v=({tasks:vTasks,clients:vClients})[ui.tab];const r=$('#sres');if(!v||!r)return;const tmp=document.createElement('div');tmp.innerHTML=v();const nr=tmp.querySelector('#sres');if(nr)r.replaceWith(nr);},150);return;}
   if(d.in&&d.in!=='sort'&&d.in!=='lc'&&d.in!=='pgs'){ui[d.in]=el.value;const pos=el.selectionStart;render();const n=$(`[data-in="${d.in}"]`);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}return;}
