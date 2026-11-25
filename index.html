@@ -611,7 +611,7 @@ function parse(text){
 }
 
 /* ---------- 화면 ---------- */
-const TABS=[{id:'home',n:'홈',ic:'🏠'},{id:'tasks',n:'할 일',ic:'✅'},{id:'cal',n:'세무달력',sn:'달력',ic:'📅'},{id:'clients',n:'거래처',ic:'🏢'},{id:'pay',n:'수금',ic:'💰'},{id:'logs',n:'기록',ic:'📞'},{id:'jobs',n:'위하고 작업',sn:'위하고',ic:'🤖'},{id:'prog',n:'기장 진도',sn:'진도',ic:'📊'},{id:'rep',n:'신고 현황',sn:'신고',ic:'📋'}];
+const TABS=[{id:'home',n:'홈',ic:'🏠'},{id:'tasks',n:'할 일',ic:'✅'},{id:'rep',n:'신고 현황',sn:'신고',ic:'📋'},{id:'prog',n:'기장 진도',sn:'진도',ic:'📊'},{id:'cal',n:'세무달력',sn:'달력',ic:'📅'},{id:'clients',n:'거래처',ic:'🏢'},{id:'logs',n:'기록',ic:'📞'},{id:'jobs',n:'위하고 작업',sn:'위하고',ic:'🤖'},{id:'pay',n:'수금',ic:'💰'}];
 const openT=t=>t.status!=='done';
 function badges(){
   const t=todayStr();
