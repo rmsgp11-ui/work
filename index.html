@@ -139,7 +139,7 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
 .pgb .bar{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;height:14px}
 .pgb .bar i{border-radius:3px;background:var(--soft)}
 .pgb .bar i.d{background:var(--grn)}.pgb .bar i.p{background:var(--amb)}.pgb .bar i.x{background:repeating-linear-gradient(45deg,var(--soft) 0 3px,var(--line) 3px 6px)}
-.pgb .bar i.fut{opacity:.35}.pgb .bar i.gap{box-shadow:inset 0 0 0 1.5px var(--red);background:var(--redS)}
+.pgb .bar i.fut{opacity:.35}.pgb .bar i.gap{background:color-mix(in srgb,var(--red) 14%,var(--soft))}
 .pgb .n{text-align:right;font-weight:700;color:var(--txt,inherit)}.pgb.na .bar i{background:repeating-linear-gradient(45deg,var(--soft) 0 3px,var(--line) 3px 6px)}
 .pgmo{display:grid;grid-template-columns:42px 1fr 36px;gap:8px;font-size:10px;color:var(--sub);margin-bottom:2px}.pgmo div{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;text-align:center}
 .pglg{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin:4px 0 10px}.pglg span{display:inline-flex;align-items:center;gap:4px}.pglg i{width:12px;height:10px;border-radius:2px;display:inline-block}
@@ -792,7 +792,7 @@ function vProg(){
   <p class="note" style="margin-bottom:12px">종합소득세·법인세 전에 1월부터 기준월까지 장부가 다 들어갔는지 보는 요약이에요. 막대 한 칸이 한 달이에요. 업체를 누르면 월별로 고칠 수 있어요.</p>
   <div class="stats">${st}</div>
   <div class="seg" style="display:flex;gap:6px;margin:14px 0 8px"><button class="btn ${ui.pgf!=='late'?'':'g'} s" data-pgf="all">전체 ${rows.length}</button><button class="btn ${ui.pgf==='late'?'':'g'} s" data-pgf="late">밀린 곳 ${behind.length}</button></div>
-  <div class="pglg"><span><i style="background:var(--grn)"></i>완료</span><span><i style="background:var(--amb)"></i>진행·확인</span><span><i style="background:var(--redS);box-shadow:inset 0 0 0 1.5px var(--red)"></i>기준월까지 빈 달</span><span><i style="background:repeating-linear-gradient(45deg,var(--soft) 0 3px,var(--line) 3px 6px)"></i>해당없음</span></div>
+  <div class="pglg"><span><i style="background:var(--grn)"></i>완료</span><span><i style="background:var(--amb)"></i>진행·확인</span><span><i style="background:color-mix(in srgb,var(--red) 14%,var(--soft))"></i>아직 안 된 달</span><span><i style="background:repeating-linear-gradient(45deg,var(--soft) 0 3px,var(--line) 3px 6px)"></i>해당없음</span></div>
   <div class="pgg">${show.map(({c,cells})=>`<div class="card pgk" data-pgc="${c.id}"><div class="t"><b>${esc(c.name)}</b>${cells.every(x=>x.ok)?'<span class="chip grn">완료</span>':`<span class="chip amb">${cells.filter(x=>!x.ok).length}개 밀림</span>`}</div>
     <div class="pgmo"><span></span><div>${[...Array(12)].map((_,i)=>`<span>${i+1}</span>`).join('')}</div><span></span></div>
     ${PG.map(([k,n],i)=>{const x=cells[i];if(x.na)return `<div class="pgb na"><span>${n}</span><div class="bar">${'<i></i>'.repeat(12)}</div><span class="n">없음</span></div>`;
