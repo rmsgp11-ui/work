@@ -1367,7 +1367,7 @@ function openClient(id){
     <div class="kvg">${kv('담당자',c.contact)}<div class="kv"><span>전화</span><b>${tel?`<a href="tel:${tel}">${esc(c.phone)}</a>`:'<i>—</i>'}</b></div>${kv('이메일',c.email,1)}${kv('업태 / 업종',[c.biz1,c.biz2].filter(Boolean).join(' / '))}</div>
     <div class="kvg one">${kv('사업장 주소',c.addr,1)}</div>
     ${c.memo?`<div class="memo">${esc(c.memo)}</div>`:''}</div>
-    <div class="box"><h4>세무 설정</h4><div class="kvg">${kv('구분',c.type)}${kv('과세유형',c.vat)}${c.vat==='일반'?kv('부가세 예정',c.vatPre?({'신고':'예정신고','고지':'예정고지 납부','없음':'없음 (기준 미만)'})[c.vatPre]:(c.type==='법인'?'예정신고 (기본)':'예정고지 (기본)')):''}${kv('원천세',WHL[c.wh||''])}${c.type==='법인'?kv('결산월',(c.fy||12)+'월'):kv('성실신고',c.sincere?'대상 (6월)':'아님 (5월)')}${kv('상태',c.status||'계속사업')}${c.close?kv('폐업일',c.close):''}</div></div>`;
+    <div class="box"><h4>세무 설정</h4><div class="kvg">${kv('구분',c.type)}${c.branch?kv('본점',c.branch+' (지점 — 법인세는 본점 신고)'):''}${kv('과세유형',c.vat)}${c.vat==='일반'?kv('부가세 예정',c.vatPre?({'신고':'예정신고','고지':'예정고지 납부','없음':'없음 (기준 미만)'})[c.vatPre]:(c.type==='법인'?'예정신고 (기본)':'예정고지 (기본)')):''}${kv('원천세',WHL[c.wh||''])}${c.type==='법인'?kv('결산월',(c.fy||12)+'월'):kv('성실신고',c.sincere?'대상 (6월)':'아님 (5월)')}${kv('상태',c.status||'계속사업')}${c.close?kv('폐업일',c.close):''}</div></div>`;
   const basicEdit=`<div class="box"><h4>기본 정보 수정 <button class="btn s" data-a="cEdit" style="margin-left:auto">완료</button></h4><div style="display:flex;flex-direction:column;gap:10px">
       ${f('name','상호')}<div class="r2">${f('ceo','대표자')}${f('bizno','사업자등록번호','text','000-00-00000')}</div>${c.type==='법인'?f('corpno','법인등록번호'):''}
       <div id="vaultBox"></div>
