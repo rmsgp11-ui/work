@@ -489,6 +489,7 @@ function render(){
   $('#mtitle').textContent=TABS.find(x=>x.id===ui.tab).n;
   $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs,jobs:vJobs})[ui.tab]();
   if(ui.syncT) setSync(ui.syncT,ui.syncE);
+  if(ui.tab==='jobs')fillImgs();
 }
 const head=(title,extra='')=>{const d=new Date();return `<div class="head"><h1>${title}</h1><span class="sub">${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일</span><span class="sync" id="dsync"></span>${extra?`<div class="sp">${extra}</div>`:''}</div>`};
 
@@ -643,13 +644,23 @@ function vLogs(){
 /* ---------- 위하고 작업함 ---------- */
 const JK={pay:'급여대장 입력',etc:'이자·사업소득 입력',slip:'자동전표 처리',other:'기타'};
 const JS_={wait:{n:'대기',cls:'blu'},doing:{n:'진행 중',cls:'amb'},check:{n:'확인 필요',cls:'red'},done:{n:'완료',cls:'grn'},fail:{n:'실패',cls:'red'}};
+/* 사진은 work/{uid}/files/{fid} 문서에 따로 저장 → 검토 완료 시 삭제 */
+const imgCache={};
+const fileRef=fid=>F.FS.doc(F.db,'work',user.uid,'files',fid);
+async function putImg(dataUrl){if(!F||!user)return null;const fid=uid();await F.FS.setDoc(fileRef(fid),{data:dataUrl,created:Date.now()});imgCache[fid]=dataUrl;return fid;}
+async function getImg(j){if(j.img)return j.img;if(!j.imgRef)return '';if(imgCache[j.imgRef])return imgCache[j.imgRef];if(!F||!user)return '';
+  try{const d=await F.FS.getDoc(fileRef(j.imgRef));const u=d.exists()?d.data().data:'';imgCache[j.imgRef]=u;return u;}catch(e){return '';}}
+async function dropImg(j){const fid=j.imgRef;j.img='';j.imgRef=null;if(fid){delete imgCache[fid];if(F&&user){try{await F.FS.deleteDoc(fileRef(fid));}catch(e){}}}}
+const hasImg=j=>!!(j.img||j.imgRef);
+const imgTag=(j,style)=>hasImg(j)?`<img data-jimg="${j.id}" alt="첨부 사진" style="${style||'max-width:100%;border-radius:8px;border:1px solid var(--line)'}" ${j.img?`src="${j.img}"`:imgCache[j.imgRef]?`src="${imgCache[j.imgRef]}"`:''}>`:'';
+function fillImgs(){document.querySelectorAll('img[data-jimg]:not([src])').forEach(async el=>{const j=S.jobs.find(x=>x.id===el.dataset.jimg);if(!j)return;const u=await getImg(j);if(u&&el.isConnected)el.src=u;});}
 function jobCard(j){
   const st=JS_[j.status]||JS_.wait,c=cl(j.client);
   return `<div class="card lg" data-job="${j.id}"><div class="lh"><span class="chip ${st.cls}">${st.n}</span><b>${esc(JK[j.kind]||'작업')}${j.ym?` · ${esc(j.ym.replace('-','.'))}`:''}</b>${c?`<span class="chip acc">${esc(c.name)}</span>`:''}<span class="tm">${new Date(j.created).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}</span></div>
     ${j.result?`<div class="ls">${esc(j.result.split('\n')[0])}</div>`:j.memo?`<div class="ls">${esc(j.memo)}</div>`:''}
     <div class="lx">${j.memo?`<div class="lab">요청 메모</div><pre>${esc(j.memo)}</pre>`:''}
       ${j.text?`<div class="lab">붙여넣은 표</div><pre>${esc(j.text)}</pre>`:''}
-      ${j.img?`<div class="lab">첨부 사진</div><img src="${j.img}" style="max-width:100%;border-radius:8px;border:1px solid var(--line)">`:''}
+      ${hasImg(j)?`<div class="lab">첨부 사진</div>${imgTag(j)}`:''}
       ${j.result?`<div class="lab">처리 결과</div><pre>${esc(j.result)}</pre>`:''}
       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
         ${j.status==='check'||j.status==='fail'?`<button class="btn s" data-jobact="ok|${j.id}">확인했어요</button>`:''}
@@ -678,6 +689,7 @@ function revCard(j){
     <div class="lh" style="flex-wrap:wrap;gap:6px"><span class="chip ${st.cls}">${st.n}</span><b>${esc(c?c.name:'거래처 미지정')}</b><span class="chip">${esc(JK[j.kind]||'작업')}${j.ym?' · '+esc(j.ym.replace('-','.')):''}</span>
       ${j.reviewed?`<span class="chip grn">검토 완료</span>`:bad?`<span class="chip red">차이 ${bad}건</span>`:rows.length?`<span class="chip grn">대조 일치</span>`:''}</div>
     ${j.result?`<div class="ls" style="margin:6px 0">${esc(j.result.split('\n')[0])}</div>`:''}
+    ${hasImg(j)?`<div class="lab" style="margin-top:6px">내가 준 사진 <span style="font-weight:400;color:var(--sub)">· 검토 완료하면 삭제돼요</span></div><a data-jzoom="${j.id}" style="display:block;cursor:zoom-in">${imgTag(j,'max-width:100%;max-height:420px;border-radius:8px;border:1px solid var(--line);display:block')}</a>`:''}
     ${rows.length?`<div style="overflow-x:auto"><table class="rvt" style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px">
       <thead><tr><th>대상</th><th>항목</th><th style="text-align:right">준 자료</th><th style="text-align:right">위하고 입력</th><th></th></tr></thead><tbody>
       ${rows.map(x=>{const has=x.given!=null&&x.given!=='',ok=!has||nnum(x.given)===nnum(x.entered);return `<tr style="${ok?'':'background:color-mix(in srgb,var(--red) 12%,transparent)'}"><td>${esc(x.who||'')}</td><td>${esc(x.item||'')}</td><td style="text-align:right">${fmtv(x.given)}</td><td style="text-align:right">${fmtv(x.entered)}</td><td style="text-align:center">${!has?'<span style="color:var(--sub)">·</span>':ok?'✓':'⚠'}</td></tr>`}).join('')}
@@ -685,7 +697,6 @@ function revCard(j){
     ${(r.sum||[]).length?`<div class="lab" style="margin-top:10px">신고서·명세서</div><div style="display:grid;grid-template-columns:1fr auto;gap:2px 12px;font-size:13px">${r.sum.map(([k,v])=>`<span>${esc(k)}</span><b style="text-align:right">${fmtv(v)}</b>`).join('')}</div>`:''}
     ${(r.notes||[]).length?`<div class="lab" style="margin-top:10px">확인할 점</div><ul style="margin:0;padding-left:18px;font-size:13px">${r.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:''}
     ${j.text?`<details style="margin-top:8px"><summary style="font-size:12px;color:var(--sub)">준 자료 원문</summary><pre>${esc(j.text)}</pre></details>`:''}
-    ${j.img?`<details style="margin-top:6px"><summary style="font-size:12px;color:var(--sub)">첨부 사진</summary><img src="${j.img}" style="max-width:100%;border-radius:8px"></details>`:''}
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${j.reviewed?`<button class="btn g s" data-jobact="unrev|${j.id}">검토 취소</button>`:`<button class="btn s" data-jobact="rev|${j.id}">검토 완료</button>`}<button class="btn g s" data-jobact="retry|${j.id}">다시 맡기기</button></div></div>`;
 }
 function vReview(js){
@@ -711,33 +722,36 @@ function jobForm(){
 function shrinkImg(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{
   const go=(w,q)=>{const sc=Math.min(1,w/im.width),cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);return cv.toDataURL('image/jpeg',q);};
   let u=go(1600,.75);if(u.length>420000)u=go(1300,.6);if(u.length>420000)u=go(1100,.5);res(u);};im.onerror=rej;im.src=r.result;};r.onerror=rej;r.readAsDataURL(file);});}
-function jobSave(){
-  const client=$('#jC').value||null,kind=$('#jK').value,ym=$('#jY').value||todayStr().slice(0,7),text=$('#jT').value.trim(),memo=$('#jM').value.trim(),img=ui.jobImg||'';
+async function jobSave(){
+  const client=$('#jC').value||null,kind=$('#jK').value,ym=$('#jY').value||todayStr().slice(0,7),text=$('#jT').value.trim(),memo=$('#jM').value.trim();let img=ui.jobImg||'',imgRef=null;
   if(!client) return toast('거래처를 골라 주세요');
   if(!text&&!img&&!memo) return toast('표를 붙여넣거나 사진을 첨부해 주세요');
-  S.jobs.push({id:uid(),client,kind,ym,text,img,memo,status:'wait',result:'',created:Date.now(),doneAt:null});
+  if(img&&F&&user){try{imgRef=await putImg(img);img='';}catch(e){toast('사진 저장 칸 권한이 없어요 — Firebase 규칙에 files 줄을 넣어 주세요');return;}}
+  S.jobs.push({id:uid(),client,kind,ym,text,img,imgRef,memo,status:'wait',result:'',reviewed:null,created:Date.now(),doneAt:null});
   trimJobs();save();$('#modal').classList.remove('on');ui.tab='jobs';render();toast('맡겼어요 · 다음 처리 시간에 진행해요');
 }
-function trimJobs(){const now=Date.now();S.jobs.forEach(j=>{if(j.status==='done'&&j.img&&now-(j.doneAt||now)>3*864e5)j.img='';});
+function trimJobs(){const now=Date.now();S.jobs.filter(j=>j.reviewed&&hasImg(j)).forEach(j=>dropImg(j));
+  S.jobs.filter(j=>j.status==='done'&&now-(j.doneAt||now)>=90*864e5).forEach(j=>dropImg(j));
   S.jobs=S.jobs.filter(j=>j.status!=='done'||now-(j.doneAt||now)<90*864e5);
   if(JSON.stringify(S).length>850000)toast('저장 공간이 거의 찼어요. 완료된 작업의 사진을 지워 주세요');}
 function jobAct(v){const [a,id]=v.split('|'),j=S.jobs.find(x=>x.id===id);if(!j)return;
-  if(a==='del'){if(!confirm('이 작업을 삭제할까요?'))return;S.jobs=S.jobs.filter(x=>x.id!==id);}
+  if(a==='del'){if(!confirm('이 작업을 삭제할까요?'))return;dropImg(j);S.jobs=S.jobs.filter(x=>x.id!==id);}
   else if(a==='retry'){j.status='wait';j.reviewed=null;j.result=(j.result?j.result+'\n\n':'')+'— 다시 맡김 '+new Date().toLocaleString('ko-KR');}
   else if(a==='ok'){j.status='done';j.doneAt=Date.now();}
-  else if(a==='rev'){j.reviewed=Date.now();if(j.status==='check'||j.status==='fail'){j.status='done';j.doneAt=Date.now();}}
+  else if(a==='rev'){j.reviewed=Date.now();if(j.status==='check'||j.status==='fail'){j.status='done';j.doneAt=Date.now();}if(hasImg(j)){dropImg(j);toast('검토 완료 · 사진은 삭제했어요');}}
   else if(a==='unrev'){j.reviewed=null;}
   save();render();}
 /* Claude가 크롬에서 작업함을 읽고 결과를 남길 때 쓰는 연결 */
 window.__jobs={
   ready:()=>!!user,
-  list:(st)=>S.jobs.filter(j=>!st||j.status===st).map(j=>{const c=cl(j.client)||{};return {id:j.id,client:c.name||'',bizno:c.bizno||'',type:c.type||'',kind:JK[j.kind]||j.kind,ym:j.ym,text:j.text,memo:j.memo,hasImg:!!j.img,status:j.status,result:j.result,created:new Date(j.created).toISOString()};}),
-  img:(id)=>{const j=S.jobs.find(x=>x.id===id);return j?j.img:''},
+  list:(st)=>S.jobs.filter(j=>!st||j.status===st).map(j=>{const c=cl(j.client)||{};return {id:j.id,client:c.name||'',bizno:c.bizno||'',type:c.type||'',kind:JK[j.kind]||j.kind,ym:j.ym,text:j.text,memo:j.memo,hasImg:hasImg(j),status:j.status,result:j.result,created:new Date(j.created).toISOString()};}),
+  attach:async(id,dataUrl)=>{const j=S.jobs.find(x=>x.id===id);if(!j)return false;const fid=await putImg(dataUrl);if(!fid)return false;await dropImg(j);j.imgRef=fid;save();if(!ui.drawer)render();return true;},
+  img:async(id)=>{const j=S.jobs.find(x=>x.id===id);return j?await getImg(j):''},
   add:(o)=>{const key=String(o.client||'').replace(/\D/g,'');const c=S.clients.find(x=>key.length>=10&&String(x.bizno||'').replace(/\D/g,'')===key)||S.clients.find(x=>x.name===o.client)||S.clients.find(x=>o.client&&x.name.includes(o.client));
     const j={id:uid(),client:c?c.id:null,kind:o.kind||'other',ym:o.ym||'',text:o.text||'',img:'',memo:o.memo||'',status:o.status||'done',result:o.result||'',review:o.review||null,reviewed:null,created:Date.now(),doneAt:(o.status||'done')==='done'?Date.now():null};
     S.jobs.push(j);save();if(!ui.drawer)render();return {id:j.id,client:c?c.name:null};},
   update:(id,patch)=>{const j=S.jobs.find(x=>x.id===id);if(!j)return false;['status','result','review'].forEach(k=>{if(patch[k]!==undefined)j[k]=patch[k]});
-    if(patch.status==='done'){j.doneAt=Date.now();j.img='';}save();if(!ui.drawer)render();return true;}
+    if(patch.status==='done'){j.doneAt=Date.now();}save();if(!ui.drawer)render();return true;}
 };
 
 /* ---------- 서랍 ---------- */
@@ -1077,6 +1091,7 @@ document.addEventListener('click',e=>{
   if((el=q('[data-subdel]'))){const x=S.tasks.find(t=>t.id===ui.openTask);x.subs=x.subs.filter(s=>s.id!==el.dataset.subdel);save();openTask(x.id);return;}
   if((el=q('[data-logdel]'))){if(confirm('이 기록을 삭제할까요? (할 일은 남아요)')){S.logs=S.logs.filter(l=>l.id!==el.dataset.logdel);save();render();}return;}
   if((el=q('[data-jobact]'))){jobAct(el.dataset.jobact);return;}
+  if((el=q('[data-jzoom]'))){const im=el.querySelector('img');if(im&&im.src){const w=window.open();if(w)w.document.write(`<title>첨부 사진</title><body style="margin:0;background:#111"><img src="${im.src}" style="max-width:100%;display:block;margin:auto">`);}return;}
   if((el=q('[data-jsub]'))){ui.jsub=el.dataset.jsub;render();return;}
   if((el=q('.lg'))&&!q('select')&&!q('button')&&!q('img')){el.classList.toggle('open');return;}
   if((el=q('[data-vreveal]'))){const k=el.dataset.vreveal,b=$(`[data-vshow="${k}"]`);if(!ui.vcur||!b)return;b.textContent=ui.vcur.v[k];vTimer();setTimeout(()=>{if(b.isConnected)b.textContent=k==='rrn'?rrnMask(ui.vcur.v[k]):'••••••••'},10000);return;}
