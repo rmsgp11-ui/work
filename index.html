@@ -299,6 +299,7 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
   <small>카카오톡 안 브라우저에서는 로그인이 안 돼요. Safari나 Chrome으로 열어 주세요.</small>
 </div></div>
 <input type="file" id="fileIn" accept="application/json" hidden>
+<input type="file" id="talkIn" accept="application/json,.json" hidden>
 <input type="file" id="impIn" accept="application/json,.json" hidden>
 <input type="file" id="secIn" accept="application/json,.json" hidden>
 
@@ -658,11 +659,36 @@ function logCard(l){
       <div style="margin-top:8px;display:flex;gap:8px;align-items:center"><select class="sel" data-logclient="${l.id}"><option value="">거래처 없음</option>${S.clients.map(x=>`<option value="${x.id}" ${x.id===l.client?'selected':''}>${esc(x.name)}</option>`).join('')}</select><button class="del" data-logdel="${l.id}" style="margin-left:auto">삭제</button></div></div></div>`;
 }
 function vLogs(){
-  const logs=S.logs.slice().sort((a,b)=>b.at-a.at);
-  return head('기록',`<button class="btn g" data-a="live">🎙 실시간 통화 정리</button><button class="btn" data-a="ingest">✨ 톡·통화에서 뽑기</button>`)+`
-  <p class="note" style="margin-bottom:12px">톡이나 익시오 통화 요약을 복사해 <b>업무에 넣기</b> 단축어를 누르면, AI가 요약해서 여기에 남기고 할 일을 만들어요. 거래처도 자동으로 연결돼요.</p>
-  ${logs.length?logs.map(logCard).join(''):'<div class="card"><div class="empty">아직 기록이 없어요</div></div>'}`;
+  let logs=S.logs.slice().sort((a,b)=>b.at-a.at);const lc=ui.lc||'';
+  const cnt={};S.logs.forEach(l=>{if(l.client)cnt[l.client]=(cnt[l.client]||0)+1});
+  if(lc==='none')logs=logs.filter(l=>!l.client);else if(lc)logs=logs.filter(l=>l.client===lc);
+  const lim=ui.llim||60,shown=logs.slice(0,lim);
+  return head('기록',`<button class="btn g" data-a="talkImport">📥 톡 히스토리 가져오기</button><button class="btn g" data-a="live">🎙 실시간 통화 정리</button><button class="btn" data-a="ingest">✨ 톡·통화에서 뽑기</button>`)+`
+  <p class="note" style="margin-bottom:12px">톡이나 익시오 통화 요약을 복사해 <b>업무에 넣기</b> 단축어를 누르면, AI가 요약해서 여기에 남기고 할 일을 만들어요. 카톡 내보내기를 정리한 JSON은 <b>톡 히스토리 가져오기</b>로 한 번에 넣을 수 있어요.</p>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><select class="sel" data-in="lc" style="max-width:320px"><option value="">전체 거래처 (${S.logs.length}건)</option>${S.clients.filter(c=>cnt[c.id]).sort((a,b)=>a.name.localeCompare(b.name,'ko')).map(c=>`<option value="${c.id}" ${lc===c.id?'selected':''}>${esc(c.name)} (${cnt[c.id]})</option>`).join('')}<option value="none" ${lc==='none'?'selected':''}>거래처 없음</option></select>${lc&&lc!=='none'?`<button class="btn g s" data-client="${lc}">거래처 열기</button>`:''}</div>
+  ${shown.length?shown.map(logCard).join(''):'<div class="card"><div class="empty">아직 기록이 없어요</div></div>'}
+  ${logs.length>lim?`<button class="btn g" data-a="logMore" style="width:100%;justify-content:center;margin-top:8px">더 보기 (${logs.length-lim}건 남음)</button>`:''}`;
 }
+/* 카톡 내보내기 정리 JSON → 거래처별 기록 */
+function importTalk(d){
+  if(!d||!Array.isArray(d['업체']))return {err:'형식이 달라요'};
+  const have=new Set(S.logs.map(l=>l.key).filter(Boolean));let add=0,dup=0,skip=[],miss=[];
+  for(const g of d['업체']){
+    if(/내부/.test(g['구분']||'')){skip.push(g['업체명']);continue;}
+    const names=String(g['업체명']||'').replace(/대표\s*개인톡|\(.*?\)/g,m=>m.startsWith('(')?','+m.slice(1,-1):'').split(/[,，]/).map(x=>x.trim()).filter(Boolean);
+    const ids=[...new Set(names.map(n=>matchClient(n)||matchClient(n.replace(/[_\s].*$/,''))).filter(Boolean))];
+    if(!ids.length){miss.push(g['업체명']);continue;}
+    for(const h of g['히스토리']||[]){
+      const t=h['내용요약']||'';let cid=ids[0];
+      if(ids.length>1){const hit=ids.find(id=>{const n=norm(cl(id).name);return n&&norm(t).includes(n.slice(0,Math.min(n.length,4)))});if(hit)cid=hit;}
+      const key='kt|'+cid+'|'+h['일자']+'|'+t.slice(0,40);
+      if(have.has(key)){dup++;continue;}have.add(key);
+      S.logs.push({id:uid(),key,at:new Date((h['일자']||'')+'T12:00:00').getTime()||Date.now(),src:'카톡',client:cid,title:h['분류']||'카톡',summary:t,points:[],theirs:[],text:'',taskIds:[],n:h['메시지수']||0});add++;
+    }
+  }
+  save();render();return {add,dup,skip,miss};
+}
+window.__importTalk=importTalk;
 
 /* ---------- 위하고 작업함 ---------- */
 const JK={pay:'급여대장 입력',etc:'이자·사업소득 입력',slip:'자동전표 처리',other:'기타'};
@@ -1220,6 +1246,7 @@ document.addEventListener('click',e=>{
     calPrev:()=>{let {y,m}=ui.cal;m--;if(m<1){m=12;y--}ui.cal={y,m};render();}, calNext:()=>{let {y,m}=ui.cal;m++;if(m>12){m=1;y++}ui.cal={y,m};render();},
     calToday:()=>{const d=new Date();ui.cal={y:d.getFullYear(),m:d.getMonth()+1};render();},
     pmPrev:()=>{ui.pm=ymAdd(ui.pm,-1);render();}, pmNext:()=>{ui.pm=ymAdd(ui.pm,1);render();}, pmCur:()=>{ui.pm=curYM();render();},
+    talkImport:()=>$('#talkIn').click(), logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
     pgPrev:()=>{ui.pg=pgAdd(ui.pg,-1);render();}, pgNext:()=>{ui.pg=pgAdd(ui.pg,1);render();}, pgCur:()=>{ui.pg=pgAdd(pgNow(),-1);render();},
     newClient:()=>{const n=prompt('상호');if(!n||!n.trim())return;const c={id:uid(),order:S.clients.length+1,type:'법인',name:n.trim(),bizno:'',ceo:'',corpno:'',contact:'',phone:'',biz1:'',biz2:'',fee:null,adjFee:null,wh:'',email:'',vat:'일반',fy:12,sincere:false,payDay:null,cms:'',payInfo:'',addr:'',memo:''};S.clients.push(c);save();render();openClient(c.id);},
     clientDel:()=>{const c=cl(ui.openClient);if(!c||!confirm(`${c.name}을(를) 삭제할까요? (할 일·기록은 남아요)`))return;S.clients=S.clients.filter(x=>x.id!==c.id);delete S.pay[c.id];S.tasks.forEach(t=>{if(t.client===c.id)t.client=null});save();closeDrawer();},
@@ -1241,6 +1268,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',e=>{
   const el=e.target,d=el.dataset;
   if(d.in==='sort'){ui.sort=el.value;render();return;}
+  if(d.in==='lc'){ui.lc=el.value;ui.llim=60;render();return;}
   if(d.tf2){const x=S.tasks.find(t=>t.id===ui.openTask);const v=el.value;if(d.tf2==='status')setStatus(x,v);else if(d.tf2==='pri')x.pri=+v;else if(d.tf2==='due')x.due=v||null;else if(d.tf2==='client')x.client=v||null;save();return;}
   if(d.sub){const x=S.tasks.find(t=>t.id===ui.openTask);const s=x.subs.find(s=>s.id===d.sub);if(s)s.d=el.checked;save();return;}
   if(ui.drawer==='client'&&d.cf2&&el.tagName==='SELECT'){const c=cl(ui.openClient);let v=el.value;if(d.cf2==='fy')v=+v;if(d.cf2==='sincere')v=v==='1';c[d.cf2]=v;save();openClient(c.id);return;}
@@ -1258,6 +1286,7 @@ document.addEventListener('keydown',e=>{
 $('#shade').onclick=closeDrawer;
 $('#modal').addEventListener('click',e=>{if(e.target.id==='modal'){$('#modal').classList.remove('on');if(passRes){const r=passRes;passRes=null;r(null);}}});
 $('#toastUndo').onclick=()=>{undoFn&&undoFn();undoFn=null;$('#toast').classList.remove('on');};
+$('#talkIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const r=importTalk(JSON.parse(await f.text()));if(r.err)toast(r.err);else{toast(`톡 기록 ${r.add}건 넣었어요${r.dup?` · 중복 ${r.dup}건 건너뜀`:''}${r.miss.length?` · 거래처 못 찾음 ${r.miss.length}곳`:''}`);window.__talkLast=r;}}catch(_){toast('파일을 읽지 못했어요');}e.target.value='';};
 $('#fileIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.tasks))throw 0;if(confirm(`할 일 ${d.tasks.length}개, 거래처 ${(d.clients||[]).length}곳으로 지금 데이터를 바꿀까요?`)){S=migrate(d);save();render();toast('복원했어요');}}catch(_){toast('백업 파일을 읽지 못했어요');}e.target.value='';$('#modal').classList.remove('on');};
 $('#impIn').onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value='';$('#modal').classList.remove('on');};
 $('#secIn').onchange=e=>{const f=e.target.files[0];$('#modal').classList.remove('on');if(f)importSecrets(f);e.target.value='';};
