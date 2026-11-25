@@ -806,6 +806,8 @@ function pgClick(el){
 window.__prog={
   set:(client,k,ym,st)=>{const key=String(client||'').replace(/\D/g,'');const c=S.clients.find(x=>key.length>=10&&String(x.bizno||'').replace(/\D/g,'')===key)||S.clients.find(x=>x.name===client)||S.clients.find(x=>client&&x.name.includes(client));
     if(!c||!PGN[k]||!/^\d{4}-\d{2}$/.test(ym))return false;pgSet(c.id,k,ym,st||'');save();if(!ui.drawer)render();return c.name;},
+  clients:()=>S.clients.filter(c=>c.status!=='폐업').map(c=>({id:c.id,name:c.name,type:c.type,bizno:c.bizno||''})),
+  bulk:(list)=>{let n=0;list.forEach(([id,k,ym,st])=>{if(cl(id)&&PGN[k]&&/^\d{4}-\d{2}$/.test(ym)){pgSet(id,k,ym,st||'');n++;}});save();if(!ui.drawer)render();return n;},
   get:(client)=>{const c=S.clients.find(x=>x.name===client)||S.clients.find(x=>client&&x.name.includes(client));return c?JSON.parse(JSON.stringify(S.prog[c.id]||{})):null;}
 };
 /* Claude가 크롬에서 작업함을 읽고 결과를 남길 때 쓰는 연결 */
