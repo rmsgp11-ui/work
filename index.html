@@ -1075,7 +1075,7 @@ function taxPers(kind,Y){
   return [{key:`${Y-1}`,n:`${Y-1} 사업연도`,sub:'법인세 신고',due:nextBiz(`${Y}-03-31`)},{key:`${Y}-mid`,n:`${Y} 중간예납`,sub:'8월',due:nextBiz(`${Y}-08-31`)},{key:`${Y}`,n:`${Y} 사업연도`,sub:'법인세 신고',due:nextBiz(`${Y+1}-03-31`)}];
 }
 const agt=id=>S.agents.find(a=>a.id===id);
-const taxFin=(kind,per)=>kind==='ye'?(r=>!!r.제출):kind==='pit'&&per.includes('mid')?(r=>r.고지==='미고지'||(r.고지==='고지'&&!!r.전달)):(r=>!!r.전송);
+const taxFin=(kind,per)=>kind==='ye'?(r=>!!r.제출):kind==='pit'&&per.includes('mid')?(r=>r.고지==='미고지'||r.고지==='고지'):(r=>!!r.전송);
 function taxList(kind,per,due){
   const ag=ui.rmode==='ag',D=((S.rpt[kind]||{})[per])||{},past=due<todayStr(),isP=kind==='pit';
   const yr=+per.slice(0,4),mid=per.includes('mid'),fin0=taxFin(kind,per),pst=mid?`${yr-1}-12-31`:`${yr}-01-01`,pend=mid?`${yr-1}-12-31`:`${yr}-12-31`;
@@ -1143,7 +1143,7 @@ function vRepPitMid(p,past,cs,done,fin,ag){
   ${todo.length?`<tr class="grp"><td colspan="${nc}">확인할 것 ${todo.length}</td></tr>${todo.map(row).join('')}`:''}
   ${dn.length?`<tr class="grp"><td colspan="${nc}">처리 완료 ${dn.length}</td></tr>${dn.map(row).join('')}`:''}
   ${cs.length?'':`<tr><td colspan="${nc}" class="empty">대상이 없어요</td></tr>`}</tbody></table></div></div>
-  <p class="note" style="margin-top:8px">'미고지'이거나, '고지'이고 납부서를 전달했으면 완료로 내려가요.</p>`;
+  <p class="note" style="margin-top:8px">고지 여부(고지·미고지)를 확인하면 완료로 내려가요. 납부서 전달·납부는 따로 체크해 두면 돼요.</p>`;
 }
 
 const YES=[['요청','자료요청'],['수령','자료수령'],['계산','계산'],['검토','검토'],['전달','결과전달'],['제출','지급명세서 제출']];
