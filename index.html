@@ -1186,6 +1186,11 @@ function rptSet(spec,val){const [kind,per,cid,f]=spec.split('|');const T=S.rpt[k
   if(kind==='wh'&&r.gan!==undefined){const R=whRow(r);['ganD','ganS','kdDate','kdWay'].forEach(x=>{if(R[x])r[x]=R[x]});delete r.gan;}
   if(val===undefined){if(f==='st')r.st=r.st==='완료'?'':'완료';else r[f]=r[f]?'':'○';}else r[f]=val;
   rptSync(kind,per,cid,r);save();}
+window.__ag={list:()=>S.agents.map(a=>({id:a.id,name:a.name,type:a.type,memo:a.memo||''})),
+  add:(name,type,memo)=>{let a=S.agents.find(x=>x.name===name&&x.type===type);if(!a){a={id:'ag'+uid(),name,type,bizno:'',phone:'',fee:null,memo:memo||''};S.agents.push(a);}save();return a.id;},
+  put:(kind,per,id,d)=>{const T=S.rpt[kind];T[per]=T[per]||{};T[per][id]=Object.assign(T[per][id]||{},d);save();if(!ui.drawer)render();return 1;}};
+window.__rptGet=(kind,per)=>{const D=(S.rpt[kind]||{})[per]||{};return Object.fromEntries(Object.entries(D).map(([id,r])=>[id,Object.assign({_n:(cl(id)||agt(id)||{}).name},r)]));};
+window.__rptList=(kind,per,ag)=>{const m0=ui.rmode;ui.rmode=ag?'ag':'gj';try{const p=taxPers(kind,+per.slice(0,4)+(per.includes('mid')?0:1)).find(x=>x.key===per);return taxList(kind,per,p.due).cs.map(x=>({id:x.c.id,name:x.c.name,ceo:x.c.ceo||'',bizno:String(x.c.bizno||'').replace(/\D/g,''),r:x.r}));}finally{ui.rmode=m0;}};
 window.__rpt={purge:(kind,maxPer)=>{let n=0;for(const [p,D] of Object.entries(S.rpt[kind]))if(p<=maxPer)for(const [id,r] of Object.entries(D))if(r.st!=='완료'){delete D[id];n++;}save();if(!ui.drawer)render();return n;},del:(kind,per,bizno)=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(bizno));const T=S.rpt[kind][per];if(!c||!T||!T[c.id])return 0;delete T[c.id];save();if(!ui.drawer)render();return 1;},put:(kind,per,rows)=>{const T=S.rpt[kind];T[per]=T[per]||{};let n=0;rows.forEach(o=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(o.bizno));if(!c)return;T[per][c.id]=Object.assign(T[per][c.id]||{},o.d);rptSync(kind,per,c.id,T[per][c.id]);n++;});save();if(!ui.drawer)render();return n;}};
 /* ---------- 기장 진도 ---------- */
 const PG=[['card','카드'],['bank','통장'],['tax','계산서'],['pay','급여']];
