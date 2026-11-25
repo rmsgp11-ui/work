@@ -646,11 +646,11 @@ function dlRow(e){
 function homeRep(){/* 지금 진행 중인 신고: 기한이 다가오는 순 */
   const t=todayStr(),Y=+t.slice(0,4),out=[],m0=ui.rmode;ui.rmode='gj';
   try{
-    const pm=pgAdd(pgNow(),-1),wy=+pm.slice(0,4),wm=+pm.slice(5,7),W=whList(wy,wm);out.push({k:'wh',sel:pm,n:`원천세 ${wm}월 귀속`,due:W.due,done:W.done,tot:W.cs.length});
+    for(const pm of [pgAdd(pgNow(),-1),pgNow()]){const wy=+pm.slice(0,4),wm=+pm.slice(5,7),W=whList(wy,wm);if(W.due<t&&W.done>=W.cs.length)continue;out.push({k:'wh',sel:pm,n:`원천세 ${wm}월 귀속`,due:W.due,done:W.done,tot:W.cs.length});}
     for(const y of [Y,Y+1]){const pk=VP.map(x=>x[0]).find(k=>{const L=vatList(y,k);return L.due>=t});if(pk){const L=vatList(y,pk);out.push({k:'vat',sel:pk,y,n:`부가세 ${y}년 ${L.pd[1]}`,due:L.due,done:L.done,tot:L.cs.length,extra:L.gj&&L.gj.length?`예정고지 ${L.gj.length}`:''});break;}}
     for(const kind of ['ye','pit','cit']){for(const y of [Y,Y+1]){const p=taxPers(kind,y).find(x=>x.due>=t);if(p){const L=taxList(kind,p.key,p.due);if(L.cs.length){out.push({k:kind,sel:p.key,y,n:`${({ye:'연말정산',pit:'소득세',cit:'법인세'})[kind]} ${p.n}`,due:p.due,done:L.done,tot:L.cs.length});}break;}}}
   }finally{ui.rmode=m0;}
-  return out.sort((a,b)=>a.due<b.due?-1:1);}
+  const fin=r=>r.tot&&r.done>=r.tot;return out.sort((a,b)=>(fin(a)-fin(b))||(a.due<b.due?-1:1));}
 function homeProgLate(){const b=pgAdd(pgNow(),-1),y=+b.slice(0,4),bm=+b.slice(5,7);let n=0;
   S.clients.forEach(c=>{const r=pgRange(c,y);if(r[0]>12||r[1]<1)return;if(c.status==='폐업'&&!(c.close&&+c.close.slice(0,4)>=y))return;if(PG.some(([k])=>!pgBar(c,k,y,bm).ok))n++;});return {n,bm};}
 function vHome(){
