@@ -188,6 +188,7 @@ body.wide main{max-width:1760px}
 .hgrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}@media(max-width:899px){.hgrid{grid-template-columns:1fr}.hks{grid-template-columns:repeat(2,1fr)}}
 .hr{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--line);cursor:pointer}.hr:first-child{border-top:0}.hr:hover{background:var(--soft)}.hr .t{flex:1;min-width:0}.hr .t b{display:block;font-size:14px}.hr .t span{font-size:12px;color:var(--sub)}.hr .t em{font-style:normal}.hr .t em.red{color:var(--red);font-weight:700}
 .hr .p{width:120px;text-align:right}.hr .p span{font-size:13px;font-weight:700;color:var(--red)}.hr .p span.ok{color:var(--grn)}.hr .p small{margin-left:6px;font-size:11px;color:var(--sub)}.hr .p i{display:block;height:5px;border-radius:9px;background:var(--soft);margin-top:5px;overflow:hidden}.hr .p i em{display:block;height:100%;background:var(--grn)}
+.rtn{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:9px 14px;margin:8px 0;font-size:13px}.rtn b{margin-right:4px}.rtn .chip .del{border:0;background:none;color:var(--sub);cursor:pointer;padding:0 0 0 4px}
 .rsl .rsi{padding:7px 12px}.rsl .rsi .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rsl .rsi .t b{display:inline;margin-right:6px}.rsl .rsi .t span{display:inline}.rsl .rsi .p{width:64px}
 .rsi .p i{display:block;height:4px;border-radius:99px;background:var(--soft);margin-top:4px;overflow:hidden}.rsi .p em{display:block;height:100%;background:var(--grn)}
 .rpsum{display:flex;align-items:center;gap:16px;padding:12px 16px;margin-bottom:10px;flex-wrap:wrap}.rpn b{font-size:24px}.rpn span{color:var(--sub);margin-left:4px}
@@ -453,7 +454,7 @@ const ds=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
 /* ---------- 상태 ---------- */
 function migrate(s){
   s=Object.assign({v:2,tasks:[],clients:[],pay:{},checks:{},logs:[],jobs:[],prog:{},rpt:{wh:{},vat:{}},projects:[],theme:'light',updated:0},s||{});
-  if(!Array.isArray(s.jobs))s.jobs=[];
+  if(!Array.isArray(s.jobs))s.jobs=[];if(!Array.isArray(s.routines))s.routines=[];
   if(!s.prog||typeof s.prog!=='object')s.prog={};
   if(!s.rpt)s.rpt={wh:{},vat:{}};['wh','vat','pit','cit'].forEach(k=>s.rpt[k]=s.rpt[k]||{});if(!Array.isArray(s.agents))s.agents=[];
   if(Array.isArray(s.calls)){s.calls.forEach(c=>s.logs.push({id:c.id,at:c.at,src:'통화',client:null,title:c.title,summary:c.summary,points:c.points||[],theirs:c.theirs||[],text:c.transcript||'',taskIds:c.taskIds||[]}));delete s.calls;}
@@ -625,7 +626,15 @@ function badges(){
   const t=todayStr();
   return {tasks:S.tasks.filter(x=>openT(x)&&x.due&&x.due<=t).length,pay:S.clients.filter(c=>unpaidList(c.id).length).length,jobs:S.jobs.filter(j=>j.status==='check'||j.status==='fail'||(j.status==='done'&&j.review&&!j.reviewed)).length};
 }
+/* 매월 반복 할 일: 이번 달·다음 달 것을 미리 만들어 둠 */
+function runRoutines(){if(!S.routines||!S.routines.length)return false;const t=todayStr();let ch=false;
+  for(const r of S.routines){for(const ym of [pgNow(),pgAdd(pgNow(),1)]){const y=+ym.slice(0,4),m=+ym.slice(5,7),d=Math.min(+r.day,lastDay(y,m)),due=`${ym}-${pad(d)}`,rk=`${r.id}:${ym}`;
+    if(S.tasks.some(x=>x.rk===rk))continue;if(due<(r.from||'')||due<t&&ym===pgNow()&&(r.created||0)>Date.parse(due))continue;
+    S.tasks.push({id:uid(),rk,title:r.title+(r.time?` (${r.time})`:''),client:null,due,pri:r.pri||2,status:'todo',memo:r.memo||'매월 반복 할 일',subs:[],created:Date.now(),doneAt:null});ch=true;}}
+  return ch;}
+function routineBox(){const R=S.routines||[];return `<div class="card rtn"><b>🔁 매월 반복</b>${R.map(r=>`<span class="chip">${r.day}일${r.time?' '+esc(r.time):''} · ${esc(r.title)} <button class="del" data-rtdel="${r.id}" title="반복 끄기">×</button></span>`).join('')}<button class="btn g s" data-a="rtAdd">＋ 추가</button></div>`;}
 function render(){
+  if(ui._rr!==todayStr()){ui._rr=todayStr();if(runRoutines())save();}
   document.documentElement.classList.toggle('dark',S.theme==='dark');
   $('#themeBtn').textContent=S.theme==='dark'?'☀️ 밝게':'🌙 어둡게';
   const b=badges();
@@ -739,7 +748,7 @@ function vTasks(){
       G('기한 지남',x=>x.due&&x.due<t,'late');G('오늘',x=>x.due===t);G('내일',x=>x.due===addDays(t,1));G('이번 주',x=>x.due>addDays(t,1)&&x.due<=addDays(t,7));G('나중에',x=>x.due>addDays(t,7));G('날짜 없음',x=>!x.due);
       body=g.join('');}
   }
-  return head('할 일',`<button class="btn g" data-a="aisort" id="aiSortBtn">✨ AI 정렬</button>`)+quickBar()+
+  return head('할 일',`<button class="btn g" data-a="aisort" id="aiSortBtn">✨ AI 정렬</button>`)+quickBar()+routineBox()+
     `<div class="hint">빠른 입력: <b>내일 · 금요일 · 12/5</b> 날짜, <b>#거래처</b>, <b>!1</b> 긴급 <b>!2</b> 높음 — 거래처 이름이 들어가면 자동 연결돼요</div>
     <div class="fbar">${fl.map(([k,n])=>`<button class="fchip ${ui.tf===k?'on':''}" data-tf="${k}">${n}</button>`).join('')}
       <input class="search" data-in="q" placeholder="검색" value="${esc(ui.q)}"><select class="sel" data-in="sort"><option value="due" ${ui.sort==='due'?'selected':''}>마감일 순</option><option value="ai" ${ui.sort==='ai'?'selected':''}>AI 추천 순</option><option value="pri" ${ui.sort==='pri'?'selected':''}>우선순위 순</option><option value="new" ${ui.sort==='new'?'selected':''}>최근 추가 순</option></select></div><div id="sres">`+body+`</div>`;
@@ -1243,6 +1252,8 @@ function rptSet(spec,val){const [kind,per,cid,f]=spec.split('|');const T=S.rpt[k
   if(f&&f.startsWith('e~')){const [,i,ef]=f.split('~');r.emps=r.emps||[];const e=r.emps[+i]=r.emps[+i]||{};if(val===undefined)e[ef]=e[ef]?'':'○';else e[ef]=val;rptSync(kind,per,cid,r);save();return;}
   if(val===undefined){if(f==='st')r.st=r.st==='완료'?'':'완료';else r[f]=r[f]?'':'○';}else r[f]=val;
   rptSync(kind,per,cid,r);save();}
+window.__tasks={list:()=>S.tasks.map(t=>({id:t.id,title:t.title,due:t.due,status:t.status,rk:t.rk||''})),del:(ids)=>{const n=S.tasks.length;S.tasks=S.tasks.filter(t=>!ids.includes(t.id));save();if(!ui.drawer)render();return n-S.tasks.length;},
+  addRoutine:(o)=>{S.routines=S.routines||[];o.id='rt'+uid();o.created=Date.now();S.routines.push(o);ui._rr='';runRoutines();save();if(!ui.drawer)render();return o.id;},routines:()=>S.routines};
 window.__ag={list:()=>S.agents.map(a=>({id:a.id,name:a.name,type:a.type,memo:a.memo||''})),
   add:(name,type,memo)=>{let a=S.agents.find(x=>x.name===name&&x.type===type);if(!a){a={id:'ag'+uid(),name,type,bizno:'',phone:'',fee:null,memo:memo||''};S.agents.push(a);}save();return a.id;},
   put:(kind,per,id,d)=>{const T=S.rpt[kind]=S.rpt[kind]||{};T[per]=T[per]||{};T[per][id]=Object.assign(T[per][id]||{},d);save();if(!ui.drawer)render();return 1;}};
@@ -1725,6 +1736,7 @@ document.addEventListener('click',e=>{
   if((el=q('[data-pgm],[data-pgall],[data-pgna]'))){pgClick(el);return;}
   if((el=q('[data-pgc]'))){const [c,k]=el.dataset.pgc.split('|');openProg(c,k);return;}
   if((el=q('[data-rkw]'))){const [kind,per,cid,w]=el.dataset.rkw.split('|');const cur=whRow(((S.rpt.wh[per]||{})[cid])||{});rptSet(`${kind}|${per}|${cid}|kdWay`,cur.kdWay===w?'':w);render();return;}
+  if((el=q('[data-rtdel]'))){const id=el.dataset.rtdel;const r=S.routines.find(x=>x.id===id);if(!r||!confirm(`'${r.title}' 매월 반복을 끌까요? (이미 만든 할 일은 남아요)`))return;S.routines=S.routines.filter(x=>x.id!==id);save();render();return;}
   if((el=q('[data-yeo]'))){ui.yeo=ui.yeo||{};const id=el.dataset.yeo;ui.yeo[id]=!ui.yeo[id];render();return;}
   if((el=q('[data-rpt]'))){rptSet(el.dataset.rpt);render();return;}
   if((el=q('[data-rpg]'))){const [kind,per,cid,v]=el.dataset.rpg.split('|');const cur=((S.rpt.pit[per]||{})[cid]||{}).고지;rptSet(`${kind}|${per}|${cid}|고지`,cur===v?'':v);render();return;}
@@ -1775,6 +1787,7 @@ document.addEventListener('click',e=>{
     calToday:()=>{const d=new Date();ui.cal={y:d.getFullYear(),m:d.getMonth()+1};render();},
     pmPrev:()=>{ui.pm=ymAdd(ui.pm,-1);render();}, pmNext:()=>{ui.pm=ymAdd(ui.pm,1);render();}, pmCur:()=>{ui.pm=curYM();render();},
     talkImport:()=>$('#talkIn').click(), rwPrev:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),-1);render();}, rwNext:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),1);render();}, rDet:()=>{ui.rdet=!ui.rdet;render();}, agNew:()=>agentForm(null), agSave:()=>agentSave(), agDel:()=>{const a=agt(ui.agEdit);if(!a||!confirm(`${a.name}을(를) 신고대리 목록에서 삭제할까요?`))return;S.agents=S.agents.filter(x=>x.id!==a.id);['pit','cit'].forEach(k=>Object.values(S.rpt[k]).forEach(D=>delete D[a.id]));save();$('#modal').classList.remove('on');render();}, pgyPrev:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);ui.pgm=(+c.slice(0,4)-1)+'-12';render();}, pgyNext:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);const ny=+c.slice(0,4)+1;const t=pgNow();ui.pgm=(ny+'-01')>t?c:ny+'-'+(ny===+t.slice(0,4)?pgAdd(t,-1).slice(5):'12');render();}, ryPrev:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())-1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, ryNext:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())+1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
+    rtAdd:()=>{const v=prompt('매월 반복 할 일 (예: 25 오전 10시 세금계산서 발행)');if(!v)return;const m=v.trim().match(/^(\d{1,2})\s*일?\s*((?:오전|오후)?\s*\d{1,2}\s*시(?:\s*\d{1,2}\s*분)?|\d{1,2}:\d{2})?\s*(.+)$/);if(!m)return toast('날짜(일) 숫자로 시작해 주세요');S.routines.push({id:'rt'+uid(),day:+m[1],time:(m[2]||'').replace(/\s+/g,' ').trim(),title:m[3].trim(),created:Date.now()});ui._rr='';save();render();toast('매월 반복 할 일에 넣었어요');},
     pgPrev:()=>{ui.pg=pgAdd(ui.pg,-1);render();}, pgNext:()=>{ui.pg=pgAdd(ui.pg,1);render();}, pgCur:()=>{ui.pg=pgAdd(pgNow(),-1);render();},
     newClient:()=>{const n=prompt('상호');if(!n||!n.trim())return;const c={id:uid(),order:S.clients.length+1,type:'법인',name:n.trim(),bizno:'',ceo:'',corpno:'',contact:'',phone:'',biz1:'',biz2:'',fee:null,adjFee:null,wh:'',email:'',vat:'일반',fy:12,sincere:false,payDay:null,cms:'',payInfo:'',addr:'',memo:''};S.clients.push(c);save();render();openClient(c.id);},
     clientDel:()=>{const c=cl(ui.openClient);if(!c||!confirm(`${c.name}을(를) 삭제할까요? (할 일·기록은 남아요)`))return;S.clients=S.clients.filter(x=>x.id!==c.id);delete S.pay[c.id];S.tasks.forEach(t=>{if(t.client===c.id)t.client=null});save();closeDrawer();},
