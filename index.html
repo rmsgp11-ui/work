@@ -180,6 +180,10 @@ body.wide main{max-width:1760px}
 .rsi.on{background:var(--acc2);box-shadow:inset 3px 0 0 var(--acc)}.rsi .t{flex:1;min-width:0}.rsi .t b{display:block;font-size:14px}.rsi .t span{font-size:11.5px;color:var(--sub)}
 .rsi .p{width:76px;text-align:right}.rsi .p span{font-size:12px;font-weight:700;color:var(--sub)}.rsi .p span.ok{color:var(--grn)}.rsi .p span.late{color:var(--red)}
 .yet{border:0;background:transparent;cursor:pointer;color:var(--sub);padding:0 4px 0 0;font-size:12px}.yesub td{background:var(--soft);padding:6px 12px 8px!important;text-align:left!important}.yee>*{text-align:left;justify-self:start}.yel{display:flex;flex-direction:column}.yee{display:grid;grid-template-columns:150px 170px 250px 130px minmax(120px,1fr);align-items:center;gap:12px;padding:5px 0 5px 26px;border-bottom:1px dashed var(--line);white-space:nowrap}.yee:last-child{border-bottom:0}.yee.yeh{font-size:11px;color:var(--sub);font-weight:600;padding-top:2px}.yee b{font-size:13px;overflow:hidden;text-overflow:ellipsis}.yee .sub{font-size:12px}.yee.ok b{color:var(--grn)}.yee .ks{display:flex;gap:4px}.yee .ri.num{width:120px}.yee .ri.wide{width:100%}.yee.add{display:block}.yee.add .ri{width:220px}
+.hks{grid-template-columns:repeat(5,1fr)}.hk em{display:block;font-style:normal;font-size:11px;color:var(--sub);margin-top:2px}.hk{cursor:pointer}
+.hgrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}@media(max-width:899px){.hgrid{grid-template-columns:1fr}.hks{grid-template-columns:repeat(2,1fr)}}
+.hr{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--line);cursor:pointer}.hr:first-child{border-top:0}.hr:hover{background:var(--soft)}.hr .t{flex:1;min-width:0}.hr .t b{display:block;font-size:14px}.hr .t span{font-size:12px;color:var(--sub)}.hr .t em{font-style:normal}.hr .t em.red{color:var(--red);font-weight:700}
+.hr .p{width:120px;text-align:right}.hr .p span{font-size:13px;font-weight:700;color:var(--red)}.hr .p span.ok{color:var(--grn)}.hr .p small{margin-left:6px;font-size:11px;color:var(--sub)}.hr .p i{display:block;height:5px;border-radius:9px;background:var(--soft);margin-top:5px;overflow:hidden}.hr .p i em{display:block;height:100%;background:var(--grn)}
 .rsl .rsi{padding:7px 12px}.rsl .rsi .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rsl .rsi .t b{display:inline;margin-right:6px}.rsl .rsi .t span{display:inline}.rsl .rsi .p{width:64px}
 .rsi .p i{display:block;height:4px;border-radius:99px;background:var(--soft);margin-top:4px;overflow:hidden}.rsi .p em{display:block;height:100%;background:var(--grn)}
 .rpsum{display:flex;align-items:center;gap:16px;padding:12px 16px;margin-bottom:10px;flex-wrap:wrap}.rpn b{font-size:24px}.rpn span{color:var(--sub);margin-left:4px}
@@ -627,7 +631,7 @@ function render(){
   $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs,jobs:vJobs,prog:vProg,rep:vRep})[ui.tab]();
   if(ui.syncT) setSync(ui.syncT,ui.syncE);
   if(ui.tab==='jobs')fillImgs();
-  document.body.classList.toggle('wide',ui.tab==='clients'||ui.tab==='rep'||ui.tab==='prog');
+  document.body.classList.toggle('wide',ui.tab==='clients'||ui.tab==='rep'||ui.tab==='prog'||ui.tab==='home');
   if(ui.tab==='clients'&&paneMode()&&ui.selClient&&cl(ui.selClient))openClient(ui.selClient);
 }
 const head=(title,extra='')=>{const d=new Date();return `<div class="head"><h1>${title}</h1><span class="sub">${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일</span><span class="sync" id="dsync"></span>${extra?`<div class="sp">${extra}</div>`:''}</div>`};
@@ -639,28 +643,53 @@ function dlRow(e){
     <span class="dot" style="background:${TT[e.t].c}"></span><div class="tb"><span class="tt">${esc(e.label)}</span><span class="ts">${esc(nm)}</span></div>
     <div class="prog">${dn}/${n} 완료<div class="bar"><i style="width:${n?dn/n*100:0}%"></i></div></div></div>`;
 }
+function homeRep(){/* 지금 진행 중인 신고: 기한이 다가오는 순 */
+  const t=todayStr(),Y=+t.slice(0,4),out=[],m0=ui.rmode;ui.rmode='gj';
+  try{
+    const pm=pgAdd(pgNow(),-1),wy=+pm.slice(0,4),wm=+pm.slice(5,7),W=whList(wy,wm);out.push({k:'wh',sel:pm,n:`원천세 ${wm}월 귀속`,due:W.due,done:W.done,tot:W.cs.length});
+    for(const y of [Y,Y+1]){const pk=VP.map(x=>x[0]).find(k=>{const L=vatList(y,k);return L.due>=t});if(pk){const L=vatList(y,pk);out.push({k:'vat',sel:pk,y,n:`부가세 ${y}년 ${L.pd[1]}`,due:L.due,done:L.done,tot:L.cs.length,extra:L.gj&&L.gj.length?`예정고지 ${L.gj.length}`:''});break;}}
+    for(const kind of ['ye','pit','cit']){for(const y of [Y,Y+1]){const p=taxPers(kind,y).find(x=>x.due>=t);if(p){const L=taxList(kind,p.key,p.due);if(L.cs.length){out.push({k:kind,sel:p.key,y,n:`${({ye:'연말정산',pit:'소득세',cit:'법인세'})[kind]} ${p.n}`,due:p.due,done:L.done,tot:L.cs.length});}break;}}}
+  }finally{ui.rmode=m0;}
+  return out.sort((a,b)=>a.due<b.due?-1:1);}
+function homeProgLate(){const b=pgAdd(pgNow(),-1),y=+b.slice(0,4),bm=+b.slice(5,7);let n=0;
+  S.clients.forEach(c=>{const r=pgRange(c,y);if(r[0]>12||r[1]<1)return;if(c.status==='폐업'&&!(c.close&&+c.close.slice(0,4)>=y))return;if(PG.some(([k])=>!pgBar(c,k,y,bm).ok))n++;});return {n,bm};}
 function vHome(){
-  const t=todayStr(), evs=events(t,addDays(t,20)), since=S.since&&S.since>addDays(t,-45)?S.since:addDays(t,-45), pastOpen=since<=addDays(t,-1)?events(since,addDays(t,-1)).filter(e=>doneCnt(e)<e.ids.length):[];
+  const t=todayStr(), evs=events(t,addDays(t,14)).filter(e=>doneCnt(e)<e.ids.length), since=S.since&&S.since>addDays(t,-45)?S.since:addDays(t,-45), pastOpen=since<=addDays(t,-1)?events(since,addDays(t,-1)).filter(e=>doneCnt(e)<e.ids.length):[];
   const todayTasks=sortTasks(S.tasks.filter(x=>openT(x)&&x.due&&x.due<=t));
   const late=S.tasks.filter(x=>openT(x)&&x.due&&x.due<t).length;
   const unp=S.clients.filter(c=>unpaidList(c.id).length);
-  const wk=evs.filter(e=>e.date<=addDays(t,7)&&doneCnt(e)<e.ids.length).length;
+  const jobsChk=S.jobs.filter(j=>j.status==='check'||j.status==='fail'||(j.status==='done'&&j.review&&!j.reviewed)).length;
+  const PL=homeProgLate(),R=homeRep();
   const logs=S.logs.slice().sort((a,b)=>b.at-a.at).slice(0,3);
+  const kpi=(tab,n,label,warn,sub)=>`<div class="card stat hk ${warn&&n?'warn':''}" data-tab="${tab}"><b>${n}</b><span>${label}</span>${sub?`<em>${sub}</em>`:''}</div>`;
+  const repRow=r=>{const pc=r.tot?Math.round(r.done/r.tot*100):0,left=r.tot-r.done,d=diffDays(r.due);return `<div class="hr" data-hgo="${r.k}|${r.sel}|${r.y||''}">
+    <div class="t"><b>${r.n}</b><span>${md(r.due)} · <em class="${left&&d<=7?'red':''}">${dday(r.due)}</em>${r.extra?' · '+r.extra:''}</span></div>
+    <div class="p"><span class="${left?'':'ok'}">${left?`${left}곳 남음`:'완료'}</span><small>${r.done}/${r.tot}</small><i><em style="width:${pc}%"></em></i></div></div>`;};
   return head('홈',`<button class="btn g" data-a="ingest">✨ 톡·통화에서 할 일 뽑기</button>`)+`
-  <div class="stats">
-    <div class="card stat" data-tab="tasks"><b>${todayTasks.length}</b><span>오늘 할 일</span></div>
-    <div class="card stat ${late?'warn':''}" data-tab="tasks"><b>${late}</b><span>기한 지난 할 일</span></div>
-    <div class="card stat ${wk?'warn':''}" data-tab="cal"><b>${wk}</b><span>7일 내 세무 기한</span></div>
-    <div class="card stat ${unp.length?'warn':''}" data-tab="pay"><b>${unp.length}</b><span>미수 거래처</span></div>
+  <div class="stats hks">
+    ${kpi('cal',pastOpen.length,'지난 기한 미체크',1)}
+    ${kpi('cal',evs.length,'2주 내 세무 기한',1,evs[0]?`가장 빠른 ${md(evs[0].date)}`:'')}
+    ${kpi('tasks',todayTasks.length,'오늘 할 일',1,late?`기한 지남 ${late}`:'')}
+    ${kpi('prog',PL.n,'기장 밀린 거래처',1,`${PL.bm}월까지 기준`)}
+    ${kpi('jobs',jobsChk,'위하고 검토 대기',1)}
   </div>
   ${!S.clients.length?`<div class="card" style="padding:16px;margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">거래처 데이터를 넣으면 세무 기한이 자동으로 달력에 들어가요.</span><button class="btn" data-a="import">거래처 가져오기</button></div>`:''}
-  ${pastOpen.length?`<div class="sec"><h2 style="color:var(--red)">체크 안 한 지난 기한</h2></div><div class="card list">${pastOpen.map(dlRow).join('')}</div>`:''}
-  <div class="sec"><h2>다가오는 세무 기한</h2><button class="more" data-tab="cal">달력 ›</button></div>
-  <div class="card list">${evs.length?evs.map(dlRow).join(''):`<div class="empty">${S.clients.length?'3주 안에 기한이 없어요':'거래처를 넣으면 여기에 기한이 나와요'}</div>`}</div>
-  <div class="sec"><h2>오늘 할 일</h2><button class="more" data-tab="tasks">전체 ›</button></div>
-  ${quickBar()}
-  <div class="card list">${todayTasks.length?todayTasks.map(taskRow).join(''):'<div class="empty">오늘 할 일을 다 끝냈어요 🎉</div>'}</div>
-  ${logs.length?`<div class="sec"><h2>최근 톡·통화</h2><button class="more" data-tab="logs">전체 ›</button></div>${logs.map(logCard).join('')}`:''}`;
+  <div class="hgrid">
+    <div>
+      ${pastOpen.length?`<div class="sec"><h2 style="color:var(--red)">⚠ 체크 안 한 지난 기한</h2><button class="more" data-tab="cal">달력 ›</button></div><div class="card list">${pastOpen.map(dlRow).join('')}</div>`:''}
+      <div class="sec"><h2>2주 안 마감</h2><button class="more" data-tab="cal">달력 ›</button></div>
+      <div class="card list">${evs.length?evs.map(dlRow).join(''):`<div class="empty">2주 안에 남은 기한이 없어요 👍</div>`}</div>
+      <div class="sec"><h2>오늘 할 일${late?` <span class="chip red">기한 지남 ${late}</span>`:''}</h2><button class="more" data-tab="tasks">전체 ›</button></div>
+      ${quickBar()}
+      <div class="card list">${todayTasks.length?todayTasks.map(taskRow).join(''):'<div class="empty">오늘 할 일을 다 끝냈어요 🎉</div>'}</div>
+    </div>
+    <div>
+      <div class="sec"><h2>진행 중인 신고</h2><button class="more" data-tab="rep">신고 현황 ›</button></div>
+      <div class="card list hrl">${R.length?R.map(repRow).join(''):'<div class="empty">진행 중인 신고가 없어요</div>'}</div>
+      ${unp.length?`<div class="sec"><h2>미수 거래처 <span class="chip red">${unp.length}</span></h2><button class="more" data-tab="pay">수금 ›</button></div><div class="card" style="padding:10px 14px;font-size:13px;line-height:1.7">${unp.slice(0,8).map(c=>`<span class="chip" data-client="${c.id}" style="cursor:pointer;margin:2px">${esc(c.name)}</span>`).join('')}${unp.length>8?` 외 ${unp.length-8}곳`:''}</div>`:''}
+      ${logs.length?`<div class="sec"><h2>최근 톡·통화</h2><button class="more" data-tab="logs">전체 ›</button></div>${logs.map(logCard).join('')}`:''}
+    </div>
+  </div>`;
 }
 function quickBar(){return `<form class="card quick" data-form="quick"><input name="q" placeholder="할 일 추가… (예: 골든크런치 급여대장 요청 내일 !1)" autocomplete="off"><button type="button" class="btn g s" data-a="ingest" title="톡·통화 내용에서 뽑기">✨</button><button class="btn s">추가</button></form>`;}
 function sortTasks(arr){
@@ -1697,6 +1726,7 @@ document.addEventListener('click',e=>{
   if((el=q('[data-rv]'))){ui.rv=el.dataset.rv;render();return;}
   if((el=q('[data-rvp]'))){ui.rvp=el.dataset.rvp;render();return;}
   if((el=q('[data-rk]'))){ui.rk=el.dataset.rk;render();return;}
+  if((el=q('[data-hgo]'))){const [k,sel,y]=el.dataset.hgo.split('|');ui.tab='rep';ui.rmode='gj';ui.rk=k;ui.rv='tbl';if(k==='wh'){ui.rwm=sel;ui.ry=+sel.slice(0,4);}else if(k==='vat'){ui.rvp=sel;ui.ry=+y;}else{ui.rtp=sel;ui.ry=+y;}render();return;}
   if((el=q('[data-rc]'))){const [cid,i]=el.dataset.rc.split('|');const col=repCols(ui.rk||'wh',ui.ry||new Date().getFullYear())[+i];for(const k in _rawC)delete _rawC[k];const x=repCell(cid,col);if(x.na)return;if(x.done)x.keys.forEach(k=>delete S.checks[k]);else x.keys.forEach(k=>S.checks[k]=Date.now());save();render();return;}
   if((el=q('[data-pgf]'))){ui.pgf=el.dataset.pgf;render();return;}
   if((el=q('[data-pgt]'))){ui.pgt=ui.pgt===el.dataset.pgt?'':el.dataset.pgt;render();return;}
