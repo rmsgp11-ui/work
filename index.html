@@ -154,6 +154,8 @@ body.wide main{max-width:1760px}
 .pc.cmsx{background:var(--ambS);color:var(--amb)} .pc.transfer{background:var(--bluS);color:var(--blu)}
 .pc.etc{background:var(--purS);color:var(--pur)}
 .pc.cur{border-color:var(--acc)}
+.xt td{padding:4px 5px}.ox{width:30px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--acc);font-weight:700;cursor:pointer}.ox.on{background:var(--acc2);border-color:var(--acc)}
+.ri{width:92px;padding:4px 6px;border:1px solid transparent;border-radius:6px;background:transparent;font-size:12px}.ri:hover,.ri:focus{border-color:var(--line);background:var(--panel)}.ri.num{text-align:right;width:100px}.ri.wide{width:100%;min-width:200px}
 .rtab{padding:0;overflow:hidden}.rscroll{overflow:auto;max-height:calc(100vh - 260px)}
 .rt{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
 .rt th,.rt td{padding:6px 6px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
@@ -394,9 +396,10 @@ const ds=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
 
 /* ---------- 상태 ---------- */
 function migrate(s){
-  s=Object.assign({v:2,tasks:[],clients:[],pay:{},checks:{},logs:[],jobs:[],prog:{},projects:[],theme:'light',updated:0},s||{});
+  s=Object.assign({v:2,tasks:[],clients:[],pay:{},checks:{},logs:[],jobs:[],prog:{},rpt:{wh:{},vat:{}},projects:[],theme:'light',updated:0},s||{});
   if(!Array.isArray(s.jobs))s.jobs=[];
   if(!s.prog||typeof s.prog!=='object')s.prog={};
+  if(!s.rpt)s.rpt={wh:{},vat:{}};s.rpt.wh=s.rpt.wh||{};s.rpt.vat=s.rpt.vat||{};
   if(Array.isArray(s.calls)){s.calls.forEach(c=>s.logs.push({id:c.id,at:c.at,src:'통화',client:null,title:c.title,summary:c.summary,points:c.points||[],theirs:c.theirs||[],text:c.transcript||'',taskIds:c.taskIds||[]}));delete s.calls;}
   s.tasks.forEach(t=>{if(t.client===undefined)t.client=null;});
   s.v=2; return s;
@@ -872,7 +875,7 @@ function repCell(cid,col){
   const due=evs.map(e=>nextBiz(e.raw)).sort()[0];
   return {done,keys,due,late:!done&&due<todayStr(),evs};
 }
-function vRep(){
+function vRepGrid(){
   for(const k in _rawC)delete _rawC[k];
   const kind=ui.rk||'wh',Y=ui.ry||new Date().getFullYear(),cols=repCols(kind,Y);
   let rows=S.clients.slice().sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'ko')).map(c=>({c,cells:cols.map(col=>repCell(c.id,col))})).filter(r=>r.cells.some(x=>!x.na));
@@ -882,13 +885,68 @@ function vRep(){
   const late=rows.reduce((a,r)=>a+r.cells.filter(x=>x.late).length,0);
   return head('신고 현황')+`
   <div class="fbar" style="margin-bottom:10px">${RT.map(([k,n])=>`<button class="fchip ${kind===k?'on':''}" data-rk="${k}">${n}</button>`).join('')}</div>
-  <div class="calhead"><button class="nb" data-a="ryPrev">‹</button><b>${Y}년</b><button class="nb" data-a="ryNext">›</button>
+  <div class="calhead"><button class="nb" data-a="ryPrev">‹</button><b>${Y}년</b><button class="nb" data-a="ryNext">›</button>${(kind==='wh'||kind==='vat')?rvSeg():''}
     <button class="btn ${ui.rlate?'':'g'} s" data-a="rLate">기한 지난 미완료${late?` ${late}`:''}</button>
     <input class="search" data-in="rq" placeholder="거래처 검색" value="${esc(ui.rq||'')}" style="max-width:220px;margin-left:auto"></div>
   <div class="card rtab"><div class="rscroll"><table class="rt"><thead><tr><th class="nm">거래처 <span>${rows.length}곳</span></th>${cols.map((c,i)=>`<th><b>${c.h}</b><span>${c.sub}</span><em>${tot[i][1]?tot[i][0]+'/'+tot[i][1]:''}</em></th>`).join('')}</tr></thead>
   <tbody>${rows.map(({c,cells})=>`<tr><td class="nm" data-client="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.type||'')}${c.wh?' · '+esc(WHN[c.wh]||''):''}</span></td>${cells.map((x,i)=>x.na?'<td class="na">·</td>':`<td><button class="rc ${x.done?'d':x.late?'l':''}" data-rc="${c.id}|${i}" title="${esc(x.evs.map(e=>e.label+' '+md(nextBiz(e.raw))).join(', '))}">${x.done?'✓':x.late?'미완':md(x.due)}</button></td>`).join('')}</tr>`).join('')||`<tr><td colspan="${cols.length+1}" class="empty">해당하는 거래처가 없어요</td></tr>`}</tbody></table></div></div>
   <div class="pglg" style="margin-top:10px"><span><i style="background:var(--grn)"></i>완료</span><span><i style="background:var(--redS);border:1px solid var(--red)"></i>기한 지났는데 미완료</span><span><i style="background:var(--soft)"></i>예정 (날짜 = 기한)</span><span>· 해당 없음 · 칸을 누르면 완료/취소</span></div>`;
 }
+
+/* 신고현황표 (엑셀 형식) */
+const VP=[['1p','1기 예정',4],['1f','1기 확정',7],['2p','2기 예정',10],['2f','2기 확정',1]];
+const WF=[['급여','급여'],['일용','일용'],['퇴직','퇴직'],['사업','사업'],['기타','기타']];
+const VF=[['납부','납부세액'],['매출','매출합계'],['세금','세금계산서'],['계산','계산서'],['카드','카드·현영'],['현금','현금매출'],['영세','영세율'],['고지','예정고지·미환급']];
+const VT=[['수집','수집'],['카드작업','카드작업'],['부속','부속서류']];
+function rptHead(kind){return head('신고 현황')+`<div class="fbar" style="margin-bottom:10px">${RT.map(([k,n])=>`<button class="fchip ${kind===k?'on':''}" data-rk="${k}">${n}</button>`).join('')}</div>`;}
+function vRep(){
+  const kind=ui.rk||'wh';
+  if((kind==='wh'||kind==='vat')&&ui.rv!=='grid')return kind==='wh'?vRepWh():vRepVat();
+  return vRepGrid();
+}
+const rvSeg=()=>`<div class="seg" style="display:inline-flex;gap:6px;margin-left:8px"><button class="btn ${ui.rv!=='grid'?'':'g'} s" data-rv="tbl">현황표</button><button class="btn ${ui.rv==='grid'?'':'g'} s" data-rv="grid">한 해 한눈에</button></div>`;
+function whTarget(c,y,m){const [y2,m2]=m===12?[y+1,1]:[y,m+1];return rawEvents(y2,m2).find(e=>e.t==='wh'&&e.ids.includes(c.id));}
+function vRepWh(){
+  const now=new Date(),def=pgAdd(pgNow(),-1),ym=ui.rwm||def,y=+ym.slice(0,4),m=+ym.slice(5,7);
+  const D=S.rpt.wh[ym]||{};
+  let cs=S.clients.filter(c=>D[c.id]||whTarget(c,y,m)).sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'ko'));
+  const done=cs.filter(c=>(D[c.id]||{}).st==='완료').length;
+  return rptHead('wh')+`<div class="calhead"><button class="nb" data-a="rwPrev">‹</button><b>${y}년 ${m}월 귀속</b><button class="nb" data-a="rwNext">›</button><span class="note" style="margin-left:6px">신고 ${m===12?y+1+'년 1':m+1}월 10일 · 완료 ${done}/${cs.length}</span>${rvSeg()}</div>
+  <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm">상호</th><th>원천세</th>${WF.map(([,n])=>`<th>${n}</th>`).join('')}<th>${m}월 진행현황</th><th>간이지급명세서<br><span>일용/사업/기타</span></th><th style="min-width:220px">참고사항</th></tr></thead><tbody>
+  ${cs.map(c=>{const r=D[c.id]||{};const k=`wh|${ym}|${c.id}`;return `<tr><td class="nm" data-client="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.type||'')}</span></td>
+    <td><span class="chip">${esc(r.wt||({'당월':'당월','반기':'반기','사업소득':'당월'})[c.wh]||'-')}</span></td>
+    ${WF.map(([f])=>`<td><button class="ox ${r[f]?'on':''}" data-rpt="${k}|${f}">${r[f]?'●':''}</button></td>`).join('')}
+    <td><button class="rc ${r.st==='완료'?'d':''}" data-rpt="${k}|st">${r.st==='완료'?'완료':'—'}</button></td>
+    <td><input class="ri" data-rpi="${k}|gan" value="${esc(r.gan||'')}" placeholder="제출일"></td>
+    <td><input class="ri wide" data-rpi="${k}|memo" value="${esc(r.memo||'')}"></td></tr>`}).join('')||`<tr><td colspan="10" class="empty">이 달 원천세 대상이 없어요</td></tr>`}</tbody></table></div></div>
+  <p class="note" style="margin-top:8px">진행현황을 '완료'로 바꾸면 세무 일정의 원천세 신고도 같이 체크돼요. 대상은 거래처 세무 설정(원천세)과 이 표에 입력된 업체예요.</p>`;
+}
+function vRepVat(){
+  const Y=ui.ry||new Date().getFullYear(),pk=ui.rvp||'2p',pd=VP.find(x=>x[0]===pk),key=`${Y}-${pk}`,D=S.rpt.vat[key]||{};
+  const ey=pk==='2f'?Y+1:Y,evs=rawEvents(ey,pd[2]).filter(e=>e.t==='vat'||e.t==='vatp');
+  let cs=S.clients.filter(c=>D[c.id]||evs.some(e=>e.t==='vat'&&e.ids.includes(c.id))).sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'ko'));
+  const done=cs.filter(c=>(D[c.id]||{}).작성).length;
+  const num=v=>v==null||v===''?'':(typeof v==='number'?won(v):esc(v));
+  return rptHead('vat')+`<div class="calhead"><button class="nb" data-a="ryPrev">‹</button><b>${Y}년</b><button class="nb" data-a="ryNext">›</button>${VP.map(([k,n])=>`<button class="fchip ${pk===k?'on':''}" data-rvp="${k}">${n}</button>`).join('')}<span class="note" style="margin-left:6px">작성 ${done}/${cs.length}</span>${rvSeg()}</div>
+  <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm">상호</th><th>전달</th>${pk.endsWith('p')?'<th>신고서<br>전송</th>':''}<th>신고서<br>작성</th>${VF.map(([,n])=>`<th>${n}</th>`).join('')}${VT.map(([,n])=>`<th>${n}</th>`).join('')}<th style="min-width:200px">확인사항</th></tr></thead><tbody>
+  ${cs.map(c=>{const r=D[c.id]||{};const k=`vat|${key}|${c.id}`;const ox=f=>`<td><button class="ox ${r[f]?'on':''}" data-rpt="${k}|${f}">${r[f]?'○':''}</button></td>`;
+    return `<tr><td class="nm" data-client="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.type||'')} · ${esc(c.vat||'')}</span></td>${ox('전달')}${pk.endsWith('p')?ox('전송'):''}${ox('작성')}
+    ${VF.map(([f])=>`<td><input class="ri num" data-rpi="${k}|${f}" value="${num(r[f])}"></td>`).join('')}${VT.map(([f])=>ox(f)).join('')}
+    <td><input class="ri wide" data-rpi="${k}|memo" value="${esc(r.memo||'')}"></td></tr>`}).join('')||`<tr><td colspan="16" class="empty">이 기수 신고 대상이 없어요</td></tr>`}</tbody></table></div></div>
+  <p class="note" style="margin-top:8px">${pk.endsWith('p')?'예정신고는 신고서 전송':'확정신고는 신고서 작성'}에 ○를 하면 세무 일정의 부가세 신고도 같이 체크돼요.</p>`;
+}
+function rptSync(kind,per,cid,r){
+  const c=cl(cid);if(!c)return;
+  if(kind==='wh'){const y=+per.slice(0,4),m=+per.slice(5,7);const [y2,m2]=m===12?[y+1,1]:[y,m+1];
+    rawEvents(y2,m2).filter(e=>e.t==='wh').forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;if(r.st==='완료')S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});
+    if('gan' in r)rawEvents(y2,m2).filter(e=>e.t==='gan'&&e.label.includes('사업')).forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;if(r.gan)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
+  else{const [Y,pk]=per.split('-');const pd=VP.find(x=>x[0]===pk);const ey=pk==='2f'?+Y+1:+Y;const ok=pk.endsWith('p')?r.전송:r.작성;
+    rawEvents(ey,pd[2]).filter(e=>e.t==='vat').forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;if(ok)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
+}
+function rptSet(spec,val){const [kind,per,cid,f]=spec.split('|');const T=S.rpt[kind];T[per]=T[per]||{};const r=T[per][cid]=T[per][cid]||{};
+  if(val===undefined){if(f==='st')r.st=r.st==='완료'?'':'완료';else r[f]=r[f]?'':'○';}else r[f]=val;
+  rptSync(kind,per,cid,r);save();}
+window.__rpt={put:(kind,per,rows)=>{const T=S.rpt[kind];T[per]=T[per]||{};let n=0;rows.forEach(o=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(o.bizno));if(!c)return;T[per][c.id]=Object.assign(T[per][c.id]||{},o.d);rptSync(kind,per,c.id,T[per][c.id]);n++;});save();if(!ui.drawer)render();return n;}};
 /* ---------- 기장 진도 ---------- */
 const PG=[['card','카드'],['bank','통장'],['tax','계산서'],['pay','급여']];
 const PGN={card:'카드 전표',bank:'통장 전표',tax:'전자세금계산서·계산서',pay:'급여 회계전표'};
@@ -1341,6 +1399,9 @@ document.addEventListener('click',e=>{
   if((el=q('[data-jzoom]'))){const im=el.querySelector('img');if(im&&im.src){const w=window.open();if(w)w.document.write(`<title>첨부 사진</title><body style="margin:0;background:#111"><img src="${im.src}" style="max-width:100%;display:block;margin:auto">`);}return;}
   if((el=q('[data-pgm],[data-pgall],[data-pgna]'))){pgClick(el);return;}
   if((el=q('[data-pgc]'))){const [c,k]=el.dataset.pgc.split('|');openProg(c,k);return;}
+  if((el=q('[data-rpt]'))){rptSet(el.dataset.rpt);render();return;}
+  if((el=q('[data-rv]'))){ui.rv=el.dataset.rv;render();return;}
+  if((el=q('[data-rvp]'))){ui.rvp=el.dataset.rvp;render();return;}
   if((el=q('[data-rk]'))){ui.rk=el.dataset.rk;render();return;}
   if((el=q('[data-rc]'))){const [cid,i]=el.dataset.rc.split('|');const col=repCols(ui.rk||'wh',ui.ry||new Date().getFullYear())[+i];for(const k in _rawC)delete _rawC[k];const x=repCell(cid,col);if(x.na)return;if(x.done)x.keys.forEach(k=>delete S.checks[k]);else x.keys.forEach(k=>S.checks[k]=Date.now());save();render();return;}
   if((el=q('[data-pgf]'))){ui.pgf=el.dataset.pgf;render();return;}
@@ -1380,7 +1441,7 @@ document.addEventListener('click',e=>{
     calPrev:()=>{let {y,m}=ui.cal;m--;if(m<1){m=12;y--}ui.cal={y,m};render();}, calNext:()=>{let {y,m}=ui.cal;m++;if(m>12){m=1;y++}ui.cal={y,m};render();},
     calToday:()=>{const d=new Date();ui.cal={y:d.getFullYear(),m:d.getMonth()+1};render();},
     pmPrev:()=>{ui.pm=ymAdd(ui.pm,-1);render();}, pmNext:()=>{ui.pm=ymAdd(ui.pm,1);render();}, pmCur:()=>{ui.pm=curYM();render();},
-    talkImport:()=>$('#talkIn').click(), ryPrev:()=>{ui.ry=(ui.ry||new Date().getFullYear())-1;render();}, ryNext:()=>{ui.ry=(ui.ry||new Date().getFullYear())+1;render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
+    talkImport:()=>$('#talkIn').click(), rwPrev:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),-1);render();}, rwNext:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),1);render();}, ryPrev:()=>{ui.ry=(ui.ry||new Date().getFullYear())-1;render();}, ryNext:()=>{ui.ry=(ui.ry||new Date().getFullYear())+1;render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
     pgPrev:()=>{ui.pg=pgAdd(ui.pg,-1);render();}, pgNext:()=>{ui.pg=pgAdd(ui.pg,1);render();}, pgCur:()=>{ui.pg=pgAdd(pgNow(),-1);render();},
     newClient:()=>{const n=prompt('상호');if(!n||!n.trim())return;const c={id:uid(),order:S.clients.length+1,type:'법인',name:n.trim(),bizno:'',ceo:'',corpno:'',contact:'',phone:'',biz1:'',biz2:'',fee:null,adjFee:null,wh:'',email:'',vat:'일반',fy:12,sincere:false,payDay:null,cms:'',payInfo:'',addr:'',memo:''};S.clients.push(c);save();render();openClient(c.id);},
     clientDel:()=>{const c=cl(ui.openClient);if(!c||!confirm(`${c.name}을(를) 삭제할까요? (할 일·기록은 남아요)`))return;S.clients=S.clients.filter(x=>x.id!==c.id);delete S.pay[c.id];S.tasks.forEach(t=>{if(t.client===c.id)t.client=null});save();closeDrawer();},
@@ -1404,6 +1465,7 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('change',e=>{
   const el=e.target,d=el.dataset;
+  if(d.rpi){let v=el.value.trim();const f=d.rpi.split('|')[3];if(f!=='memo'&&f!=='gan'&&/^-?[\d,]+$/.test(v))v=+v.replace(/,/g,'');rptSet(d.rpi,v);if(typeof v==='number')el.value=won(v);return;}
   if(d.in==='sort'){ui.sort=el.value;render();return;}
   if(d.in==='pgs'){ui.pgs=el.value;render();return;}
   if(d.in==='lc'){ui.lc=el.value;ui.llim=60;render();return;}
