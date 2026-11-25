@@ -669,6 +669,27 @@ function homeProgLate(){const b=pgAdd(pgNow(),-1),y=+b.slice(0,4),bm=+b.slice(5,
 function homeLogs(){const q=norm(ui.hlq||'').trim();let L=S.logs.slice().sort((a,b)=>b.at-a.at),hd='';
   if(q){const ids=S.clients.filter(c=>norm([c.name,c.ceo,c.bizno].join(' ')).includes(q)).map(c=>c.id);L=L.filter(l=>ids.includes(l.client)||norm([l.title,l.summary].join(' ')).includes(q));hd=`<div class="note" style="margin:6px 2px">${L.length}건${L.length>20?' 중 최근 20건':''}</div>`;L=L.slice(0,20);}else L=L.slice(0,3);
   return `<div id="hlres">${hd}${L.length?L.map(logCard).join(''):`<div class="card"><div class="empty">${q?'이 거래처 기록이 없어요':'기록이 없어요'}</div></div>`}</div>`;}
+/* ---------- 1년 지난 톡·통화 기록 → OneDrive\업무\톡통화db 보관 ---------- */
+const ARCH_DAYS=365;
+function idb(){return new Promise((ok,no)=>{const r=indexedDB.open('work-arch',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});}
+async function kvGet(k){const d=await idb();return new Promise(ok=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>ok(q.result);q.onerror=()=>ok(null);});}
+async function kvSet(k,v){const d=await idb();return new Promise(ok=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>ok();});}
+const oldLogs=()=>{const lim=Date.now()-ARCH_DAYS*864e5;return S.logs.filter(l=>l.at&&l.at<lim);};
+(async()=>{try{const h=await kvGet('dir');if(h){ui.archName=h.name;}}catch(e){}})();
+async function archDir(){if(!window.showDirectoryPicker)return toast('크롬(PC)에서만 폴더를 지정할 수 있어요');
+  toast('OneDrive › 업무 › 톡통화db 폴더를 골라 주세요 (없으면 새 폴더로 만들기)');
+  try{const h=await window.showDirectoryPicker({id:'tokdb',mode:'readwrite',startIn:'documents'});await kvSet('dir',h);ui.archName=h.name;render();toast(`보관 폴더: ${h.name}`);}catch(e){}}
+const csvq=v=>{v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+async function archLogs(){const L=oldLogs();if(!L.length)return toast('1년 지난 기록이 없어요');
+  let h=null;try{h=await kvGet('dir');}catch(e){}if(!h){await archDir();try{h=await kvGet('dir');}catch(e){}if(!h)return;}
+  try{if((await h.queryPermission({mode:'readwrite'}))!=='granted'&&(await h.requestPermission({mode:'readwrite'}))!=='granted')return toast('폴더 저장 권한이 필요해요');}catch(e){return toast('폴더에 접근할 수 없어요 — 보관 폴더를 다시 지정해 주세요');}
+  const G={};L.forEach(l=>{const y=new Date(l.at).getFullYear(),nm=(cname(l.client)||(l.src==='내부톡'?'내부톡':l.title&&l.title.includes('내부')?'내부톡':'거래처미지정')).replace(/[\\/:*?"<>|]/g,'_');(G[`${y}_${nm}.csv`]=G[`${y}_${nm}.csv`]||[]).push(l);});
+  const HD='일시,구분,거래처,제목,요약,핵심내용,원문,id';let n=0;
+  for(const [fn,arr] of Object.entries(G)){let old='',ids=new Set();try{const f=await (await h.getFileHandle(fn)).getFile();old=(await f.text()).replace(/^\ufeff/,'');old.split('\n').forEach(r=>{const m=r.match(/,([a-z0-9]+)\s*$/);if(m)ids.add(m[1]);});}catch(e){}
+    const rows=arr.filter(l=>!ids.has(l.id)).sort((a,b)=>a.at-b.at).map(l=>[new Date(l.at).toLocaleString('ko-KR'),l.src||'',cname(l.client),l.title||'',l.summary||'',(l.points||[]).join(' / '),l.text||'',l.id].map(csvq).join(','));
+    const body=(old.trim()?old.replace(/\s+$/,''):HD)+'\n'+rows.join('\n')+'\n';
+    const w=await (await h.getFileHandle(fn,{create:true})).createWritable();await w.write('\ufeff'+body);await w.close();n+=arr.length;}
+  const done=new Set(L.map(l=>l.id));S.logs=S.logs.filter(l=>!done.has(l.id));save();render();toast(`${n}건을 ${h.name}에 보관하고 앱에서 정리했어요`);}
 function vHome(){
   const t=todayStr(), evs=events(t,addDays(t,14)).filter(e=>doneCnt(e)<e.ids.length), since=S.since&&S.since>addDays(t,-45)?S.since:addDays(t,-45), pastOpen=since<=addDays(t,-1)?events(since,addDays(t,-1)).filter(e=>doneCnt(e)<e.ids.length):[];
   const todayTasks=sortTasks(S.tasks.filter(x=>openT(x)&&x.due&&x.due<=t));
@@ -691,6 +712,7 @@ function vHome(){
     ${kpi('jobs','🤖','위하고 검토',`${jobsChk}<small>건</small>`,jobsChk?'확인 기다리는 작업':'대기 없음',jobsChk?'warn':'ok')}
   </div>
   ${!S.clients.length?`<div class="card" style="padding:16px;margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">거래처 데이터를 넣으면 세무 기한이 자동으로 달력에 들어가요.</span><button class="btn" data-a="import">거래처 가져오기</button></div>`:''}
+  ${oldLogs().length?`<div class="card" style="padding:10px 14px;margin:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">📦 1년 지난 톡·통화 기록 <b>${oldLogs().length}건</b> — OneDrive 업무\\톡통화db로 보관할 때가 됐어요</span><button class="btn s" data-a="archLogs">보관하기</button></div>`:''}
   <div class="hgrid">
     <div>
       <div class="sec"><h2>오늘 할 일${late?` <span class="chip red">기한 지남 ${late}</span>`:''}</h2><button class="more" data-tab="tasks">전체 ›</button></div>
@@ -826,7 +848,7 @@ function vLogs(){
   const cnt={};S.logs.forEach(l=>{if(l.client)cnt[l.client]=(cnt[l.client]||0)+1});
   if(lc==='none')logs=logs.filter(l=>!l.client);else if(lc)logs=logs.filter(l=>l.client===lc);
   const lim=ui.llim||60,shown=logs.slice(0,lim);
-  return head('기록',`<button class="btn g" data-a="talkImport">📥 톡 히스토리 가져오기</button><button class="btn g" data-a="live">🎙 실시간 통화 정리</button><button class="btn" data-a="ingest">✨ 톡·통화에서 뽑기</button>`)+`
+  return head('기록',`<button class="btn g" data-a="archDir" title="1년 지난 기록을 보관할 폴더">📦 ${ui.archName?'보관: '+esc(ui.archName):'보관 폴더 지정'}</button><button class="btn g" data-a="talkImport">📥 톡 히스토리 가져오기</button><button class="btn g" data-a="live">🎙 실시간 통화 정리</button><button class="btn" data-a="ingest">✨ 톡·통화에서 뽑기</button>`)+`
   <p class="note" style="margin-bottom:12px">톡이나 익시오 통화 요약을 복사해 <b>업무에 넣기</b> 단축어를 누르면, AI가 요약해서 여기에 남기고 할 일을 만들어요. 카톡 내보내기를 정리한 JSON은 <b>톡 히스토리 가져오기</b>로 한 번에 넣을 수 있어요.</p>
   <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><select class="sel" data-in="lc" style="max-width:320px"><option value="">전체 거래처 (${S.logs.length}건)</option>${S.clients.filter(c=>cnt[c.id]).sort((a,b)=>a.name.localeCompare(b.name,'ko')).map(c=>`<option value="${c.id}" ${lc===c.id?'selected':''}>${esc(c.name)} (${cnt[c.id]})</option>`).join('')}<option value="none" ${lc==='none'?'selected':''}>거래처 없음</option></select>${lc&&lc!=='none'?`<button class="btn g s" data-client="${lc}">거래처 열기</button>`:''}</div>
   ${shown.length?shown.map(logCard).join(''):'<div class="card"><div class="empty">아직 기록이 없어요</div></div>'}
@@ -1788,6 +1810,7 @@ document.addEventListener('click',e=>{
     pmPrev:()=>{ui.pm=ymAdd(ui.pm,-1);render();}, pmNext:()=>{ui.pm=ymAdd(ui.pm,1);render();}, pmCur:()=>{ui.pm=curYM();render();},
     talkImport:()=>$('#talkIn').click(), rwPrev:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),-1);render();}, rwNext:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),1);render();}, rDet:()=>{ui.rdet=!ui.rdet;render();}, agNew:()=>agentForm(null), agSave:()=>agentSave(), agDel:()=>{const a=agt(ui.agEdit);if(!a||!confirm(`${a.name}을(를) 신고대리 목록에서 삭제할까요?`))return;S.agents=S.agents.filter(x=>x.id!==a.id);['pit','cit'].forEach(k=>Object.values(S.rpt[k]).forEach(D=>delete D[a.id]));save();$('#modal').classList.remove('on');render();}, pgyPrev:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);ui.pgm=(+c.slice(0,4)-1)+'-12';render();}, pgyNext:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);const ny=+c.slice(0,4)+1;const t=pgNow();ui.pgm=(ny+'-01')>t?c:ny+'-'+(ny===+t.slice(0,4)?pgAdd(t,-1).slice(5):'12');render();}, ryPrev:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())-1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, ryNext:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())+1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
     rtAdd:()=>{const v=prompt('매월 반복 할 일 (예: 25 오전 10시 세금계산서 발행)');if(!v)return;const m=v.trim().match(/^(\d{1,2})\s*일?\s*((?:오전|오후)?\s*\d{1,2}\s*시(?:\s*\d{1,2}\s*분)?|\d{1,2}:\d{2})?\s*(.+)$/);if(!m)return toast('날짜(일) 숫자로 시작해 주세요');S.routines.push({id:'rt'+uid(),day:+m[1],time:(m[2]||'').replace(/\s+/g,' ').trim(),title:m[3].trim(),created:Date.now()});ui._rr='';save();render();toast('매월 반복 할 일에 넣었어요');},
+    archDir:()=>archDir(), archLogs:()=>archLogs(),
     pgPrev:()=>{ui.pg=pgAdd(ui.pg,-1);render();}, pgNext:()=>{ui.pg=pgAdd(ui.pg,1);render();}, pgCur:()=>{ui.pg=pgAdd(pgNow(),-1);render();},
     newClient:()=>{const n=prompt('상호');if(!n||!n.trim())return;const c={id:uid(),order:S.clients.length+1,type:'법인',name:n.trim(),bizno:'',ceo:'',corpno:'',contact:'',phone:'',biz1:'',biz2:'',fee:null,adjFee:null,wh:'',email:'',vat:'일반',fy:12,sincere:false,payDay:null,cms:'',payInfo:'',addr:'',memo:''};S.clients.push(c);save();render();openClient(c.id);},
     clientDel:()=>{const c=cl(ui.openClient);if(!c||!confirm(`${c.name}을(를) 삭제할까요? (할 일·기록은 남아요)`))return;S.clients=S.clients.filter(x=>x.id!==c.id);delete S.pay[c.id];S.tasks.forEach(t=>{if(t.client===c.id)t.client=null});save();closeDrawer();},
