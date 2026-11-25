@@ -120,6 +120,18 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
 .ev.ok{opacity:.45;text-decoration:line-through}
 .ev.task{background:var(--soft);color:var(--ink)}
 .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin-top:10px}
+.csplit{display:grid;grid-template-columns:1fr;gap:14px;align-items:start}
+@media(min-width:900px){.csplit{grid-template-columns:minmax(300px,380px) 1fr}}
+.cleft .fbar{flex-wrap:wrap}.cleft .search{flex:1;min-width:140px}
+.crow{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);cursor:pointer}
+.crow:first-child{border-top:0}.crow:hover{background:var(--soft)}.crow.on{background:var(--acc2);box-shadow:inset 3px 0 0 var(--acc)}
+.crow .cn{flex:1;min-width:0}.crow .cn b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.crow .cn span{font-size:12px;color:var(--sub)}
+.crow .cb{display:flex;gap:4px;flex-shrink:0}
+.cpane{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;padding:0}
+.cpane .dh{position:sticky;top:0;z-index:2;background:var(--panel)}
+.vsec{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--soft)}
+.vsec .vh{display:flex;gap:6px;align-items:center;font-size:12px;font-weight:700;color:var(--sub)}.vsec .vh span{flex:1}
+.vfield{display:flex;align-items:center;gap:6px;min-height:34px}.vfield b{flex:1;font-variant-numeric:tabular-nums;font-weight:600;word-break:break-all}
 .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
 .cc{padding:13px 15px;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-width:0}
 .cc:hover{border-color:var(--acc)}
@@ -514,6 +526,7 @@ function render(){
   $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs,jobs:vJobs,prog:vProg})[ui.tab]();
   if(ui.syncT) setSync(ui.syncT,ui.syncE);
   if(ui.tab==='jobs')fillImgs();
+  if(ui.tab==='clients'&&paneMode()&&ui.selClient&&cl(ui.selClient))openClient(ui.selClient);
 }
 const head=(title,extra='')=>{const d=new Date();return `<div class="head"><h1>${title}</h1><span class="sub">${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일</span><span class="sync" id="dsync"></span>${extra?`<div class="sp">${extra}</div>`:''}</div>`};
 
@@ -614,20 +627,21 @@ function vCal(){
   ${mon.length?`<div class="sec"><h2>${m}월 기한 목록</h2></div><div class="card list">${mon.map(dlRow).join('')}</div>`:''}
   <p class="note" style="margin-top:12px">기한은 거래처의 원천세 주기·과세유형·결산월로 자동 계산되고, 주말·공휴일이면 다음 영업일로 옮겨져요. 거래처 화면에서 세무 설정을 바꿀 수 있어요.</p>`;
 }
+const paneMode=()=>window.innerWidth>=900;
+const sortKey=c=>String(c.name||'').replace(/\(주\)|㈜|주식회사|\(유\)|유한회사|\[.*?\]|\s/g,'');
 function vClients(){
-  let arr=S.clients.slice().sort((a,b)=>(a.order||0)-(b.order||0));
+  let arr=S.clients.slice().sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'ko'));
   if(ui.cf==='corp') arr=arr.filter(c=>c.type==='법인'); else if(ui.cf==='ind') arr=arr.filter(c=>c.type!=='법인');
   else if(ui.cf==='unpaid') arr=arr.filter(c=>unpaidList(c.id).length); else if(ui.cf==='closed') arr=arr.filter(c=>c.status==='폐업');
   if(ui.cq){const q=norm(ui.cq);arr=arr.filter(c=>norm([c.name,c.ceo,c.contact,c.bizno,c.biz2,c.phone].join(' ')).includes(q));}
-  const t=todayStr(), next={};events(t,addDays(t,40)).forEach(e=>e.ids.forEach(id=>{if(!next[id]&&!isDone(e,id))next[id]=e;}));
   const fl=[['all',`전체 ${S.clients.length}`],['corp','법인'],['ind','개인'],['unpaid','미수'],['closed','폐업']];
+  const list=arr.length?`<div class="card list crow-list">${arr.map(c=>{const u=unpaidList(c.id).length,ot=S.tasks.filter(x=>x.client===c.id&&openT(x)).length;
+    return `<div class="crow ${ui.selClient===c.id&&paneMode()?'on':''}" data-client="${c.id}"><div class="cn"><b>${esc(c.name)}</b><span>${esc(c.ceo||'')}${c.bizno?` · ${esc(c.bizno)}`:''}</span></div>
+      <div class="cb">${c.status==='폐업'?'<span class="chip red">폐업</span>':''}${u?`<span class="chip red">미수 ${u}</span>`:''}${ot?`<span class="chip blu">할 일 ${ot}</span>`:''}<span class="chip ${c.type==='법인'?'acc':''}">${esc(c.type||'')}</span></div></div>`}).join('')}</div>`
+    :`<div class="card"><div class="empty">${S.clients.length?'조건에 맞는 거래처가 없어요':'아직 거래처가 없어요. <b>가져오기</b>로 받은 파일을 넣거나 <b>+ 거래처</b>로 추가하세요.'}</div></div>`;
   return head('거래처',`<button class="btn g" data-a="import">가져오기</button><button class="btn" data-a="newClient">+ 거래처</button>`)+`
-  <div class="fbar">${fl.map(([k,n])=>`<button class="fchip ${ui.cf===k?'on':''}" data-cf="${k}">${n}</button>`).join('')}<input class="search" data-in="cq" placeholder="상호·대표·사업자번호 검색" value="${esc(ui.cq)}"></div><div id="sres">
-  ${arr.length?`<div class="cgrid">${arr.map(c=>{const u=unpaidList(c.id).length,ot=S.tasks.filter(x=>x.client===c.id&&openT(x)).length,nx=next[c.id];
-    return `<div class="card cc" data-client="${c.id}"><div class="nm"><span>${esc(c.name)}</span><span class="chip ${c.type==='법인'?'acc':''}">${esc(c.type||'')}</span>${c.status==='폐업'?'<span class="chip red">폐업</span>':''}</div>
-      <div class="mt">${esc(c.ceo||'')}${c.fee?` · 월 ${won(c.fee)}원`:''}${c.biz2?` · ${esc(c.biz2)}`:''}</div>
-      <div class="mt">${u?`<span class="chip red">미수 ${u}개월</span>`:''}${cmsxList(c.id).length?`<span class="chip amb">CMS 확인 ${cmsxList(c.id).length}</span>`:''}${ot?`<span class="chip blu">할 일 ${ot}</span>`:''}${nx?`<span class="chip" style="color:${TT[nx.t].c}">${esc(TT[nx.t].n)} ${dday(nx.date)}</span>`:''}<span class="chip">${WHN[c.wh||'']}</span></div></div>`}).join('')}</div>`
-  :`<div class="card"><div class="empty">${S.clients.length?'조건에 맞는 거래처가 없어요':'아직 거래처가 없어요. <b>가져오기</b>로 받은 파일을 넣거나 <b>+ 거래처</b>로 추가하세요.'}</div></div>`}</div>`;
+  <div class="csplit"><div class="cleft"><div class="fbar">${fl.map(([k,n])=>`<button class="fchip ${ui.cf===k?'on':''}" data-cf="${k}">${n}</button>`).join('')}<input class="search" data-in="cq" placeholder="상호·대표·사업자번호 검색" value="${esc(ui.cq)}"></div><div id="sres">${list}</div></div>
+  ${paneMode()?`<div class="card cpane" id="cpane"><div class="empty">왼쪽에서 거래처를 고르면 여기에 내용이 나와요</div></div>`:''}</div>`;
 }
 function vPay(){
   const ym=ui.pm, cur=curYM();
@@ -874,8 +888,10 @@ window.__jobs={
 };
 
 /* ---------- 서랍 ---------- */
-function drawer(html,kind){const keep=ui.drawer===kind?$('#drawer').scrollTop:0;$('#drawer').innerHTML=html;$('#drawer').classList.add('on');$('#shade').classList.add('on');ui.drawer=kind;$('#drawer').scrollTop=keep;}
-function closeDrawer(){$('#drawer').classList.remove('on');$('#shade').classList.remove('on');ui.drawer=null;ui.openTask=null;ui.openClient=null;ui.openDay=null;render();}
+function drawer(html,kind){
+  if(kind==='client'&&ui.tab==='clients'&&paneMode()&&$('#cpane')){const p=$('#cpane'),keep=ui.drawer===kind?p.scrollTop:0;p.innerHTML=html;ui.drawer=kind;p.scrollTop=keep;document.querySelectorAll('.crow').forEach(r=>r.classList.toggle('on',r.dataset.client===ui.openClient));return;}
+  const keep=ui.drawer===kind?$('#drawer').scrollTop:0;$('#drawer').innerHTML=html;$('#drawer').classList.add('on');$('#shade').classList.add('on');ui.drawer=kind;$('#drawer').scrollTop=keep;}
+function closeDrawer(){$('#drawer').classList.remove('on');$('#shade').classList.remove('on');ui.drawer=null;ui.openTask=null;ui.openClient=null;ui.selClient=null;ui.openDay=null;render();}
 const dh=(t,extra='')=>`<div class="dh"><h3>${t}</h3>${extra}<button class="x" data-a="close">×</button></div>`;
 const copt=sel=>`<option value="">거래처 없음</option>`+S.clients.map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${esc(c.name)}</option>`).join('');
 function refreshDrawer(){if(ui.drawer==='day')openDay(ui.openDay);else if(ui.drawer==='client')openClient(ui.openClient);else if(ui.drawer==='task')openTask(ui.openTask);}
@@ -906,7 +922,7 @@ function openDay(d){
 }
 
 function openClient(id){
-  const c=cl(id); if(!c) return; ui.openClient=id;
+  const c=cl(id); if(!c) return; ui.openClient=id; ui.selClient=id;
   const t=todayStr(), evs=events(addDays(t,-31),addDays(t,90)).filter(e=>e.ids.includes(id));
   const tasks=S.tasks.filter(x=>x.client===id).sort((a,b)=>(openT(a)?0:1)-(openT(b)?0:1)||((a.due||'9999')<(b.due||'9999')?-1:1));
   const logs=S.logs.filter(l=>l.client===id).sort((a,b)=>b.at-a.at);
@@ -915,7 +931,15 @@ function openClient(id){
   const tel=(c.phone||'').replace(/[^\d+]/g,''), u=unpaidList(id);
   drawer(dh(esc(c.name),`<span class="chip ${c.type==='법인'?'acc':''}">${esc(c.type)}</span>`)+`<div class="db">
     <div class="links">${tel?`<a href="tel:${tel}">📞 ${esc(c.contact||c.ceo||'전화')}</a><a href="sms:${tel}">💬 문자</a>`:''}${c.email?`<a href="mailto:${esc(c.email)}">✉️ 메일</a>`:''}<a href="#" data-a="clientTask">+ 할 일</a></div>
-    <div class="box" id="vaultBox"></div>
+    <div class="box"><h4>기본 정보</h4><div style="display:flex;flex-direction:column;gap:10px">
+      ${f('name','상호')}<div class="r2">${f('ceo','대표자')}${f('bizno','사업자등록번호','text','000-00-00000')}</div>${c.type==='법인'?f('corpno','법인등록번호'):''}
+      <div id="vaultBox"></div>
+      <div class="r2">${f('contact','담당자')}${f('phone','전화번호','tel')}</div>${f('email','이메일','email')}
+      ${f('addr','사업장 주소','text','홈택스에서 확인해 넣어 주세요')}
+      <div class="r2">${f('biz1','업태')}${f('biz2','업종')}</div>
+      <div class="r3">${f('fee','월 기장료','number')}${f('payDay','결제일','number')}<div><label>CMS</label><select data-cf2="cms">${[['','-'],['O','O'],['X','X']].map(([k,v])=>`<option value="${k}" ${(c.cms||'')===k?'selected':''}>${v}</option>`).join('')}</select></div></div>
+      <div class="r2">${f('adjFee','세무조정료','number')}${f('payInfo','결제 정보')}</div>
+      <div><label>메모</label><textarea data-cf2="memo">${esc(c.memo||'')}</textarea></div></div></div>
     <div class="box"><h4>수금 ${u.length?`<span class="chip red">미수 ${u.length}개월</span>`:'<span>칸을 누르면 바꿀 수 있어요</span>'}</h4>
       <div class="pstrip">${months.map(k=>{const cell=pcell(id,k),st=pstat(cell);return `<div class="pc ${st} ${k===cur?'cur':''}" data-paycell="${id}|${k}"><b>${+k.slice(2)}월</b>${st==='paid'?(cell.a>=1000?won(Math.round(cell.a/1000))+'k':won(cell.a)):st?PS[st].n.replace('CMS 확인','CMS').replace('해당없음','–'):'·'}</div>`}).join('')}</div></div>
     <div class="box"><h4>세무 일정 <span>${evs.length}</span></h4>${evs.length?evs.map(e=>`<div class="ck" data-ck="${esc(e.key)}|${id}"><span class="chk ${isDone(e,id)?'on':''}"></span><span class="tb"><b style="color:${TT[e.t].c}">${esc(e.label)}</b></span><span class="chip ${diffDays(e.date)<0&&!isDone(e,id)?'red':''}">${md(e.date)}</span></div>`).join(''):'<p class="note">앞뒤 석 달 안에 일정이 없어요. 아래 세무 설정을 확인하세요.</p>'}</div>
@@ -928,14 +952,6 @@ function openClient(id){
         ${c.type==='법인'?`<div><label>결산월</label><select data-cf2="fy">${[...Array(12)].map((_,i)=>`<option value="${i+1}" ${(+c.fy||12)===i+1?'selected':''}>${i+1}월</option>`).join('')}</select></div>`:`<div><label>성실신고 대상</label><select data-cf2="sincere"><option value="0" ${!c.sincere?'selected':''}>아니요 (5월)</option><option value="1" ${c.sincere?'selected':''}>예 (6월)</option></select></div>`}</div>
       <div class="r2"><div><label>개업일</label><input data-cf2="open" type="date" value="${esc(c.open||'')}"></div><div><label>폐업일</label><input data-cf2="close" type="date" value="${esc(c.close||'')}"></div></div>
       <div><label>상태</label><select data-cf2="status">${['','휴업','폐업'].map(v=>`<option value="${v}" ${(c.status||'')===v?'selected':''}>${v||'계속사업'}</option>`).join('')}</select></div></div></div>
-    <div class="box"><h4>기본 정보</h4><div style="display:flex;flex-direction:column;gap:10px">
-      ${f('name','상호')}<div class="r2">${f('ceo','대표자')}${f('bizno','사업자등록번호','text','000-00-00000')}</div>
-      <div class="r2">${f('contact','담당자')}${f('phone','전화번호','tel')}</div>${f('email','이메일','email')}
-      ${f('addr','사업장 주소','text','홈택스에서 확인해 넣어 주세요')}
-      <div class="r2">${f('biz1','업태')}${f('biz2','업종')}</div>${c.type==='법인'?f('corpno','법인등록번호'):''}
-      <div class="r3">${f('fee','월 기장료','number')}${f('payDay','결제일','number')}<div><label>CMS</label><select data-cf2="cms">${[['','-'],['O','O'],['X','X']].map(([k,v])=>`<option value="${k}" ${(c.cms||'')===k?'selected':''}>${v}</option>`).join('')}</select></div></div>
-      <div class="r2">${f('adjFee','세무조정료','number')}${f('payInfo','결제 정보')}</div>
-      <div><label>메모</label><textarea data-cf2="memo">${esc(c.memo||'')}</textarea></div></div></div>
     <div style="display:flex;justify-content:flex-end"><button class="del" data-a="clientDel">거래처 삭제</button></div></div>`,'client');
   renderVault(id);
 }
@@ -1068,11 +1084,11 @@ async function migrateVault(){
 }
 function renderVault(id){
   const el=$('#vaultBox'); if(!el||ui.openClient!==id) return;
-  if(S.vault){el.innerHTML=`<h4>보안 정보</h4><p class="note" style="margin-bottom:8px">잠금을 없애려면 지금 쓰는 보안 비밀번호를 마지막으로 한 번만 입력해 주세요.</p><button class="btn g s" data-a="vMigrate">한 번 입력하고 잠금 없애기</button>`;return;}
+  if(S.vault){el.innerHTML=`<h4>🔒 보안 정보</h4><p class="note" style="margin-bottom:8px">잠금을 없애려면 지금 쓰는 보안 비밀번호를 마지막으로 한 번만 입력해 주세요.</p><button class="btn g s" data-a="vMigrate">한 번 입력하고 잠금 없애기</button>`;return;}
   const v=Object.assign({rrn:'',htId:'',htPw:''},(S.sec||{})[id]||{}); ui.vcur={id,v};
-  const row=(lab,k)=>`<div class="ck" style="cursor:default"><span class="tb"><span class="ts">${lab}</span><b style="font-variant-numeric:tabular-nums">${esc(v[k])||'—'}</b></span>${v[k]?`<button class="chip" data-vcopy="${k}">복사</button>`:''}</div>`;
-  el.innerHTML=`<h4>보안 정보</h4>${row('대표자 주민번호','rrn')}${row('홈택스 아이디','htId')}${row('홈택스 비밀번호','htPw')}
-    <div style="display:flex;gap:8px;margin-top:8px"><button class="btn g s" data-a="vEdit">수정</button>${v.htId?'<a class="btn g s" href="https://hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a>':''}</div>`;
+  const row=(lab,k)=>`<div><label>${lab}</label><div class="vfield"><b>${esc(v[k])||'—'}</b>${v[k]?`<button class="chip" data-vcopy="${k}">복사</button>`:''}</div></div>`;
+  el.innerHTML=`<div class="vsec"><div class="vh"><span>🔒 보안 정보</span><button class="chip" data-a="vEdit">수정</button>${v.htId?'<a class="chip" href="https://hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a>':''}</div>
+    ${row('대표자 주민번호','rrn')}<div class="r2">${row('홈택스 아이디','htId')}${row('홈택스 비밀번호','htPw')}</div></div>`;
 }
 function vEdit(){
   const v=ui.vcur.v;
