@@ -793,7 +793,7 @@ function importTalk(d){
 window.__importTalk=importTalk;
 /* 신고현황 엑셀 → 세무 일정 체크: __checks.mark([{bizno|cid,t,y,m,label}]) */
 window.__checks={
-  clients:()=>S.clients.map(c=>({id:c.id,name:c.name,bizno:String(c.bizno||'').replace(/\D/g,''),wh:c.wh||'',type:c.type,vat:c.vat})),
+  clients:()=>S.clients.map(c=>({id:c.id,name:c.name,bizno:String(c.bizno||'').replace(/\D/g,''),wh:c.wh||'',type:c.type,vat:c.vat,vatPre:c.vatPre||'',ceo:c.ceo||'',status:c.status||'',birth:String(((S.sec||{})[c.id]||{}).rrn||'').replace(/\D/g,'').slice(0,6)})),
   setField:(list)=>{let n=0;list.forEach(([b,k,v])=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(b));if(c){c[k]=v;n++;}});save();if(!ui.drawer)render();return n;},
   mark:(list)=>{let ok=0,miss=[];for(const o of list){const c=o.cid?cl(o.cid):S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(o.bizno||'').replace(/\D/g,''));if(!c){miss.push(o.name||o.bizno);continue;}
     const e=rawEvents(o.y,o.m).find(e=>e.t===o.t&&(!o.label||e.label.startsWith(o.label)));if(!e){miss.push((o.name||c.name)+' '+o.t+' '+o.y+'-'+o.m);continue;}
@@ -1024,7 +1024,7 @@ const VSTEP=[['수집','수집'],['카드작업','카드'],['작성','작성'],[
 function vatList(Y,pk){const pd=VP.find(x=>x[0]===pk),key=`${Y}-${pk}`,D=S.rpt.vat[key]||{};
   const ey=pk==='2f'?Y+1:Y,evs=rawEvents(ey,pd[2]).filter(e=>e.t==='vat'||e.t==='vatp');
   const pend=`${Y}-${({'1p':'03-31','1f':'06-30','2p':'09-30','2f':'12-31'})[pk]}`,due=nextBiz(`${ey}-${pad(pd[2])}-25`),past=due<todayStr();
-  const fin=r=>pk.endsWith('p')?!!r.전송:!!r.작성;
+  const fin=r=>r.고지==='고지'?!!r.전달:pk.endsWith('p')?!!r.전송:!!r.작성;
   const cs=S.clients.filter(c=>D[c.id]||(!past&&evs.some(e=>e.t==='vat'&&e.ids.includes(c.id))&&!(c.open&&c.open>pend))).map(c=>({c,r:D[c.id]||{}}))
     .sort((a,b)=>(fin(a.r)-fin(b.r))||sortKey(a.c).localeCompare(sortKey(b.c),'ko'));
   return {pd,key,ey,due,past,fin,cs,done:cs.filter(x=>fin(x.r)).length};}
@@ -1032,10 +1032,10 @@ function vRepVat(){
   const Y=ui.ry||new Date().getFullYear(),pk=ui.rvp||'2p';const {pd,key,due,past,fin,cs,done}=vatList(Y,pk);const det=!!ui.rdet;
   const steps=VSTEP.filter(([f])=>f!=='전송'||pk.endsWith('p'));
   const tax=v=>{if(v==null||v==='')return '<span class="sub">—</span>';if(typeof v!=='number')return esc(v);return v<0?`<b class="refund">환급 ${won(-v)}</b>`:v===0?'<span class="sub">0</span>':`<b class="pay">${won(v)}</b>`;};
-  const sumPay=cs.reduce((a,x)=>a+(typeof x.r.납부==='number'&&x.r.납부>0?x.r.납부:0),0),sumRef=cs.reduce((a,x)=>a+(typeof x.r.납부==='number'&&x.r.납부<0?-x.r.납부:0),0);
-  const row=({c,r})=>{const k=`vat|${key}|${c.id}`,ok=fin(r);return `<tr class="${ok?'ok':''}"><td class="nm" data-client="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.type||'')} · ${esc(c.vat||'')}</span></td>
-    <td class="kinds">${steps.map(([f,n])=>`<button class="kp step ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
-    <td class="r">${tax(r.납부)}</td><td class="r">${r.매출!=null&&r.매출!==''?won(r.매출):'<span class="sub">—</span>'}</td>
+  const pv=r=>r.고지==='고지'?r.고지액:r.납부,sumPay=cs.reduce((a,x)=>a+(typeof pv(x.r)==='number'&&pv(x.r)>0?pv(x.r):0),0),sumRef=cs.reduce((a,x)=>a+(typeof x.r.납부==='number'&&x.r.납부<0?-x.r.납부:0),0);
+  const row=({c,r})=>{const k=`vat|${key}|${c.id}`,ok=fin(r),G=r.고지==='고지';return `<tr class="${ok?'ok':''}"><td class="nm" data-client="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.type||'')} · ${esc(c.vat||'')}${G?' · 예정고지':''}</span></td>
+    <td class="kinds">${G?`<span class="chip red" style="margin-right:4px">고지</span>${[['전달','납부서 전달'],['납부확인','납부 확인']].map(([f,n])=>`<button class="kp step ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}`:steps.map(([f,n])=>`<button class="kp step ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
+    <td class="r">${tax(G?r.고지액:r.납부)}</td><td class="r">${r.매출!=null&&r.매출!==''?won(r.매출):'<span class="sub">—</span>'}</td>
     ${det?VF.filter(([f])=>!['납부','매출'].includes(f)).map(([f])=>`<td><input class="ri num" data-rpi="${k}|${f}" value="${r[f]!=null&&r[f]!==''?(typeof r[f]==='number'?won(r[f]):esc(r[f])):''}"></td>`).join(''):''}
     <td class="memo"><input class="ri wide" data-rpi="${k}|memo" value="${esc(r.memo||'')}" placeholder="메모"></td></tr>`};
   const todo=cs.filter(x=>!fin(x.r)),dn=cs.filter(x=>fin(x.r)),ncol=5+(det?6:0);
@@ -1164,8 +1164,8 @@ function rptSync(kind,per,cid,r){
   else if(kind==='ye'){const yr=+per.slice(0,4);rawEvents(yr+1,3).filter(e=>e.t==='jg'&&e.ids.includes(cid)).forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;if(r.제출)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
   else if(kind==='pit'||kind==='cit'){const yr=+per.slice(0,4),mid=per.includes('mid');const ts=kind==='pit'?(mid?['pitm']:['pit']):(mid?['citm']:['cit','citl']);const ey=mid?yr:yr+1;
     for(let mm=1;mm<=12;mm++)rawEvents(ey,mm).filter(e=>ts.includes(e.t)&&e.ids.includes(cid)).forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;const ok=taxFin(kind,per)(r);if(ok)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
-  else{const [Y,pk]=per.split('-');const pd=VP.find(x=>x[0]===pk);const ey=pk==='2f'?+Y+1:+Y;const ok=pk.endsWith('p')?r.전송:r.작성;
-    rawEvents(ey,pd[2]).filter(e=>e.t==='vat').forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;if(ok)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
+  else{const [Y,pk]=per.split('-');const pd=VP.find(x=>x[0]===pk);const ey=pk==='2f'?+Y+1:+Y;const G=r.고지==='고지',ok=G?r.전달:pk.endsWith('p')?r.전송:r.작성;
+    rawEvents(ey,pd[2]).filter(e=>e.t===(G?'vatp':'vat')).forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;if(ok)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
 }
 function rptSet(spec,val){const [kind,per,cid,f]=spec.split('|');const T=S.rpt[kind];T[per]=T[per]||{};const r=T[per][cid]=T[per][cid]||{};
   if(kind==='wh'&&r.gan!==undefined){const R=whRow(r);['ganD','ganS','kdDate','kdWay'].forEach(x=>{if(R[x])r[x]=R[x]});delete r.gan;}
