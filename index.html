@@ -653,6 +653,9 @@ function homeRep(){/* 지금 진행 중인 신고: 기한이 다가오는 순 */
   const fin=r=>r.tot&&r.done>=r.tot;return out.sort((a,b)=>(fin(a)-fin(b))||(a.due<b.due?-1:1));}
 function homeProgLate(){const b=pgAdd(pgNow(),-1),y=+b.slice(0,4),bm=+b.slice(5,7);let n=0;
   S.clients.forEach(c=>{const r=pgRange(c,y);if(r[0]>12||r[1]<1)return;if(c.status==='폐업'&&!(c.close&&+c.close.slice(0,4)>=y))return;if(PG.some(([k])=>!pgBar(c,k,y,bm).ok))n++;});return {n,bm};}
+function homeLogs(){const q=norm(ui.hlq||'').trim();let L=S.logs.slice().sort((a,b)=>b.at-a.at),hd='';
+  if(q){const ids=S.clients.filter(c=>norm([c.name,c.ceo,c.bizno].join(' ')).includes(q)).map(c=>c.id);L=L.filter(l=>ids.includes(l.client)||norm([l.title,l.summary].join(' ')).includes(q));hd=`<div class="note" style="margin:6px 2px">${L.length}건${L.length>20?' 중 최근 20건':''}</div>`;L=L.slice(0,20);}else L=L.slice(0,3);
+  return `<div id="hlres">${hd}${L.length?L.map(logCard).join(''):`<div class="card"><div class="empty">${q?'이 거래처 기록이 없어요':'기록이 없어요'}</div></div>`}</div>`;}
 function vHome(){
   const t=todayStr(), evs=events(t,addDays(t,14)).filter(e=>doneCnt(e)<e.ids.length), since=S.since&&S.since>addDays(t,-45)?S.since:addDays(t,-45), pastOpen=since<=addDays(t,-1)?events(since,addDays(t,-1)).filter(e=>doneCnt(e)<e.ids.length):[];
   const todayTasks=sortTasks(S.tasks.filter(x=>openT(x)&&x.due&&x.due<=t));
@@ -686,8 +689,9 @@ function vHome(){
     <div>
       <div class="sec"><h2>진행 중인 신고</h2><button class="more" data-tab="rep">신고 현황 ›</button></div>
       <div class="card list hrl">${R.length?R.map(repRow).join(''):'<div class="empty">진행 중인 신고가 없어요</div>'}</div>
-      ${unp.length?`<div class="sec"><h2>미수 거래처 <span class="chip red">${unp.length}</span></h2><button class="more" data-tab="pay">수금 ›</button></div><div class="card" style="padding:10px 14px;font-size:13px;line-height:1.7">${unp.slice(0,8).map(c=>`<span class="chip" data-client="${c.id}" style="cursor:pointer;margin:2px">${esc(c.name)}</span>`).join('')}${unp.length>8?` 외 ${unp.length-8}곳`:''}</div>`:''}
-      ${logs.length?`<div class="sec"><h2>최근 톡·통화</h2><button class="more" data-tab="logs">전체 ›</button></div>${logs.map(logCard).join('')}`:''}
+      <div class="sec"><h2>거래처 톡·통화 기록</h2><button class="more" data-tab="logs">전체 ›</button></div>
+      <div class="card quick"><input data-in="hlq" value="${esc(ui.hlq||'')}" placeholder="거래처 이름으로 검색 (예: 주은비철)" autocomplete="off"></div>
+      ${homeLogs()}
     </div>
   </div>`;
 }
@@ -1780,6 +1784,7 @@ document.addEventListener('input',e=>{
   const el=e.target,d=el.dataset;
   if(d.in==='rq'){ui.rq=el.value;clearTimeout(ui._st);ui._st=setTimeout(()=>{if(ui.tab!=='rep')return;const tmp=document.createElement('div');tmp.innerHTML=vRep();const r=$('.rtab'),nr=tmp.querySelector('.rtab');if(r&&nr)r.replaceWith(nr);},150);return;}
   if(d.in==='pq'){ui.pq=el.value;clearTimeout(ui._st);ui._st=setTimeout(()=>{if(ui.tab!=='prog')return;const tmp=document.createElement('div');tmp.innerHTML=vProg();const r=$('#sres'),nr=tmp.querySelector('#sres');if(r&&nr)r.replaceWith(nr);},150);return;}
+  if(d.in==='hlq'){ui.hlq=el.value;clearTimeout(ui._st);ui._st=setTimeout(()=>{const r=$('#hlres');if(!r||ui.tab!=='home')return;const tmp=document.createElement('div');tmp.innerHTML=homeLogs();r.replaceWith(tmp.firstElementChild);},150);return;}
   if(d.in==='q'||d.in==='cq'){ui[d.in]=el.value;clearTimeout(ui._st);ui._st=setTimeout(()=>{const v=({tasks:vTasks,clients:vClients})[ui.tab];const r=$('#sres');if(!v||!r)return;const tmp=document.createElement('div');tmp.innerHTML=v();const nr=tmp.querySelector('#sres');if(nr)r.replaceWith(nr);},150);return;}
   if(d.in&&d.in!=='sort'&&d.in!=='lc'&&d.in!=='pgs'){ui[d.in]=el.value;const pos=el.selectionStart;render();const n=$(`[data-in="${d.in}"]`);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}return;}
   if(ui.drawer==='task'){const x=S.tasks.find(t=>t.id===ui.openTask);if(!x)return;
