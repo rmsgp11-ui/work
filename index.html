@@ -179,6 +179,7 @@ body.wide main{max-width:1760px}
 .rsl{padding:0}.rsi{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);cursor:pointer}.rsi:first-child{border-top:0}.rsi:hover{background:var(--soft)}
 .rsi.on{background:var(--acc2);box-shadow:inset 3px 0 0 var(--acc)}.rsi .t{flex:1;min-width:0}.rsi .t b{display:block;font-size:14px}.rsi .t span{font-size:11.5px;color:var(--sub)}
 .rsi .p{width:76px;text-align:right}.rsi .p span{font-size:12px;font-weight:700;color:var(--sub)}.rsi .p span.ok{color:var(--grn)}.rsi .p span.late{color:var(--red)}
+.yet{border:0;background:transparent;cursor:pointer;color:var(--sub);padding:0 4px 0 0;font-size:12px}.yesub td{background:var(--soft);padding:4px 8px!important}.yel{display:flex;flex-direction:column;gap:3px}.yee{display:flex;align-items:center;gap:8px;white-space:nowrap}.yee b{min-width:70px;font-size:13px}.yee .sub{min-width:120px;font-size:11px}.yee.ok b{color:var(--grn)}.yee .ri.wide{flex:1;min-width:120px}.yee.add .ri{width:200px}
 .rsl .rsi{padding:7px 12px}.rsl .rsi .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rsl .rsi .t b{display:inline;margin-right:6px}.rsl .rsi .t span{display:inline}.rsl .rsi .p{width:64px}
 .rsi .p i{display:block;height:4px;border-radius:99px;background:var(--soft);margin-top:4px;overflow:hidden}.rsi .p em{display:block;height:100%;background:var(--grn)}
 .rpsum{display:flex;align-items:center;gap:16px;padding:12px 16px;margin-bottom:10px;flex-wrap:wrap}.rpn b{font-size:24px}.rpn span{color:var(--sub);margin-left:4px}
@@ -959,12 +960,12 @@ const VP=[['1p','1기 예정',4],['1f','1기 확정',7],['2p','2기 예정',10],
 const WF=[['급여','급여'],['일용','일용'],['퇴직','퇴직'],['사업','사업'],['기타','기타']];
 const VF=[['납부','납부세액'],['매출','매출합계'],['세금','세금계산서'],['계산','계산서'],['카드','카드·현영'],['현금','현금매출'],['영세','영세율'],['고지','예정고지·미환급']];
 const VT=[['수집','수집'],['카드작업','카드작업'],['부속','부속서류']];
-function rptHead(kind){const ag=ui.rmode==='ag';const list=ag?RT.filter(([k])=>k==='pit'||k==='cit'):RT;
+function rptHead(kind){const ag=ui.rmode==='ag';const list=ag?RT.filter(([k])=>k==='pit'||k==='cit'||k==='ye'):RT;
   const nG=S.clients.filter(c=>c.status!=='폐업').length;
   return head(`신고 현황 <span class="seg rmode in"><button class="${ag?'':'on'}" data-rmode="gj">기장 <span>${nG}</span></button><button class="${ag?'on':''}" data-rmode="ag">신고대리 <span>${S.agents.length}</span></button></span>`,ag?`<button class="btn" data-a="agNew">＋ 신고대리 등록</button>`:'')+`
   <div class="fbar" style="margin-bottom:10px">${list.map(([k,n])=>`<button class="fchip ${kind===k?'on':''}" data-rk="${k}">${n}</button>`).join('')}</div>`;}
 function vRep(){
-  if(ui.rmode==='ag'&&ui.rk!=='pit'&&ui.rk!=='cit')ui.rk='pit';
+  if(ui.rmode==='ag'&&ui.rk!=='pit'&&ui.rk!=='cit'&&ui.rk!=='ye')ui.rk='pit';
   const kind=ui.rk||'wh';
   if(kind==='pit'||kind==='cit'||kind==='ye')return `<div class="fixframe repframe">`+rptHead(kind)+`<div class="csplit rsplit"><div class="cleft">${taxSide(kind)}</div><div class="rmain">${ui.rv==='grid'&&ui.rmode!=='ag'&&kind!=='ye'?vRepGrid(true):vRepTax(kind)}</div></div></div>`;
   if(kind!=='wh'&&kind!=='vat'&&kind!=='gan')return vRepGrid();
@@ -1102,7 +1103,7 @@ function vRepTax(kind){
   const Y=ui.ry||new Date().getFullYear(),P=taxPers(kind,Y),p=P.find(x=>x.key===ui.rtp)||P[0],ag=ui.rmode==='ag';
   const {past,cs,done,fin}=taxList(kind,p.key,p.due);
   if(kind==='pit'&&p.key.includes('mid'))return vRepPitMid(p,past,cs,done,fin,ag);
-  if(kind==='ye')return vRepYe(p,past,cs,done,fin);
+  if(kind==='ye')return vRepYe(p,past,cs,done,fin,ag);
   const tax=v=>{if(v==null||v==='')return '';return typeof v==='number'?won(v):esc(v);};
   const row=({c,r})=>{const k=`${kind}|${p.key}|${c.id}`,ok=!!r.전송;const pay=typeof r.납부==='number'?r.납부:null;
     return `<tr class="${ok?'ok':''}"><td class="nm" ${c.ag?`data-agent="${c.id}"`:`data-client="${c.id}"`}><b>${esc(c.name)}</b><span>${[c.biz||'',c.ag?'신고대리':c.sincere?'성실':''].filter(Boolean).map(esc).join(' · ')}</span></td>
@@ -1147,22 +1148,30 @@ function vRepPitMid(p,past,cs,done,fin,ag){
 }
 
 const YES=[['요청','자료요청'],['수령','자료수령'],['계산','계산'],['검토','검토'],['전달','결과전달'],['제출','지급명세서 제출']];
-function vRepYe(p,past,cs,done,fin){
-  const num=v=>typeof v==='number'?won(v):esc(v||'');
-  const row=({c,r})=>{const k=`ye|${p.key}|${c.id}`,ok=fin(r);
-    return `<tr class="${ok?'ok':''}"><td class="nm" data-client="${c.id}"><b>${esc(c.name)}</b></td>
+const YEE=[['자료','자료'],['반영','공제반영'],['전달','영수증 전달']];
+function vRepYe(p,past,cs,done,fin,ag){
+  const num=v=>typeof v==='number'?won(v):esc(v||'');ui.yeo=ui.yeo||{};
+  const row=({c,r})=>{const k=`ye|${p.key}|${c.id}`,ok=fin(r),E=(r.emps||[]).map((e,i)=>({e,i})).filter(x=>x.e&&x.e.n),op=!!ui.yeo[c.id],ed=E.filter(x=>x.e.전달).length;
+    const sub=op?`<tr class="yesub hd"><td></td><td colspan="5"><div class="yel">${E.length?E.map(({e,i})=>`<div class="yee ${e.전달?'ok':''}"><b>${esc(e.n)}</b><span class="sub">${[e.in?'입사 '+esc(e.in):'',e.out?'퇴사 '+esc(e.out):''].filter(Boolean).join(' · ')}</span>
+      <span class="ks">${YEE.map(([f,n])=>`<button class="kp step ${e[f]?'on':''}" data-rpt="${k}|e~${i}~${f}">${n}</button>`).join('')}</span>
+      <input class="ri num ${typeof e.세액==='number'?(e.세액<0?'refund':'pay'):''}" data-rpi="${k}|e~${i}~세액" value="${num(e.세액)}" placeholder="차감징수(−환급)">
+      <input class="ri wide" data-rpi="${k}|e~${i}~memo" value="${esc(e.memo||'')}" placeholder="메모"></div>`).join(''):'<div class="sub">직원 목록이 없어요</div>'}
+      <div class="yee add"><input class="ri" data-yeadd="${k}" placeholder="＋ 직원 이름 입력 후 Enter"></div></div></td></tr>`:'';
+    return `<tr class="${ok?'ok':''}"><td class="nm"><button class="yet" data-yeo="${c.id}">${op?'▾':'▸'}</button><b ${c.ag?`data-agent="${c.id}"`:`data-client="${c.id}"`}>${esc(c.name)}</b><span>${E.length?`직원 ${E.length}명 · 전달 ${ed}`:''}${c.ag?' · 신고대리':''}</span></td>
     <td class="kinds">${YES.map(([f,n])=>`<button class="kp step ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
-    <td><input class="ri num" data-rpi="${k}|인원" value="${num(r.인원)}" placeholder="인원"></td>
+    <td><input class="ri num" data-rpi="${k}|인원" value="${E.length?E.length:num(r.인원)}" placeholder="인원" ${E.length?'readonly':''}></td>
     <td><input class="ri num ${typeof r.정산==='number'?(r.정산<0?'refund':'pay'):''}" data-rpi="${k}|정산" value="${num(r.정산)}" placeholder="추징(−환급)"></td>
-    <td class="memo"><input class="ri wide" data-rpi="${k}|memo" value="${esc(r.memo||'')}" placeholder="메모 (중도퇴사·특이사항)"></td></tr>`};
-  const todo=cs.filter(x=>!fin(x.r)),dn=cs.filter(x=>fin(x.r));
+    <td class="memo"><input class="ri wide" data-rpi="${k}|memo" value="${esc(r.memo||'')}" placeholder="메모 (중도퇴사·특이사항)"></td>${ag?`<td><button class="del" data-rpt="${k}|hide" title="이 기간에서 빼기">×</button></td>`:''}</tr>${sub}`};
+  const todo=cs.filter(x=>!fin(x.r)),dn=cs.filter(x=>fin(x.r)),nc=ag?6:5;
+  const avail=ag?S.agents.filter(a=>!cs.some(x=>x.c.id===a.id)):[];
   return `<div class="rtitle"><b>${p.n} 연말정산</b><span class="note">지급명세서 제출·원천세 신고 기한 <b style="color:${past&&todo.length?'var(--red)':'inherit'}">${md(p.due)}</b></span></div>
   ${rpProg(done,cs.length)}
-  <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm">거래처</th><th>진행 단계</th><th class="r">인원</th><th class="r">정산세액</th><th class="memo">메모</th></tr></thead><tbody>
-  ${todo.length?`<tr class="grp"><td colspan="5">할 것 ${todo.length}</td></tr>${todo.map(row).join('')}`:''}
-  ${dn.length?`<tr class="grp"><td colspan="5">제출 완료 ${dn.length}</td></tr>${dn.map(row).join('')}`:''}
-  ${cs.length?'':'<tr><td colspan="5" class="empty">직원이 있는 거래처가 없어요 (거래처 원천세 설정이 매월·반기인 곳이 대상)</td></tr>'}</tbody></table></div></div>
-  <p class="note" style="margin-top:8px">대상은 원천세 설정이 매월·반기인 거래처예요. <b>지급명세서 제출</b>을 켜면 완료로 내려가고 세무 일정(3/10 지급명세서)도 체크돼요.</p>`;
+  ${ag?`<div class="fbar" style="margin-bottom:8px"><select class="sel" data-agadd="ye|${p.key}"><option value="">＋ 이 기간에 신고대리 추가…</option>${avail.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}<option value="__new">＋ 새로 등록하고 추가</option></select></div>`:''}
+  <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm">거래처 (▸ 누르면 직원별)</th><th>진행 단계</th><th class="r">인원</th><th class="r">정산세액</th><th class="memo">메모</th>${ag?'<th></th>':''}</tr></thead><tbody>
+  ${todo.length?`<tr class="grp"><td colspan="${nc}">할 것 ${todo.length}</td></tr>${todo.map(row).join('')}`:''}
+  ${dn.length?`<tr class="grp"><td colspan="${nc}">제출 완료 ${dn.length}</td></tr>${dn.map(row).join('')}`:''}
+  ${cs.length?'':`<tr><td colspan="${nc}" class="empty">${ag?'이 기간에 등록된 신고대리가 없어요':'직원이 있는 거래처가 없어요 (거래처 원천세 설정이 매월·반기인 곳이 대상)'}</td></tr>`}</tbody></table></div></div>
+  <p class="note" style="margin-top:8px">거래처 이름 앞 ▸를 누르면 직원별로 자료·공제반영·영수증 전달을 체크할 수 있어요. <b>지급명세서 제출</b>을 켜면 완료로 내려가요.</p>`;
 }
 function agentForm(id,after){
   const a=id?agt(id):{name:'',type:'개인',bizno:'',ceo:'',phone:'',fee:'',memo:''};
@@ -1192,6 +1201,7 @@ function rptSync(kind,per,cid,r){
 }
 function rptSet(spec,val){const [kind,per,cid,f]=spec.split('|');const T=S.rpt[kind]=S.rpt[kind]||{};T[per]=T[per]||{};const r=T[per][cid]=T[per][cid]||{};if(kind==='vat'&&(f==='전달'||f==='납부확인')&&!r.고지)r.고지='고지';
   if(kind==='wh'&&r.gan!==undefined){const R=whRow(r);['ganD','ganS','kdDate','kdWay'].forEach(x=>{if(R[x])r[x]=R[x]});delete r.gan;}
+  if(f&&f.startsWith('e~')){const [,i,ef]=f.split('~');r.emps=r.emps||[];const e=r.emps[+i]=r.emps[+i]||{};if(val===undefined)e[ef]=e[ef]?'':'○';else e[ef]=val;rptSync(kind,per,cid,r);save();return;}
   if(val===undefined){if(f==='st')r.st=r.st==='완료'?'':'완료';else r[f]=r[f]?'':'○';}else r[f]=val;
   rptSync(kind,per,cid,r);save();}
 window.__ag={list:()=>S.agents.map(a=>({id:a.id,name:a.name,type:a.type,memo:a.memo||''})),
@@ -1676,6 +1686,7 @@ document.addEventListener('click',e=>{
   if((el=q('[data-pgm],[data-pgall],[data-pgna]'))){pgClick(el);return;}
   if((el=q('[data-pgc]'))){const [c,k]=el.dataset.pgc.split('|');openProg(c,k);return;}
   if((el=q('[data-rkw]'))){const [kind,per,cid,w]=el.dataset.rkw.split('|');const cur=whRow(((S.rpt.wh[per]||{})[cid])||{});rptSet(`${kind}|${per}|${cid}|kdWay`,cur.kdWay===w?'':w);render();return;}
+  if((el=q('[data-yeo]'))){ui.yeo=ui.yeo||{};const id=el.dataset.yeo;ui.yeo[id]=!ui.yeo[id];render();return;}
   if((el=q('[data-rpt]'))){rptSet(el.dataset.rpt);render();return;}
   if((el=q('[data-rpg]'))){const [kind,per,cid,v]=el.dataset.rpg.split('|');const cur=((S.rpt.pit[per]||{})[cid]||{}).고지;rptSet(`${kind}|${per}|${cid}|고지`,cur===v?'':v);render();return;}
   if((el=q('[data-rmode]'))){ui.rmode=el.dataset.rmode;ui.rv='tbl';if(ui.rmode==='ag')ui.rk='pit';render();return;}
@@ -1745,10 +1756,11 @@ document.addEventListener('input',e=>{
   if(ui.drawer==='client'&&d.cf2&&el.tagName!=='SELECT'){const c=cl(ui.openClient);let v=el.value;if(el.type==='number')v=v===''?null:+v;c[d.cf2]=v;save();return;}
   if(d.pt!==undefined)picks[+d.pt].title=el.value;
 });
+document.addEventListener('keydown',e=>{const el=e.target;if(e.key!=='Enter'||!el.dataset||!el.dataset.yeadd||e.isComposing)return;const n=el.value.trim();if(!n)return;const [kind,per,cid]=el.dataset.yeadd.split('|');const T=S.rpt[kind]=S.rpt[kind]||{};T[per]=T[per]||{};const r=T[per][cid]=T[per][cid]||{};r.emps=r.emps||[];r.emps.push({n});save();render();const x=document.querySelector(`[data-yeadd="${el.dataset.yeadd}"]`);if(x)x.focus();});
 document.addEventListener('change',e=>{
   const el=e.target,d=el.dataset;
   if(d.agadd){const [kind,per]=d.agadd.split('|'),v=el.value;el.value='';if(!v)return;if(v==='__new'){agentForm(null,d.agadd);return;}const a=agt(v);const T=S.rpt[kind]=S.rpt[kind]||{};T[per]=T[per]||{};T[per][v]=Object.assign(T[per][v]||{},a&&a.fee?{조정료:a.fee}:{});delete T[per][v].hide;save();render();return;}
-  if(d.rpi){let v=el.value.trim();const f=d.rpi.split('|')[3];if(f!=='memo'&&f!=='gan'&&/^-?[\d,]+$/.test(v))v=+v.replace(/,/g,'');rptSet(d.rpi,v);if(typeof v==='number')el.value=won(v);return;}
+  if(d.rpi){let v=el.value.trim();const f=d.rpi.split('|')[3];if(!/memo$|~n$/.test(f)&&f!=='gan'&&/^-?[\d,]+$/.test(v))v=+v.replace(/,/g,'');rptSet(d.rpi,v);if(typeof v==='number')el.value=won(v);return;}
   if(d.in==='sort'){ui.sort=el.value;render();return;}
   if(d.in==='pgs'){ui.pgs=el.value;render();return;}
   if(d.in==='lc'){ui.lc=el.value;ui.llim=60;render();return;}
