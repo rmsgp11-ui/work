@@ -685,13 +685,13 @@ function vHome(){
       <div class="sec"><h2>오늘 할 일${late?` <span class="chip red">기한 지남 ${late}</span>`:''}</h2><button class="more" data-tab="tasks">전체 ›</button></div>
       ${quickBar()}
       <div class="card list">${todayTasks.length?todayTasks.map(taskRow).join(''):'<div class="empty">오늘 할 일을 다 끝냈어요 🎉</div>'}</div>
+      <div class="sec"><h2>거래처 톡·통화 기록</h2><button class="more" data-tab="logs">전체 ›</button></div>
+      <div class="card quick"><input data-in="hlq" value="${esc(ui.hlq||'')}" placeholder="거래처 이름으로 검색 (예: 주은비철)" autocomplete="off"></div>
+      ${homeLogs()}
     </div>
     <div>
       <div class="sec"><h2>진행 중인 신고</h2><button class="more" data-tab="rep">신고 현황 ›</button></div>
       <div class="card list hrl">${R.length?R.map(repRow).join(''):'<div class="empty">진행 중인 신고가 없어요</div>'}</div>
-      <div class="sec"><h2>거래처 톡·통화 기록</h2><button class="more" data-tab="logs">전체 ›</button></div>
-      <div class="card quick"><input data-in="hlq" value="${esc(ui.hlq||'')}" placeholder="거래처 이름으로 검색 (예: 주은비철)" autocomplete="off"></div>
-      ${homeLogs()}
     </div>
   </div>`;
 }
