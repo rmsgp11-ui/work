@@ -511,7 +511,7 @@ function rawEvents(Y,M){
     add(25,'vat',`부가세 예정신고 (${M===4?1:2}기)`,act.filter(c=>c.vat==='일반'&&pre(c)==='신고'));
     add(25,'vatp','부가세 예정고지 납부',act.filter(c=>c.vat==='일반'&&pre(c)==='고지'));}
   if(M===2) add(10,'biz','사업장현황신고 (면세)',act.filter(c=>!corp(c)&&c.vat==='면세'));
-  act.filter(corp).forEach(c=>{const fy=+c.fy||12,mm=k=>((fy+k-1)%12)+1;
+  act.filter(c=>corp(c)&&!c.branch).forEach(c=>{const fy=+c.fy||12,mm=k=>((fy+k-1)%12)+1;
     if(M===mm(3)) add('L','cit','법인세 신고·납부',[c]);
     if(M===mm(4)) add('L','citl','법인 지방소득세 신고',[c]);
     if(M===mm(8)) add('L','citm','법인세 중간예납',[c]);});
@@ -1082,7 +1082,7 @@ function taxList(kind,per,due){
   const ok=c=>{if(kind==='cit'){const fy=+c.fy||12;const fe=mEnd(fy===12?yr:yr,fy);if(mid){const pfe=mEnd(yr-1,fy);return liveIn(c,pfe,pfe);}const fs=fy===12?`${yr}-01-01`:`${yr-1}-${pad(fy+1)}-01`;return liveIn(c,fs,fe);}return liveIn(c,pst,pend);};
   let ents;
   if(ag)ents=S.agents.filter(a=>D[a.id]).map(a=>({c:{id:a.id,name:a.name,type:a.type,ag:1,ceo:((a.memo||'').match(/대표\s*([^\s,·]+)/)||[])[1]||''},r:D[a.id]}));
-  else ents=S.clients.filter(c=>kind==='ye'?(c.wh==='당월'||c.wh==='반기'):(isP?c.type!=='법인':c.type==='법인')).filter(c=>ok(c)||(D[c.id]&&fin0(D[c.id])&&D[c.id].고지!=='미고지')).map(c=>({c,r:D[c.id]||{}}));
+  else ents=S.clients.filter(c=>kind==='ye'?(c.wh==='당월'||c.wh==='반기'):(isP?c.type!=='법인':c.type==='법인'&&!c.branch)).filter(c=>ok(c)||(D[c.id]&&fin0(D[c.id])&&D[c.id].고지!=='미고지')).map(c=>({c,r:D[c.id]||{}}));
   const fin=taxFin(kind,per);
   if(isP){/* 소득세는 대표자(사람) 단위 */const G=new Map(),w=x=>(fin(x.r)?100:0)+Object.keys(x.r).length;
     ents.filter(x=>!x.r.hide).forEach(x=>{const k=(x.c.ceo||x.c.name).trim();if(!G.has(k))G.set(k,[]);G.get(k).push(x);});
