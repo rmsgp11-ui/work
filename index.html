@@ -677,7 +677,7 @@ async function kvSet(k,v){const d=await idb();return new Promise(ok=>{const t=d.
 const oldLogs=()=>{const lim=Date.now()-ARCH_DAYS*864e5;return S.logs.filter(l=>l.at&&l.at<lim);};
 (async()=>{try{const h=await kvGet('dir');if(h){ui.archName=h.name;}}catch(e){}})();
 async function archDir(){if(!window.showDirectoryPicker)return toast('크롬(PC)에서만 폴더를 지정할 수 있어요');
-  toast('OneDrive › 업무 › 톡통화db 폴더를 골라 주세요 (없으면 새 폴더로 만들기)');
+  toast('OneDrive › 업무 › '톡,통화 DB' 폴더를 골라 주세요');
   try{const h=await window.showDirectoryPicker({id:'tokdb',mode:'readwrite',startIn:'documents'});await kvSet('dir',h);ui.archName=h.name;render();toast(`보관 폴더: ${h.name}`);}catch(e){}}
 const csvq=v=>{v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
 async function archLogs(){const L=oldLogs();if(!L.length)return toast('1년 지난 기록이 없어요');
@@ -712,7 +712,7 @@ function vHome(){
     ${kpi('jobs','🤖','위하고 검토',`${jobsChk}<small>건</small>`,jobsChk?'확인 기다리는 작업':'대기 없음',jobsChk?'warn':'ok')}
   </div>
   ${!S.clients.length?`<div class="card" style="padding:16px;margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">거래처 데이터를 넣으면 세무 기한이 자동으로 달력에 들어가요.</span><button class="btn" data-a="import">거래처 가져오기</button></div>`:''}
-  ${oldLogs().length?`<div class="card" style="padding:10px 14px;margin:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">📦 1년 지난 톡·통화 기록 <b>${oldLogs().length}건</b> — OneDrive 업무\\톡통화db로 보관할 때가 됐어요</span><button class="btn s" data-a="archLogs">보관하기</button></div>`:''}
+  ${oldLogs().length?`<div class="card" style="padding:10px 14px;margin:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1">📦 1년 지난 톡·통화 기록 <b>${oldLogs().length}건</b> — OneDrive 업무 › 톡,통화 DB로 보관할 때가 됐어요</span><button class="btn s" data-a="archLogs">보관하기</button></div>`:''}
   <div class="hgrid">
     <div>
       <div class="sec"><h2>오늘 할 일${late?` <span class="chip red">기한 지남 ${late}</span>`:''}</h2><button class="more" data-tab="tasks">전체 ›</button></div>
