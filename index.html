@@ -812,54 +812,58 @@ function askPass(title,note,twice){return new Promise(res=>{
 async function unlockVault(){
   if(VK){vTimer();return true;}
   if(!window.crypto||!crypto.subtle){toast('이 브라우저에서는 보안 정보를 쓸 수 없어요');return false;}
-  if(!S.vault){
+  if(!S.vault){return true;
     const p=await askPass('보안 비밀번호 만들기','주민번호·홈택스 계정을 암호화할 비밀번호예요(8자 이상). 어디에도 저장되지 않아서, 잊으면 보안 정보를 다시 가져와야 해요.',true);
     if(!p) return false;
     const salt=crypto.getRandomValues(new Uint8Array(16)),k=await deriveKey(p,salt);
     S.vault={salt:b64(salt),check:await seal(k,{ok:1}),data:{}}; VK=k; save(); vTimer(); return true;
   }
-  const p=await askPass('보안 정보 잠금 해제','10분 동안 열려 있다가 자동으로 잠겨요.'); if(!p) return false;
+  const p=await askPass('보안 비밀번호 입력','마지막으로 한 번만 입력하면 잠금이 없어져요.'); if(!p) return false;
   try{const k=await deriveKey(p,ub64(S.vault.salt));await unseal(k,S.vault.check);VK=k;vTimer();return true;}
   catch(e){toast('비밀번호가 맞지 않아요');return false;}
 }
 const rrnMask=s=>s?String(s).slice(0,8)+'******':'';
-async function renderVault(id){
+async function migrateVault(){
+  if(!S.vault) return true;
+  if(!await unlockVault()) return false;
+  S.sec=S.sec||{};
+  for(const [id,box] of Object.entries(S.vault.data||{})){try{S.sec[id]=Object.assign({rrn:'',htId:'',htPw:''},await unseal(VK,box));}catch(e){}}
+  delete S.vault; VK=null; clearTimeout(vkT); save(); toast('잠금을 없앴어요. 이제 바로 보여요'); return true;
+}
+function renderVault(id){
   const el=$('#vaultBox'); if(!el||ui.openClient!==id) return;
-  const has=!!(S.vault&&S.vault.data&&S.vault.data[id]);
-  if(!VK){el.innerHTML=`<h4>🔒 보안 정보 <span>${has?'저장됨':'없음'}</span></h4><p class="note" style="margin-bottom:8px">대표자 주민번호와 홈택스 아이디·비밀번호는 이 기기에서 암호화해 저장해요.</p><button class="btn g s" data-a="vUnlock">${S.vault?'잠금 해제':'보안 비밀번호 만들기'}</button>`;return;}
-  let v={rrn:'',htId:'',htPw:''}; if(has){try{v=Object.assign(v,await unseal(VK,S.vault.data[id]));}catch(e){}}
-  ui.vcur={id,v};
-  const row=(lab,k,shown)=>`<div class="ck" style="cursor:default"><span class="tb"><span class="ts">${lab}</span><b data-vshow="${k}" style="font-variant-numeric:tabular-nums">${esc(shown)||'—'}</b></span>${v[k]?`<button class="chip" data-vcopy="${k}">복사</button>`:''}</div>`;
-  el.innerHTML=`<h4>🔓 보안 정보 <button class="chip" data-a="vLock">잠그기</button></h4>${row('대표자 주민번호','rrn',v.rrn)}${row('홈택스 아이디','htId',v.htId)}${row('홈택스 비밀번호','htPw',v.htPw)}
+  if(S.vault){el.innerHTML=`<h4>보안 정보</h4><p class="note" style="margin-bottom:8px">잠금을 없애려면 지금 쓰는 보안 비밀번호를 마지막으로 한 번만 입력해 주세요.</p><button class="btn g s" data-a="vMigrate">한 번 입력하고 잠금 없애기</button>`;return;}
+  const v=Object.assign({rrn:'',htId:'',htPw:''},(S.sec||{})[id]||{}); ui.vcur={id,v};
+  const row=(lab,k)=>`<div class="ck" style="cursor:default"><span class="tb"><span class="ts">${lab}</span><b style="font-variant-numeric:tabular-nums">${esc(v[k])||'—'}</b></span>${v[k]?`<button class="chip" data-vcopy="${k}">복사</button>`:''}</div>`;
+  el.innerHTML=`<h4>보안 정보</h4>${row('대표자 주민번호','rrn')}${row('홈택스 아이디','htId')}${row('홈택스 비밀번호','htPw')}
     <div style="display:flex;gap:8px;margin-top:8px"><button class="btn g s" data-a="vEdit">수정</button>${v.htId?'<a class="btn g s" href="https://hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a>':''}</div>`;
 }
 function vEdit(){
   const v=ui.vcur.v;
   $('#mbox').innerHTML=`<h3>보안 정보 수정</h3><div><label class="lab">대표자 주민번호</label><input id="vRrn" value="${esc(v.rrn)}" placeholder="000000-0000000" autocomplete="off"></div>
     <div><label class="lab">홈택스 아이디</label><input id="vId" value="${esc(v.htId)}" autocomplete="off"></div>
-    <div><label class="lab">홈택스 비밀번호</label><input id="vPw" type="text" value="${esc(v.htPw)}" autocomplete="new-password"></div>
+    <div><label class="lab">홈택스 비밀번호</label><input id="vPw" type="text" value="${esc(v.htPw)}" autocomplete="off"></div>
     <div style="display:flex;gap:8px"><button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">취소</button><button class="btn" data-a="vSave" style="flex:1;justify-content:center">저장</button></div>`;
   $('#modal').classList.add('on');
 }
-async function vSave(){
-  if(!VK) return toast('잠겨 있어요. 다시 열어 주세요');
-  const id=ui.vcur.id,o={rrn:$('#vRrn').value.trim(),htId:$('#vId').value.trim(),htPw:$('#vPw').value};
-  S.vault.data[id]=await seal(VK,o); save(); $('#modal').classList.remove('on'); vTimer(); renderVault(id); toast('암호화해서 저장했어요');
+function vSave(){
+  const id=ui.vcur.id; S.sec=S.sec||{};
+  S.sec[id]={rrn:$('#vRrn').value.trim(),htId:$('#vId').value.trim(),htPw:$('#vPw').value};
+  save(); $('#modal').classList.remove('on'); renderVault(id); toast('저장했어요');
 }
 async function importSecrets(file){
   let d;try{d=JSON.parse(await file.text());}catch(e){return toast('파일을 읽지 못했어요');}
   if(d.kind!=='workapp-secrets'||!Array.isArray(d.items)) return toast('보안정보 가져오기용 파일이 아니에요');
   if(!S.clients.length) return toast('거래처를 먼저 가져와 주세요');
-  if(!await unlockVault()) return;
-  let n=0,miss=0;
+  if(!await migrateVault()) return;
+  S.sec=S.sec||{}; let n=0,miss=0;
   for(const it of d.items){
     const c=(it.bizno&&S.clients.find(c=>c.bizno===it.bizno))||S.clients.find(c=>norm(c.name)===norm(it.name)&&c.type===it.type);
     if(!c){miss++;continue;}
-    let cur={};if(S.vault.data[c.id]){try{cur=await unseal(VK,S.vault.data[c.id])}catch(e){}}
-    const o={rrn:it.rrn||cur.rrn||'',htId:it.htId||cur.htId||'',htPw:it.htPw||cur.htPw||''};
-    S.vault.data[c.id]=await seal(VK,o); n++;
+    const cur=S.sec[c.id]||{};
+    S.sec[c.id]={rrn:it.rrn||cur.rrn||'',htId:it.htId||cur.htId||'',htPw:it.htPw||cur.htPw||''}; n++;
   }
-  save(); render(); toast(`보안 정보 ${n}곳 암호화해서 넣었어요${miss?` · 못 찾은 곳 ${miss}`:''}. 받은 파일은 지워 주세요`);
+  save(); render(); toast(`보안 정보 ${n}곳 넣었어요${miss?` · 못 찾은 곳 ${miss}`:''}. 받은 파일은 지워 주세요`);
 }
 function importAddr(text){
   let n=0,miss=0;
@@ -982,7 +986,7 @@ document.addEventListener('click',e=>{
     restore:()=>$('#fileIn').click(),
     import:()=>{$('#mbox').innerHTML=`<h3>가져오기</h3>
       <button class="btn g" data-a="impClients" style="justify-content:center">거래처 파일 (거래처_가져오기.json)</button>
-      <button class="btn g" data-a="impSecrets" style="justify-content:center">🔒 보안정보 파일 (주민번호·홈택스)</button>
+      <button class="btn g" data-a="impSecrets" style="justify-content:center">보안정보 파일 (주민번호·홈택스)</button>
       <button class="btn g" data-a="impAddr" style="justify-content:center">🏠 사업장 주소 붙여넣기</button>
       <button class="btn" data-a="modalClose" style="justify-content:center">닫기</button>`;$('#modal').classList.add('on');},
     impClients:()=>$('#impIn').click(), impSecrets:()=>$('#secIn').click(),
@@ -990,8 +994,7 @@ document.addEventListener('click',e=>{
       <textarea id="addrTxt" style="width:100%;min-height:180px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 11px" placeholder="123-45-67890	서울특별시 ○○구 ○○로 12"></textarea>
       <div style="display:flex;gap:8px"><button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">취소</button><button class="btn" data-a="addrGo" style="flex:1;justify-content:center">넣기</button></div>`;},
     addrGo:()=>{const t=$('#addrTxt').value;$('#modal').classList.remove('on');importAddr(t);},
-    vUnlock:async()=>{if(await unlockVault())renderVault(ui.openClient);},
-    vLock:()=>{VK=null;clearTimeout(vkT);renderVault(ui.openClient);toast('잠갔어요');},
+    vMigrate:async()=>{if(await migrateVault())renderVault(ui.openClient);},
     vEdit, vSave,
     settings:()=>{$('#mbox').innerHTML=`<h3>설정</h3><button class="btn g" data-a="theme" style="justify-content:center">${S.theme==='dark'?'☀️ 밝게':'🌙 어둡게'}</button><button class="btn g" data-a="import" style="justify-content:center">거래처 가져오기</button><div style="display:flex;gap:8px"><button class="btn g" data-a="backup" style="flex:1;justify-content:center">백업</button><button class="btn g" data-a="restore" style="flex:1;justify-content:center">복원</button></div>${user?`<p class="note">${esc(acctName())}</p><button class="btn g" data-a="logout" style="justify-content:center">로그아웃</button>`:''}<button class="btn" data-a="modalClose" style="justify-content:center">닫기</button>`;$('#modal').classList.add('on');},
     login:()=>{const p=new F.AU.GoogleAuthProvider();F.AU.signInWithPopup(F.auth,p).catch(er=>{if(er&&/popup-closed|cancelled-popup/.test(er.code))return;$('#gateMsg').innerHTML=er&&/popup-blocked/.test(er.code)?'팝업이 막혔어요. 버튼을 한 번 더 눌러 주세요.':'로그인이 안 됐어요 ('+esc(er&&er.code)+')';});},
