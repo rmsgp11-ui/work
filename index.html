@@ -589,7 +589,7 @@ function vTasks(){
   return head('할 일',`<button class="btn g" data-a="aisort" id="aiSortBtn">✨ AI 정렬</button>`)+quickBar()+
     `<div class="hint">빠른 입력: <b>내일 · 금요일 · 12/5</b> 날짜, <b>#거래처</b>, <b>!1</b> 긴급 <b>!2</b> 높음 — 거래처 이름이 들어가면 자동 연결돼요</div>
     <div class="fbar">${fl.map(([k,n])=>`<button class="fchip ${ui.tf===k?'on':''}" data-tf="${k}">${n}</button>`).join('')}
-      <input class="search" data-in="q" placeholder="검색" value="${esc(ui.q)}"><select class="sel" data-in="sort"><option value="due" ${ui.sort==='due'?'selected':''}>마감일 순</option><option value="ai" ${ui.sort==='ai'?'selected':''}>AI 추천 순</option><option value="pri" ${ui.sort==='pri'?'selected':''}>우선순위 순</option><option value="new" ${ui.sort==='new'?'selected':''}>최근 추가 순</option></select></div>`+body;
+      <input class="search" data-in="q" placeholder="검색" value="${esc(ui.q)}"><select class="sel" data-in="sort"><option value="due" ${ui.sort==='due'?'selected':''}>마감일 순</option><option value="ai" ${ui.sort==='ai'?'selected':''}>AI 추천 순</option><option value="pri" ${ui.sort==='pri'?'selected':''}>우선순위 순</option><option value="new" ${ui.sort==='new'?'selected':''}>최근 추가 순</option></select></div><div id="sres">`+body+`</div>`;
 }
 function vCal(){
   const {y,m}=ui.cal, first=new Date(y,m-1,1), start=addDays(ymd(first),-first.getDay());
@@ -622,12 +622,12 @@ function vClients(){
   const t=todayStr(), next={};events(t,addDays(t,40)).forEach(e=>e.ids.forEach(id=>{if(!next[id]&&!isDone(e,id))next[id]=e;}));
   const fl=[['all',`전체 ${S.clients.length}`],['corp','법인'],['ind','개인'],['unpaid','미수'],['closed','폐업']];
   return head('거래처',`<button class="btn g" data-a="import">가져오기</button><button class="btn" data-a="newClient">+ 거래처</button>`)+`
-  <div class="fbar">${fl.map(([k,n])=>`<button class="fchip ${ui.cf===k?'on':''}" data-cf="${k}">${n}</button>`).join('')}<input class="search" data-in="cq" placeholder="상호·대표·사업자번호 검색" value="${esc(ui.cq)}"></div>
+  <div class="fbar">${fl.map(([k,n])=>`<button class="fchip ${ui.cf===k?'on':''}" data-cf="${k}">${n}</button>`).join('')}<input class="search" data-in="cq" placeholder="상호·대표·사업자번호 검색" value="${esc(ui.cq)}"></div><div id="sres">
   ${arr.length?`<div class="cgrid">${arr.map(c=>{const u=unpaidList(c.id).length,ot=S.tasks.filter(x=>x.client===c.id&&openT(x)).length,nx=next[c.id];
     return `<div class="card cc" data-client="${c.id}"><div class="nm"><span>${esc(c.name)}</span><span class="chip ${c.type==='법인'?'acc':''}">${esc(c.type||'')}</span>${c.status==='폐업'?'<span class="chip red">폐업</span>':''}</div>
       <div class="mt">${esc(c.ceo||'')}${c.fee?` · 월 ${won(c.fee)}원`:''}${c.biz2?` · ${esc(c.biz2)}`:''}</div>
       <div class="mt">${u?`<span class="chip red">미수 ${u}개월</span>`:''}${cmsxList(c.id).length?`<span class="chip amb">CMS 확인 ${cmsxList(c.id).length}</span>`:''}${ot?`<span class="chip blu">할 일 ${ot}</span>`:''}${nx?`<span class="chip" style="color:${TT[nx.t].c}">${esc(TT[nx.t].n)} ${dday(nx.date)}</span>`:''}<span class="chip">${WHN[c.wh||'']}</span></div></div>`}).join('')}</div>`
-  :`<div class="card"><div class="empty">${S.clients.length?'조건에 맞는 거래처가 없어요':'아직 거래처가 없어요. <b>가져오기</b>로 받은 파일을 넣거나 <b>+ 거래처</b>로 추가하세요.'}</div></div>`}`;
+  :`<div class="card"><div class="empty">${S.clients.length?'조건에 맞는 거래처가 없어요':'아직 거래처가 없어요. <b>가져오기</b>로 받은 파일을 넣거나 <b>+ 거래처</b>로 추가하세요.'}</div></div>`}</div>`;
 }
 function vPay(){
   const ym=ui.pm, cur=curYM();
@@ -674,16 +674,17 @@ function importTalk(d){
   if(!d||!Array.isArray(d['업체']))return {err:'형식이 달라요'};
   const have=new Set(S.logs.map(l=>l.key).filter(Boolean));let add=0,dup=0,skip=[],miss=[];
   for(const g of d['업체']){
-    if(/내부/.test(g['구분']||'')){skip.push(g['업체명']);continue;}
+    const internal=/내부/.test(g['구분']||'');
+    if(internal&&!g['가져오기']){skip.push(g['업체명']);continue;}
     const names=String(g['업체명']||'').replace(/대표\s*개인톡|\((?!주\)|유\))(.*?)\)/g,m=>m.startsWith('(')?','+m.slice(1,-1):'').split(/[,，]/).map(x=>x.trim()).filter(Boolean);
     const ids=[...new Set(names.map(n=>matchClient(n)||matchClient(n.replace(/[_\s].*$/,''))).filter(Boolean))];
-    if(!ids.length){miss.push(g['업체명']);continue;}
+    if(!ids.length&&!internal){miss.push(g['업체명']);continue;}
     for(const h of g['히스토리']||[]){
-      const t=h['내용요약']||'';let cid=ids[0];
+      const t=h['내용요약']||'';let cid=internal?(h['거래처']&&matchClient(h['거래처']))||null:ids[0];
       if(ids.length>1){const hit=ids.find(id=>{const n=norm(cl(id).name);return n&&norm(t).includes(n.slice(0,Math.min(n.length,4)))});if(hit)cid=hit;}
-      const key='kt|'+cid+'|'+h['일자']+'|'+t.slice(0,40);
+      const key='kt|'+(cid||g['업체명'])+'|'+h['일자']+'|'+t.slice(0,40);
       if(have.has(key)){dup++;continue;}have.add(key);
-      S.logs.push({id:uid(),key,at:new Date((h['일자']||'')+'T12:00:00').getTime()||Date.now(),src:'카톡',client:cid,title:h['분류']||'카톡',summary:t,points:[],theirs:[],text:'',taskIds:[],n:h['메시지수']||0});add++;
+      S.logs.push({id:uid(),key,at:new Date((h['일자']||'')+'T12:00:00').getTime()||Date.now(),src:internal?'내부톡':'카톡',client:cid,title:(internal?g['업체명']+' · ':'')+(h['분류']||'카톡'),summary:t,points:[],theirs:[],text:'',taskIds:[],n:h['메시지수']||0});add++;
     }
   }
   save();render();return {add,dup,skip,miss};
@@ -1259,7 +1260,8 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('input',e=>{
   const el=e.target,d=el.dataset;
-  if(d.in&&d.in!=='sort'){ui[d.in]=el.value;const pos=el.selectionStart;render();const n=$(`[data-in="${d.in}"]`);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}return;}
+  if(d.in==='q'||d.in==='cq'){ui[d.in]=el.value;clearTimeout(ui._st);ui._st=setTimeout(()=>{const v=({tasks:vTasks,clients:vClients})[ui.tab];const r=$('#sres');if(!v||!r)return;const tmp=document.createElement('div');tmp.innerHTML=v();const nr=tmp.querySelector('#sres');if(nr)r.replaceWith(nr);},150);return;}
+  if(d.in&&d.in!=='sort'&&d.in!=='lc'){ui[d.in]=el.value;const pos=el.selectionStart;render();const n=$(`[data-in="${d.in}"]`);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}return;}
   if(ui.drawer==='task'){const x=S.tasks.find(t=>t.id===ui.openTask);if(!x)return;
     if(el.id==='dTitle')x.title=el.value;else if(el.id==='dMemo')x.memo=el.value;else if(d.subt){const s=x.subs.find(s=>s.id===d.subt);if(s)s.t=el.value;}else return;save();return;}
   if(ui.drawer==='client'&&d.cf2&&el.tagName!=='SELECT'){const c=cl(ui.openClient);let v=el.value;if(el.type==='number')v=v===''?null:+v;c[d.cf2]=v;save();return;}
