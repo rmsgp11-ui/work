@@ -179,7 +179,7 @@ body.wide main{max-width:1760px}
 .rsl{padding:0}.rsi{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);cursor:pointer}.rsi:first-child{border-top:0}.rsi:hover{background:var(--soft)}
 .rsi.on{background:var(--acc2);box-shadow:inset 3px 0 0 var(--acc)}.rsi .t{flex:1;min-width:0}.rsi .t b{display:block;font-size:14px}.rsi .t span{font-size:11.5px;color:var(--sub)}
 .rsi .p{width:76px;text-align:right}.rsi .p span{font-size:12px;font-weight:700;color:var(--sub)}.rsi .p span.ok{color:var(--grn)}.rsi .p span.late{color:var(--red)}
-.yet{border:0;background:transparent;cursor:pointer;color:var(--sub);padding:0 4px 0 0;font-size:12px}.yesub td{background:var(--soft);padding:4px 8px!important}.yel{display:flex;flex-direction:column;gap:3px}.yee{display:flex;align-items:center;gap:8px;white-space:nowrap}.yee b{min-width:70px;font-size:13px}.yee .sub{min-width:120px;font-size:11px}.yee.ok b{color:var(--grn)}.yee .ri.wide{flex:1;min-width:120px}.yee.add .ri{width:200px}
+.yet{border:0;background:transparent;cursor:pointer;color:var(--sub);padding:0 4px 0 0;font-size:12px}.yesub td{background:var(--soft);padding:6px 12px 8px!important}.yel{display:flex;flex-direction:column}.yee{display:grid;grid-template-columns:150px 170px 250px 130px minmax(120px,1fr);align-items:center;gap:12px;padding:5px 0 5px 26px;border-bottom:1px dashed var(--line);white-space:nowrap}.yee:last-child{border-bottom:0}.yee.yeh{font-size:11px;color:var(--sub);font-weight:600;padding-top:2px}.yee b{font-size:13px;overflow:hidden;text-overflow:ellipsis}.yee .sub{font-size:12px}.yee.ok b{color:var(--grn)}.yee .ks{display:flex;gap:4px}.yee .ri.num{width:120px}.yee .ri.wide{width:100%}.yee.add{display:block}.yee.add .ri{width:220px}
 .rsl .rsi{padding:7px 12px}.rsl .rsi .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rsl .rsi .t b{display:inline;margin-right:6px}.rsl .rsi .t span{display:inline}.rsl .rsi .p{width:64px}
 .rsi .p i{display:block;height:4px;border-radius:99px;background:var(--soft);margin-top:4px;overflow:hidden}.rsi .p em{display:block;height:100%;background:var(--grn)}
 .rpsum{display:flex;align-items:center;gap:16px;padding:12px 16px;margin-bottom:10px;flex-wrap:wrap}.rpn b{font-size:24px}.rpn span{color:var(--sub);margin-left:4px}
@@ -1152,12 +1152,13 @@ const YEE=[['자료','자료'],['반영','공제반영'],['전달','영수증 �
 function vRepYe(p,past,cs,done,fin,ag){
   const num=v=>typeof v==='number'?won(v):esc(v||'');ui.yeo=ui.yeo||{};
   const row=({c,r})=>{const k=`ye|${p.key}|${c.id}`,ok=fin(r),E=(r.emps||[]).map((e,i)=>({e,i})).filter(x=>x.e&&x.e.n),op=!!ui.yeo[c.id],ed=E.filter(x=>x.e.전달).length;
-    const sub=op?`<tr class="yesub hd"><td></td><td colspan="5"><div class="yel">${E.length?E.map(({e,i})=>`<div class="yee ${e.전달?'ok':''}"><b>${esc(e.n)}</b><span class="sub">${[e.in?'입사 '+esc(e.in):'',e.out?'퇴사 '+esc(e.out):''].filter(Boolean).join(' · ')}</span>
+    const nc0=ag?6:5,cnt=f=>E.filter(x=>x.e[f]).length;
+    const sub=op?`<tr class="yesub hd"><td colspan="${nc0}"><div class="yel">${E.length?'<div class="yee yeh"><span>직원</span><span>입사 · 퇴사</span><span>진행</span><span>차감징수(−환급)</span><span>메모</span></div>':''}${E.length?E.map(({e,i})=>`<div class="yee ${e.전달?'ok':''}"><b>${esc(e.n)}</b><span class="sub">${esc(e.in||'')}${e.out?' ~ '+esc(e.out):''}</span>
       <span class="ks">${YEE.map(([f,n])=>`<button class="kp step ${e[f]?'on':''}" data-rpt="${k}|e~${i}~${f}">${n}</button>`).join('')}</span>
       <input class="ri num ${typeof e.세액==='number'?(e.세액<0?'refund':'pay'):''}" data-rpi="${k}|e~${i}~세액" value="${num(e.세액)}" placeholder="차감징수(−환급)">
       <input class="ri wide" data-rpi="${k}|e~${i}~memo" value="${esc(e.memo||'')}" placeholder="메모"></div>`).join(''):'<div class="sub">직원 목록이 없어요</div>'}
       <div class="yee add"><input class="ri" data-yeadd="${k}" placeholder="＋ 직원 이름 입력 후 Enter"></div></div></td></tr>`:'';
-    return `<tr class="${ok?'ok':''}"><td class="nm" data-yeo="${c.id}" style="cursor:pointer"><span class="yet">${op?'▾':'▸'}</span><b>${esc(c.name)}</b><span>${E.length?`직원 ${E.length}명 · 전달 ${ed}`:''}${c.ag?' · 신고대리':''}</span></td>
+    return `<tr class="${ok?'ok':''}"><td class="nm" data-yeo="${c.id}" style="cursor:pointer"><span class="yet">${op?'▾':'▸'}</span><b>${esc(c.name)}</b><span>${E.length?`직원 ${E.length}명 · 자료 ${cnt('자료')} · 반영 ${cnt('반영')} · 전달 ${ed}`:''}${c.ag?' · 신고대리':''}</span></td>
     <td class="kinds">${YES.map(([f,n])=>`<button class="kp step ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
     <td><input class="ri num" data-rpi="${k}|인원" value="${E.length?E.length:num(r.인원)}" placeholder="인원" ${E.length?'readonly':''}></td>
     <td><input class="ri num ${typeof r.정산==='number'?(r.정산<0?'refund':'pay'):''}" data-rpi="${k}|정산" value="${num(r.정산)}" placeholder="추징(−환급)"></td>
