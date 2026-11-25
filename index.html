@@ -481,9 +481,23 @@ const TT={wh:{n:'원천세',c:'#2563eb'},gan:{n:'간이지급명세서',c:'#7c3a
   vat:{n:'부가세',c:'#d97706'},vatp:{n:'부가세 예정고지',c:'#ca8a04'},cit:{n:'법인세',c:'#dc2626'},citl:{n:'법인 지방소득세',c:'#db2777'},citm:{n:'법인세 중간예납',c:'#e11d48'},
   pit:{n:'종합소득세',c:'#059669'},pitm:{n:'종소세 중간예납',c:'#10b981'},biz:{n:'사업장현황신고',c:'#6b7280'}};
 const WHN={'당월':'원천세 매월','반기':'원천세 반기','사업소득':'사업소득(3.3%)','직원없음':'직원 없음','':'원천세 미정'};
+/* 개업·폐업일 기준: 그 귀속기간에 사업을 했던 거래처만 대상 */
+const dOk=d=>/^\d{4}-\d{2}-\d{2}$/.test(d||'');
+function liveIn(c,ps,pe){if(dOk(c.open)&&c.open>pe)return false;if(dOk(c.close)&&c.close<ps)return false;if(c.status==='폐업'&&!dOk(c.close))return false;return true;}
+const mEnd=(y,m)=>`${y}-${pad(m)}-${pad(lastDay(y,m))}`;
+function evPeriod(t,label,Y,M,c){const pm=M===1?[Y-1,12]:[Y,M-1];const mon=()=>[`${pm[0]}-${pad(pm[1])}-01`,mEnd(pm[0],pm[1])];
+  if(t==='wh'){if(c.wh==='반기'&&(M===1||M===7))return M===1?[`${Y-1}-07-01`,`${Y-1}-12-31`]:[`${Y}-01-01`,`${Y}-06-30`];return mon();}
+  if(t==='gan'){if(label.includes('반기'))return M===1?[`${Y-1}-07-01`,`${Y-1}-12-31`]:[`${Y}-01-01`,`${Y}-06-30`];return mon();}
+  if(t==='jg'||t==='ins'||t==='biz'||t==='pit')return [`${Y-1}-01-01`,`${Y-1}-12-31`];
+  if(t==='vat'||t==='vatp'){if(M===1)return [`${Y-1}-07-01`,`${Y-1}-12-31`];if(M===4)return [`${Y}-01-01`,`${Y}-03-31`];if(M===7)return [`${Y}-01-01`,`${Y}-06-30`];return [`${Y}-07-01`,`${Y}-09-30`];}
+  if(t==='pitm')return [`${Y-1}-12-31`,`${Y-1}-12-31`];
+  if(t==='cit'||t==='citl'||t==='citm'){const fy=+c.fy||12,back=t==='citm'?8:t==='citl'?4:3;let ey=Y,em=M-back;while(em<1){em+=12;ey--;}
+    if(t==='citm'){/* 직전 사업연도가 있어야 함 */const fe=mEnd(ey,em);return [fe,fe];}
+    const pe=mEnd(ey,em);let sy=ey,sm=em+1;if(sm>12){sm=1;}else sy=ey-1;return [`${sy}-${pad(sm)}-01`,pe];}
+  return null;}
 function rawEvents(Y,M){
-  const map=new Map(), act=S.clients.filter(c=>c.status!=='폐업');
-  const add=(day,t,label,list)=>{if(!list.length)return;const raw=ds(Y,M,day==='L'?lastDay(Y,M):Math.min(day,lastDay(Y,M)));const k=`${t}|${raw}|${label}`;
+  const map=new Map(), act=S.clients.filter(c=>c.status!=='폐업'||dOk(c.close));
+  const add=(day,t,label,list)=>{list=list.filter(c=>{const p=evPeriod(t,label,Y,M,c);return !p||liveIn(c,p[0],p[1]);});if(!list.length)return;const raw=ds(Y,M,day==='L'?lastDay(Y,M):Math.min(day,lastDay(Y,M)));const k=`${t}|${raw}|${label}`;
     if(!map.has(k))map.set(k,{raw,t,label,ids:[]});const e=map.get(k);list.forEach(c=>{if(!e.ids.includes(c.id))e.ids.push(c.id)});};
   const corp=c=>c.type==='법인', emp=c=>c.wh==='당월'||c.wh==='반기';
   add(10,'wh',M===3?'원천세 신고·납부 (연말정산)':'원천세 신고·납부',act.filter(c=>c.wh==='당월'||c.wh==='사업소득'||(c.wh==='반기'&&(M===1||M===7))));
@@ -973,7 +987,7 @@ function whRow(r){r=Object.assign({},r);
   return r;}
 function whList(y,m){const ym=`${y}-${pad(m)}`,D=S.rpt.wh[ym]||{},due=nextBiz(m===12?`${y+1}-01-10`:`${y}-${pad(m+1)}-10`),past=due<todayStr();
   const half=(c,r)=>(r.wt||'')==='반기'||(!r.wt&&c.wh==='반기');
-  const cs=S.clients.filter(c=>D[c.id]||(!past&&whTarget(c,y,m)&&!(c.open&&c.open>`${ym}-31`))).map(c=>({c,r:whRow(D[c.id]||{})})).filter(x=>!(half(x.c,x.r)&&m%6!==0)).sort((a,b)=>((a.r.st==='완료')-(b.r.st==='완료'))||sortKey(a.c).localeCompare(sortKey(b.c),'ko'));
+  const pe=mEnd(y,m),psf=c=>c.wh==='반기'&&m%6===0?`${y}-${m===6?'01':'07'}-01`:`${ym}-01`,lv=c=>liveIn(c,psf(c),pe),cs=S.clients.filter(c=>(D[c.id]&&(D[c.id].st==='완료'||lv(c)))||(!past&&whTarget(c,y,m)&&lv(c))).map(c=>({c,r:whRow(D[c.id]||{})})).filter(x=>!(half(x.c,x.r)&&m%6!==0)).sort((a,b)=>((a.r.st==='완료')-(b.r.st==='완료'))||sortKey(a.c).localeCompare(sortKey(b.c),'ko'));
   return {ym,due,past,cs,done:cs.filter(x=>x.r.st==='완료').length};}
 function vRepWh(){
   const def=pgAdd(pgNow(),-1),ym0=ui.rwm||def,y=+ym0.slice(0,4),m=+ym0.slice(5,7);
@@ -1025,7 +1039,7 @@ function vatList(Y,pk){const pd=VP.find(x=>x[0]===pk),key=`${Y}-${pk}`,D=S.rpt.v
   const ey=pk==='2f'?Y+1:Y,evs=rawEvents(ey,pd[2]).filter(e=>e.t==='vat'||e.t==='vatp');
   const pend=`${Y}-${({'1p':'03-31','1f':'06-30','2p':'09-30','2f':'12-31'})[pk]}`,due=nextBiz(`${ey}-${pad(pd[2])}-25`),past=due<todayStr();
   const fin=r=>r.고지==='고지'?!!r.전달:pk.endsWith('p')?!!r.전송:!!r.작성;
-  const cs=S.clients.filter(c=>D[c.id]||(!past&&evs.some(e=>e.t==='vat'&&e.ids.includes(c.id))&&!(c.open&&c.open>pend))).map(c=>({c,r:D[c.id]||{}}))
+  const pst=`${Y}-${({'1p':'01-01','1f':'01-01','2p':'07-01','2f':'07-01'})[pk]}`,cs=S.clients.filter(c=>(D[c.id]&&(fin(D[c.id])||liveIn(c,pst,pend)))||(!past&&evs.some(e=>e.t==='vat'&&e.ids.includes(c.id))&&liveIn(c,pst,pend))).map(c=>({c,r:D[c.id]||{}}))
     .sort((a,b)=>(fin(a.r)-fin(b.r))||sortKey(a.c).localeCompare(sortKey(b.c),'ko'));
   return {pd,key,ey,due,past,fin,cs,done:cs.filter(x=>fin(x.r)).length};}
 function vRepVat(){
@@ -1059,10 +1073,11 @@ const agt=id=>S.agents.find(a=>a.id===id);
 const taxFin=(kind,per)=>kind==='ye'?(r=>!!r.제출):kind==='pit'&&per.includes('mid')?(r=>r.고지==='미고지'||(r.고지==='고지'&&!!r.전달)):(r=>!!r.전송);
 function taxList(kind,per,due){
   const ag=ui.rmode==='ag',D=((S.rpt[kind]||{})[per])||{},past=due<todayStr(),isP=kind==='pit';
-  const yr=+per.slice(0,4),pend=per.includes('mid')?`${yr}-06-30`:`${yr}-12-31`;
+  const yr=+per.slice(0,4),mid=per.includes('mid'),fin0=taxFin(kind,per),pst=mid?`${yr-1}-12-31`:`${yr}-01-01`,pend=mid?`${yr-1}-12-31`:`${yr}-12-31`;
+  const ok=c=>{if(kind==='cit'){const fy=+c.fy||12;const fe=mEnd(fy===12?yr:yr,fy);if(mid){const pfe=mEnd(yr-1,fy);return liveIn(c,pfe,pfe);}const fs=fy===12?`${yr}-01-01`:`${yr-1}-${pad(fy+1)}-01`;return liveIn(c,fs,fe);}return liveIn(c,pst,pend);};
   let ents;
   if(ag)ents=S.agents.filter(a=>D[a.id]).map(a=>({c:{id:a.id,name:a.name,type:a.type,ag:1},r:D[a.id]}));
-  else ents=S.clients.filter(c=>c.status!=='폐업'||D[c.id]).filter(c=>kind==='ye'?(c.wh==='당월'||c.wh==='반기'):(isP?c.type!=='법인':c.type==='법인')).filter(c=>D[c.id]||!(c.open&&c.open>pend)).map(c=>({c,r:D[c.id]||{}}));
+  else ents=S.clients.filter(c=>kind==='ye'?(c.wh==='당월'||c.wh==='반기'):(isP?c.type!=='법인':c.type==='법인')).filter(c=>ok(c)||(D[c.id]&&fin0(D[c.id])&&D[c.id].고지!=='미고지')).map(c=>({c,r:D[c.id]||{}}));
   const fin=taxFin(kind,per);
   ents=ents.filter(x=>!x.r.hide).sort((a,b)=>(fin(a.r)-fin(b.r))||sortKey(a.c).localeCompare(sortKey(b.c),'ko'));
   return {D,past,cs:ents,done:ents.filter(x=>fin(x.r)).length,fin};
