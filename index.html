@@ -1040,7 +1040,7 @@ function taxList(kind,per,due){
   const yr=+per.slice(0,4),pend=per.includes('mid')?`${yr}-06-30`:`${yr}-12-31`;
   let ents;
   if(ag)ents=S.agents.filter(a=>D[a.id]).map(a=>({c:{id:a.id,name:a.name,type:a.type,ag:1},r:D[a.id]}));
-  else ents=S.clients.filter(c=>c.status!=='폐업'||D[c.id]).filter(c=>(isP?c.type!=='법인':c.type==='법인')).filter(c=>D[c.id]||(!past&&!(c.open&&c.open>pend))).map(c=>({c,r:D[c.id]||{}}));
+  else ents=S.clients.filter(c=>c.status!=='폐업'||D[c.id]).filter(c=>(isP?c.type!=='법인':c.type==='법인')).filter(c=>D[c.id]||!(c.open&&c.open>pend)).map(c=>({c,r:D[c.id]||{}}));
   ents=ents.filter(x=>!x.r.hide).sort((a,b)=>(!!a.r.전송-!!b.r.전송)||sortKey(a.c).localeCompare(sortKey(b.c),'ko'));
   return {D,past,cs:ents,done:ents.filter(x=>x.r.전송).length};
 }
