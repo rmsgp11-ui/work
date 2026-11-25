@@ -1252,7 +1252,7 @@ function rptSet(spec,val){const [kind,per,cid,f]=spec.split('|');const T=S.rpt[k
   if(f&&f.startsWith('e~')){const [,i,ef]=f.split('~');r.emps=r.emps||[];const e=r.emps[+i]=r.emps[+i]||{};if(val===undefined)e[ef]=e[ef]?'':'○';else e[ef]=val;rptSync(kind,per,cid,r);save();return;}
   if(val===undefined){if(f==='st')r.st=r.st==='완료'?'':'완료';else r[f]=r[f]?'':'○';}else r[f]=val;
   rptSync(kind,per,cid,r);save();}
-window.__tasks={list:()=>S.tasks.map(t=>({id:t.id,title:t.title,due:t.due,status:t.status,rk:t.rk||''})),del:(ids)=>{const n=S.tasks.length;S.tasks=S.tasks.filter(t=>!ids.includes(t.id));save();if(!ui.drawer)render();return n-S.tasks.length;},
+window.__tasks={add:(arr)=>{arr.forEach(o=>S.tasks.push({id:uid(),title:o.title,client:o.client||null,due:o.due||null,pri:o.pri||3,status:'todo',memo:o.memo||'',subs:[],created:Date.now(),doneAt:null}));save();if(!ui.drawer)render();return arr.length;},list:()=>S.tasks.map(t=>({id:t.id,title:t.title,due:t.due,status:t.status,rk:t.rk||''})),del:(ids)=>{const n=S.tasks.length;S.tasks=S.tasks.filter(t=>!ids.includes(t.id));save();if(!ui.drawer)render();return n-S.tasks.length;},
   addRoutine:(o)=>{S.routines=S.routines||[];o.id='rt'+uid();o.created=Date.now();S.routines.push(o);ui._rr='';runRoutines();save();if(!ui.drawer)render();return o.id;},routines:()=>S.routines};
 window.__ag={list:()=>S.agents.map(a=>({id:a.id,name:a.name,type:a.type,memo:a.memo||''})),
   add:(name,type,memo)=>{let a=S.agents.find(x=>x.name===name&&x.type===type);if(!a){a={id:'ag'+uid(),name,type,bizno:'',phone:'',fee:null,memo:memo||''};S.agents.push(a);}save();return a.id;},
