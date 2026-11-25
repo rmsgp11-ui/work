@@ -39,6 +39,7 @@ aside{background:var(--panel);border-right:1px solid var(--line);padding:18px 12
 .acct button{color:var(--sub);text-decoration:underline;font-size:12px}
 .mtop{display:none}
 .tabs{display:none}
+.rvt th{font-size:11px;color:var(--sub);font-weight:600;text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}.rvt td{padding:5px 6px;border-bottom:1px solid var(--line)}
 main{padding:26px clamp(14px,3.2vw,40px) 90px;max-width:1200px;width:100%;min-width:0}
 .head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
 .head h1{font-size:26px;margin:0;letter-spacing:-.03em}
@@ -477,7 +478,7 @@ const TABS=[{id:'home',n:'홈',ic:'🏠'},{id:'tasks',n:'할 일',ic:'✅'},{id:
 const openT=t=>t.status!=='done';
 function badges(){
   const t=todayStr();
-  return {tasks:S.tasks.filter(x=>openT(x)&&x.due&&x.due<=t).length,pay:S.clients.filter(c=>unpaidList(c.id).length).length,jobs:S.jobs.filter(j=>j.status==='check'||j.status==='fail').length};
+  return {tasks:S.tasks.filter(x=>openT(x)&&x.due&&x.due<=t).length,pay:S.clients.filter(c=>unpaidList(c.id).length).length,jobs:S.jobs.filter(j=>j.status==='check'||j.status==='fail'||(j.status==='done'&&j.review&&!j.reviewed)).length};
 }
 function render(){
   document.documentElement.classList.toggle('dark',S.theme==='dark');
@@ -657,12 +658,42 @@ function jobCard(j){
 }
 function vJobs(){
   const js=S.jobs.slice().sort((a,b)=>b.created-a.created);
+  const unrev=js.filter(j=>j.review&&!j.reviewed&&j.status!=='wait'&&j.status!=='doing').length;
+  const seg=`<div class="seg" style="display:flex;gap:6px;margin-bottom:12px"><button class="btn ${ui.jsub!=='rev'?'':'g'}" data-jsub="box">작업함</button><button class="btn ${ui.jsub==='rev'?'':'g'}" data-jsub="rev">검토${unrev?` <span class="chip red" style="margin-left:4px">${unrev}</span>`:''}</button></div>`;
+  if(ui.jsub==='rev') return head('위하고 작업 · 검토')+seg+vReview(js);
   const act=js.filter(j=>j.status==='wait'||j.status==='doing'),chk=js.filter(j=>j.status==='check'||j.status==='fail'),dn=js.filter(j=>j.status==='done').slice(0,30);
-  return head('위하고 작업',`<button class="btn" data-a="jobNew">＋ 작업 맡기기</button>`)+`
+  return head('위하고 작업',`<button class="btn" data-a="jobNew">＋ 작업 맡기기</button>`)+seg+`
   <p class="note" style="margin-bottom:12px">급여대장 같은 자료를 여기에 올려두면 <b>평일 오전 10시·오후 3시</b>에 Claude가 위하고에서 처리하고 결과를 남겨요. 그 시간에 노트북과 크롬(위하고 로그인)이 켜져 있어야 해요.</p>
   ${chk.length?`<div class="sec"><h2 style="color:var(--red)">확인 필요</h2></div>${chk.map(jobCard).join('')}`:''}
   <div class="sec"><h2>대기 · 진행 중</h2></div>${act.length?act.map(jobCard).join(''):'<div class="card"><div class="empty">맡긴 작업이 없어요</div></div>'}
   ${dn.length?`<div class="sec"><h2>완료</h2></div>${dn.map(jobCard).join('')}`:''}`;
+}
+
+const nnum=v=>{if(v==null||v==='')return null;const n=+String(v).replace(/[^\d.-]/g,'');return isNaN(n)?String(v).trim():n;};
+const fmtv=v=>v==null||v===''?'—':typeof v==='number'||/^-?[\d,]+$/.test(String(v))?won(+String(v).replace(/,/g,'')):esc(String(v));
+function revCard(j){
+  const c=cl(j.client),r=j.review||{},rows=r.rows||[],st=JS_[j.status]||JS_.wait;
+  const bad=rows.filter(x=>x.given!=null&&x.given!==''&&nnum(x.given)!==nnum(x.entered)).length;
+  return `<div class="card" style="margin-bottom:12px;padding:12px 14px">
+    <div class="lh" style="flex-wrap:wrap;gap:6px"><span class="chip ${st.cls}">${st.n}</span><b>${esc(c?c.name:'거래처 미지정')}</b><span class="chip">${esc(JK[j.kind]||'작업')}${j.ym?' · '+esc(j.ym.replace('-','.')):''}</span>
+      ${j.reviewed?`<span class="chip grn">검토 완료</span>`:bad?`<span class="chip red">차이 ${bad}건</span>`:rows.length?`<span class="chip grn">대조 일치</span>`:''}</div>
+    ${j.result?`<div class="ls" style="margin:6px 0">${esc(j.result.split('\n')[0])}</div>`:''}
+    ${rows.length?`<div style="overflow-x:auto"><table class="rvt" style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px">
+      <thead><tr><th>대상</th><th>항목</th><th style="text-align:right">준 자료</th><th style="text-align:right">위하고 입력</th><th></th></tr></thead><tbody>
+      ${rows.map(x=>{const has=x.given!=null&&x.given!=='',ok=!has||nnum(x.given)===nnum(x.entered);return `<tr style="${ok?'':'background:color-mix(in srgb,var(--red) 12%,transparent)'}"><td>${esc(x.who||'')}</td><td>${esc(x.item||'')}</td><td style="text-align:right">${fmtv(x.given)}</td><td style="text-align:right">${fmtv(x.entered)}</td><td style="text-align:center">${!has?'<span style="color:var(--sub)">·</span>':ok?'✓':'⚠'}</td></tr>`}).join('')}
+      </tbody></table></div>`:''}
+    ${(r.sum||[]).length?`<div class="lab" style="margin-top:10px">신고서·명세서</div><div style="display:grid;grid-template-columns:1fr auto;gap:2px 12px;font-size:13px">${r.sum.map(([k,v])=>`<span>${esc(k)}</span><b style="text-align:right">${fmtv(v)}</b>`).join('')}</div>`:''}
+    ${(r.notes||[]).length?`<div class="lab" style="margin-top:10px">확인할 점</div><ul style="margin:0;padding-left:18px;font-size:13px">${r.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:''}
+    ${j.text?`<details style="margin-top:8px"><summary style="font-size:12px;color:var(--sub)">준 자료 원문</summary><pre>${esc(j.text)}</pre></details>`:''}
+    ${j.img?`<details style="margin-top:6px"><summary style="font-size:12px;color:var(--sub)">첨부 사진</summary><img src="${j.img}" style="max-width:100%;border-radius:8px"></details>`:''}
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${j.reviewed?`<button class="btn g s" data-jobact="unrev|${j.id}">검토 취소</button>`:`<button class="btn s" data-jobact="rev|${j.id}">검토 완료</button>`}<button class="btn g s" data-jobact="retry|${j.id}">다시 맡기기</button></div></div>`;
+}
+function vReview(js){
+  const list=js.filter(j=>j.status!=='wait'&&j.status!=='doing'&&(j.review||j.result));
+  const todo=list.filter(j=>!j.reviewed),done=list.filter(j=>j.reviewed).slice(0,20);
+  return `<p class="note" style="margin-bottom:12px">Claude가 위하고에 입력한 값을 준 자료와 나란히 보여줘요. <b>⚠</b> 표시는 금액이 다른 줄이에요. 신고 전에 확인하고 <b>검토 완료</b>를 눌러 주세요.</p>
+  ${todo.length?todo.map(revCard).join(''):'<div class="card"><div class="empty">검토할 작업이 없어요</div></div>'}
+  ${done.length?`<div class="sec"><h2>검토 완료</h2></div>${done.map(revCard).join('')}`:''}`;
 }
 function jobForm(){
   const d0=new Date(),ym=`${d0.getFullYear()}-${pad(d0.getMonth()+1)}`;ui.jobImg='';
@@ -692,15 +723,20 @@ function trimJobs(){const now=Date.now();S.jobs.forEach(j=>{if(j.status==='done'
   if(JSON.stringify(S).length>850000)toast('저장 공간이 거의 찼어요. 완료된 작업의 사진을 지워 주세요');}
 function jobAct(v){const [a,id]=v.split('|'),j=S.jobs.find(x=>x.id===id);if(!j)return;
   if(a==='del'){if(!confirm('이 작업을 삭제할까요?'))return;S.jobs=S.jobs.filter(x=>x.id!==id);}
-  else if(a==='retry'){j.status='wait';j.result=(j.result?j.result+'\n\n':'')+'— 다시 맡김 '+new Date().toLocaleString('ko-KR');}
+  else if(a==='retry'){j.status='wait';j.reviewed=null;j.result=(j.result?j.result+'\n\n':'')+'— 다시 맡김 '+new Date().toLocaleString('ko-KR');}
   else if(a==='ok'){j.status='done';j.doneAt=Date.now();}
+  else if(a==='rev'){j.reviewed=Date.now();if(j.status==='check'||j.status==='fail'){j.status='done';j.doneAt=Date.now();}}
+  else if(a==='unrev'){j.reviewed=null;}
   save();render();}
 /* Claude가 크롬에서 작업함을 읽고 결과를 남길 때 쓰는 연결 */
 window.__jobs={
   ready:()=>!!user,
   list:(st)=>S.jobs.filter(j=>!st||j.status===st).map(j=>{const c=cl(j.client)||{};return {id:j.id,client:c.name||'',bizno:c.bizno||'',type:c.type||'',kind:JK[j.kind]||j.kind,ym:j.ym,text:j.text,memo:j.memo,hasImg:!!j.img,status:j.status,result:j.result,created:new Date(j.created).toISOString()};}),
   img:(id)=>{const j=S.jobs.find(x=>x.id===id);return j?j.img:''},
-  update:(id,patch)=>{const j=S.jobs.find(x=>x.id===id);if(!j)return false;['status','result'].forEach(k=>{if(patch[k]!==undefined)j[k]=patch[k]});
+  add:(o)=>{const key=String(o.client||'').replace(/\D/g,'');const c=S.clients.find(x=>key.length>=10&&String(x.bizno||'').replace(/\D/g,'')===key)||S.clients.find(x=>x.name===o.client)||S.clients.find(x=>o.client&&x.name.includes(o.client));
+    const j={id:uid(),client:c?c.id:null,kind:o.kind||'other',ym:o.ym||'',text:o.text||'',img:'',memo:o.memo||'',status:o.status||'done',result:o.result||'',review:o.review||null,reviewed:null,created:Date.now(),doneAt:(o.status||'done')==='done'?Date.now():null};
+    S.jobs.push(j);save();if(!ui.drawer)render();return {id:j.id,client:c?c.name:null};},
+  update:(id,patch)=>{const j=S.jobs.find(x=>x.id===id);if(!j)return false;['status','result','review'].forEach(k=>{if(patch[k]!==undefined)j[k]=patch[k]});
     if(patch.status==='done'){j.doneAt=Date.now();j.img='';}save();if(!ui.drawer)render();return true;}
 };
 
@@ -1041,6 +1077,7 @@ document.addEventListener('click',e=>{
   if((el=q('[data-subdel]'))){const x=S.tasks.find(t=>t.id===ui.openTask);x.subs=x.subs.filter(s=>s.id!==el.dataset.subdel);save();openTask(x.id);return;}
   if((el=q('[data-logdel]'))){if(confirm('이 기록을 삭제할까요? (할 일은 남아요)')){S.logs=S.logs.filter(l=>l.id!==el.dataset.logdel);save();render();}return;}
   if((el=q('[data-jobact]'))){jobAct(el.dataset.jobact);return;}
+  if((el=q('[data-jsub]'))){ui.jsub=el.dataset.jsub;render();return;}
   if((el=q('.lg'))&&!q('select')&&!q('button')&&!q('img')){el.classList.toggle('open');return;}
   if((el=q('[data-vreveal]'))){const k=el.dataset.vreveal,b=$(`[data-vshow="${k}"]`);if(!ui.vcur||!b)return;b.textContent=ui.vcur.v[k];vTimer();setTimeout(()=>{if(b.isConnected)b.textContent=k==='rrn'?rrnMask(ui.vcur.v[k]):'••••••••'},10000);return;}
   if((el=q('[data-vcopy]'))){const v=ui.vcur&&ui.vcur.v[el.dataset.vcopy];if(!v)return;navigator.clipboard.writeText(v).then(()=>toast('복사했어요'),()=>toast('복사하지 못했어요'));vTimer();return;}
