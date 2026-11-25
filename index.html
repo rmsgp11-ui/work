@@ -909,7 +909,7 @@ function whTarget(c,y,m){const [y2,m2]=m===12?[y+1,1]:[y,m+1];return rawEvents(y
 function vRepWh(){
   const now=new Date(),def=pgAdd(pgNow(),-1),ym=ui.rwm||def,y=+ym.slice(0,4),m=+ym.slice(5,7);
   const D=S.rpt.wh[ym]||{};
-  let cs=S.clients.filter(c=>D[c.id]||whTarget(c,y,m)).sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'ko'));
+  let cs=S.clients.filter(c=>D[c.id]||(whTarget(c,y,m)&&!(c.open&&c.open>`${ym}-31`))).sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'ko'));
   const done=cs.filter(c=>(D[c.id]||{}).st==='완료').length;
   return rptHead('wh')+`<div class="calhead"><button class="nb" data-a="rwPrev">‹</button><b>${y}년 ${m}월 귀속</b><button class="nb" data-a="rwNext">›</button><span class="note" style="margin-left:6px">신고 ${m===12?y+1+'년 1':m+1}월 10일 · 완료 ${done}/${cs.length}</span>${rvSeg()}</div>
   <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm">상호</th><th>원천세</th>${WF.map(([,n])=>`<th>${n}</th>`).join('')}<th>${m}월 진행현황</th><th>간이지급명세서<br><span>일용/사업/기타</span></th><th style="min-width:220px">참고사항</th></tr></thead><tbody>
@@ -924,7 +924,8 @@ function vRepWh(){
 function vRepVat(){
   const Y=ui.ry||new Date().getFullYear(),pk=ui.rvp||'2p',pd=VP.find(x=>x[0]===pk),key=`${Y}-${pk}`,D=S.rpt.vat[key]||{};
   const ey=pk==='2f'?Y+1:Y,evs=rawEvents(ey,pd[2]).filter(e=>e.t==='vat'||e.t==='vatp');
-  let cs=S.clients.filter(c=>D[c.id]||evs.some(e=>e.t==='vat'&&e.ids.includes(c.id))).sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'ko'));
+  const pend=`${Y}-${({'1p':'03-31','1f':'06-30','2p':'09-30','2f':'12-31'})[pk]}`;
+  let cs=S.clients.filter(c=>D[c.id]||(evs.some(e=>e.t==='vat'&&e.ids.includes(c.id))&&!(c.open&&c.open>pend))).sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'ko'));
   const done=cs.filter(c=>(D[c.id]||{}).작성).length;
   const num=v=>v==null||v===''?'':(typeof v==='number'?won(v):esc(v));
   return rptHead('vat')+`<div class="calhead"><button class="nb" data-a="ryPrev">‹</button><b>${Y}년</b><button class="nb" data-a="ryNext">›</button>${VP.map(([k,n])=>`<button class="fchip ${pk===k?'on':''}" data-rvp="${k}">${n}</button>`).join('')}<span class="note" style="margin-left:6px">작성 ${done}/${cs.length}</span>${rvSeg()}</div>
