@@ -1169,7 +1169,7 @@ function agentForm(id,after){
 function agentSave(){const name=$('#agName').value.trim();if(!name)return toast('이름을 넣어 주세요');
   const o={name,type:$('#agType').value,bizno:$('#agBiz').value.trim(),phone:$('#agPhone').value.trim(),fee:+$('#agFee').value||null,memo:$('#agMemo').value.trim()};
   let a;if(ui.agEdit){a=agt(ui.agEdit);Object.assign(a,o);}else{a={id:'ag'+uid(),...o};S.agents.push(a);}
-  if(ui.agAfter){const [kind,per]=ui.agAfter.split('|');const T=S.rpt[kind];T[per]=T[per]||{};T[per][a.id]=Object.assign(T[per][a.id]||{},{조정료:a.fee||undefined});delete T[per][a.id].hide;}
+  if(ui.agAfter){const [kind,per]=ui.agAfter.split('|');const T=S.rpt[kind]=S.rpt[kind]||{};T[per]=T[per]||{};T[per][a.id]=Object.assign(T[per][a.id]||{},{조정료:a.fee||undefined});delete T[per][a.id].hide;}
   save();$('#modal').classList.remove('on');render();toast('저장했어요');}
 function rptSync(kind,per,cid,r){
   const c=cl(cid);if(!c)return;
@@ -1182,16 +1182,16 @@ function rptSync(kind,per,cid,r){
   else{const [Y,pk]=per.split('-');const pd=VP.find(x=>x[0]===pk);const ey=pk==='2f'?+Y+1:+Y;const G=r.고지==='고지',ok=G?r.전달:pk.endsWith('p')?r.전송:r.작성;
     rawEvents(ey,pd[2]).filter(e=>e.t===(G?'vatp':'vat')).forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;if(ok)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
 }
-function rptSet(spec,val){const [kind,per,cid,f]=spec.split('|');const T=S.rpt[kind];T[per]=T[per]||{};const r=T[per][cid]=T[per][cid]||{};
+function rptSet(spec,val){const [kind,per,cid,f]=spec.split('|');const T=S.rpt[kind]=S.rpt[kind]||{};T[per]=T[per]||{};const r=T[per][cid]=T[per][cid]||{};
   if(kind==='wh'&&r.gan!==undefined){const R=whRow(r);['ganD','ganS','kdDate','kdWay'].forEach(x=>{if(R[x])r[x]=R[x]});delete r.gan;}
   if(val===undefined){if(f==='st')r.st=r.st==='완료'?'':'완료';else r[f]=r[f]?'':'○';}else r[f]=val;
   rptSync(kind,per,cid,r);save();}
 window.__ag={list:()=>S.agents.map(a=>({id:a.id,name:a.name,type:a.type,memo:a.memo||''})),
   add:(name,type,memo)=>{let a=S.agents.find(x=>x.name===name&&x.type===type);if(!a){a={id:'ag'+uid(),name,type,bizno:'',phone:'',fee:null,memo:memo||''};S.agents.push(a);}save();return a.id;},
-  put:(kind,per,id,d)=>{const T=S.rpt[kind];T[per]=T[per]||{};T[per][id]=Object.assign(T[per][id]||{},d);save();if(!ui.drawer)render();return 1;}};
+  put:(kind,per,id,d)=>{const T=S.rpt[kind]=S.rpt[kind]||{};T[per]=T[per]||{};T[per][id]=Object.assign(T[per][id]||{},d);save();if(!ui.drawer)render();return 1;}};
 window.__rptGet=(kind,per)=>{const D=(S.rpt[kind]||{})[per]||{};return Object.fromEntries(Object.entries(D).map(([id,r])=>[id,Object.assign({_n:(cl(id)||agt(id)||{}).name},r)]));};
 window.__rptList=(kind,per,ag)=>{const m0=ui.rmode;ui.rmode=ag?'ag':'gj';try{const p=taxPers(kind,+per.slice(0,4)+(per.includes('mid')?0:1)).find(x=>x.key===per);return taxList(kind,per,p.due).cs.map(x=>({id:x.c.id,name:x.c.name,ceo:x.c.ceo||'',bizno:String(x.c.bizno||'').replace(/\D/g,''),r:x.r}));}finally{ui.rmode=m0;}};
-window.__rpt={purge:(kind,maxPer)=>{let n=0;for(const [p,D] of Object.entries(S.rpt[kind]))if(p<=maxPer)for(const [id,r] of Object.entries(D))if(r.st!=='완료'){delete D[id];n++;}save();if(!ui.drawer)render();return n;},del:(kind,per,bizno)=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(bizno));const T=S.rpt[kind][per];if(!c||!T||!T[c.id])return 0;delete T[c.id];save();if(!ui.drawer)render();return 1;},put:(kind,per,rows)=>{const T=S.rpt[kind];T[per]=T[per]||{};let n=0;rows.forEach(o=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(o.bizno));if(!c)return;T[per][c.id]=Object.assign(T[per][c.id]||{},o.d);rptSync(kind,per,c.id,T[per][c.id]);n++;});save();if(!ui.drawer)render();return n;}};
+window.__rpt={purge:(kind,maxPer)=>{let n=0;for(const [p,D] of Object.entries(S.rpt[kind]))if(p<=maxPer)for(const [id,r] of Object.entries(D))if(r.st!=='완료'){delete D[id];n++;}save();if(!ui.drawer)render();return n;},del:(kind,per,bizno)=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(bizno));const T=S.rpt[kind][per];if(!c||!T||!T[c.id])return 0;delete T[c.id];save();if(!ui.drawer)render();return 1;},put:(kind,per,rows)=>{const T=S.rpt[kind]=S.rpt[kind]||{};T[per]=T[per]||{};let n=0;rows.forEach(o=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(o.bizno));if(!c)return;T[per][c.id]=Object.assign(T[per][c.id]||{},o.d);rptSync(kind,per,c.id,T[per][c.id]);n++;});save();if(!ui.drawer)render();return n;}};
 /* ---------- 기장 진도 ---------- */
 const PG=[['card','카드'],['bank','통장'],['tax','계산서'],['pay','급여']];
 const PGN={card:'카드 전표',bank:'통장 전표',tax:'전자세금계산서·계산서',pay:'급여 회계전표'};
@@ -1739,7 +1739,7 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('change',e=>{
   const el=e.target,d=el.dataset;
-  if(d.agadd){const [kind,per]=d.agadd.split('|'),v=el.value;el.value='';if(!v)return;if(v==='__new'){agentForm(null,d.agadd);return;}const a=agt(v);const T=S.rpt[kind];T[per]=T[per]||{};T[per][v]=Object.assign(T[per][v]||{},a&&a.fee?{조정료:a.fee}:{});delete T[per][v].hide;save();render();return;}
+  if(d.agadd){const [kind,per]=d.agadd.split('|'),v=el.value;el.value='';if(!v)return;if(v==='__new'){agentForm(null,d.agadd);return;}const a=agt(v);const T=S.rpt[kind]=S.rpt[kind]||{};T[per]=T[per]||{};T[per][v]=Object.assign(T[per][v]||{},a&&a.fee?{조정료:a.fee}:{});delete T[per][v].hide;save();render();return;}
   if(d.rpi){let v=el.value.trim();const f=d.rpi.split('|')[3];if(f!=='memo'&&f!=='gan'&&/^-?[\d,]+$/.test(v))v=+v.replace(/,/g,'');rptSet(d.rpi,v);if(typeof v==='number')el.value=won(v);return;}
   if(d.in==='sort'){ui.sort=el.value;render();return;}
   if(d.in==='pgs'){ui.pgs=el.value;render();return;}
