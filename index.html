@@ -120,6 +120,15 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
 .ev.ok{opacity:.45;text-decoration:line-through}
 .ev.task{background:var(--soft);color:var(--ink)}
 .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin-top:10px}
+.dcols{display:flex;flex-direction:column;gap:14px}.dmain,.dside{display:flex;flex-direction:column;gap:14px;min-width:0}
+@media(min-width:1350px){.cpane .dcols{display:grid;grid-template-columns:1.05fr 1fr;align-items:start}}
+body.wide main{max-width:1760px}
+.kvg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}.kvg.one{grid-template-columns:1fr;margin-top:10px}
+.kv{display:flex;flex-direction:column;gap:2px;min-width:0}.kv>span{font-size:11px;color:var(--sub);font-weight:600}
+.kv>b{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;word-break:break-all;display:flex;align-items:center;gap:6px;flex-wrap:wrap}.kv>b i{color:var(--sub);font-style:normal;font-weight:400}
+.kv a{color:var(--acc)}.memo{margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--soft);font-size:13px;white-space:pre-wrap}
+.feeh{display:flex;align-items:baseline;gap:6px;margin-bottom:10px;flex-wrap:wrap}.feeh b{font-size:22px}.feeh span{color:var(--sub);font-size:13px}.feeh .fm{margin-left:4px}
+.box h4{display:flex;align-items:center;gap:6px}
 .csplit{display:grid;grid-template-columns:1fr;gap:14px;align-items:start}
 @media(min-width:900px){.csplit{grid-template-columns:minmax(300px,380px) 1fr}}
 .cleft .fbar{flex-wrap:wrap}.cleft .search{flex:1;min-width:140px}
@@ -526,6 +535,7 @@ function render(){
   $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs,jobs:vJobs,prog:vProg})[ui.tab]();
   if(ui.syncT) setSync(ui.syncT,ui.syncE);
   if(ui.tab==='jobs')fillImgs();
+  document.body.classList.toggle('wide',ui.tab==='clients');
   if(ui.tab==='clients'&&paneMode()&&ui.selClient&&cl(ui.selClient))openClient(ui.selClient);
 }
 const head=(title,extra='')=>{const d=new Date();return `<div class="head"><h1>${title}</h1><span class="sub">${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일</span><span class="sync" id="dsync"></span>${extra?`<div class="sp">${extra}</div>`:''}</div>`};
@@ -922,29 +932,29 @@ function openDay(d){
 }
 
 function openClient(id){
-  const c=cl(id); if(!c) return; ui.openClient=id; ui.selClient=id;
+  const c=cl(id); if(!c) return; if(ui.openClient!==id)ui.cedit=false; ui.openClient=id; ui.selClient=id;
   const t=todayStr(), evs=events(addDays(t,-31),addDays(t,90)).filter(e=>e.ids.includes(id));
   const tasks=S.tasks.filter(x=>x.client===id).sort((a,b)=>(openT(a)?0:1)-(openT(b)?0:1)||((a.due||'9999')<(b.due||'9999')?-1:1));
   const logs=S.logs.filter(l=>l.client===id).sort((a,b)=>b.at-a.at);
   const cur=curYM(), months=[];for(let i=-10;i<=1;i++)months.push(ymAdd(cur,i));
   const f=(k,lab,type='text',ph='')=>`<div><label>${lab}</label><input data-cf2="${k}" type="${type}" value="${esc(c[k]??'')}" placeholder="${ph}"></div>`;
-  const tel=(c.phone||'').replace(/[^\d+]/g,''), u=unpaidList(id);
-  drawer(dh(esc(c.name),`<span class="chip ${c.type==='법인'?'acc':''}">${esc(c.type)}</span>`)+`<div class="db">
-    <div class="links">${tel?`<a href="tel:${tel}">📞 ${esc(c.contact||c.ceo||'전화')}</a><a href="sms:${tel}">💬 문자</a>`:''}${c.email?`<a href="mailto:${esc(c.email)}">✉️ 메일</a>`:''}<a href="#" data-a="clientTask">+ 할 일</a></div>
-    <div class="box"><h4>기본 정보</h4><div style="display:flex;flex-direction:column;gap:10px">
+  const tel=(c.phone||'').replace(/[^\d+]/g,''), u=unpaidList(id), ed=!!ui.cedit;
+  const kv=(lab,val,copy)=>`<div class="kv"><span>${lab}</span><b>${val?esc(val):'<i>—</i>'}${val&&copy?` <button class="chip" data-ccopy="${esc(val)}">복사</button>`:''}</b></div>`;
+  const WHL={'당월':'매월','반기':'반기','사업소득':'사업소득(3.3%)만','직원없음':'직원 없음','':'모름'};
+  const basicView=`<div class="box"><h4>기본 정보 <button class="chip" data-a="cEdit" style="margin-left:auto">✏️ 수정</button></h4>
+    <div class="kvg">${kv('대표자',c.ceo)}${kv('사업자번호',c.bizno,1)}${c.type==='법인'?kv('법인번호',c.corpno,1):''}${kv('개업일',c.open)}</div>
+    <div id="vaultBox" style="margin:10px 0"></div>
+    <div class="kvg">${kv('담당자',c.contact)}<div class="kv"><span>전화</span><b>${tel?`<a href="tel:${tel}">${esc(c.phone)}</a>`:'<i>—</i>'}</b></div>${kv('이메일',c.email,1)}${kv('업태 / 업종',[c.biz1,c.biz2].filter(Boolean).join(' / '))}</div>
+    <div class="kvg one">${kv('사업장 주소',c.addr,1)}</div>
+    ${c.memo?`<div class="memo">${esc(c.memo)}</div>`:''}</div>
+    <div class="box"><h4>세무 설정</h4><div class="kvg">${kv('구분',c.type)}${kv('과세유형',c.vat)}${kv('원천세',WHL[c.wh||''])}${c.type==='법인'?kv('결산월',(c.fy||12)+'월'):kv('성실신고',c.sincere?'대상 (6월)':'아님 (5월)')}${kv('상태',c.status||'계속사업')}${c.close?kv('폐업일',c.close):''}</div></div>`;
+  const basicEdit=`<div class="box"><h4>기본 정보 수정 <button class="btn s" data-a="cEdit" style="margin-left:auto">완료</button></h4><div style="display:flex;flex-direction:column;gap:10px">
       ${f('name','상호')}<div class="r2">${f('ceo','대표자')}${f('bizno','사업자등록번호','text','000-00-00000')}</div>${c.type==='법인'?f('corpno','법인등록번호'):''}
       <div id="vaultBox"></div>
       <div class="r2">${f('contact','담당자')}${f('phone','전화번호','tel')}</div>${f('email','이메일','email')}
       ${f('addr','사업장 주소','text','홈택스에서 확인해 넣어 주세요')}
       <div class="r2">${f('biz1','업태')}${f('biz2','업종')}</div>
-      <div class="r3">${f('fee','월 기장료','number')}${f('payDay','결제일','number')}<div><label>CMS</label><select data-cf2="cms">${[['','-'],['O','O'],['X','X']].map(([k,v])=>`<option value="${k}" ${(c.cms||'')===k?'selected':''}>${v}</option>`).join('')}</select></div></div>
-      <div class="r2">${f('adjFee','세무조정료','number')}${f('payInfo','결제 정보')}</div>
       <div><label>메모</label><textarea data-cf2="memo">${esc(c.memo||'')}</textarea></div></div></div>
-    <div class="box"><h4>수금 ${u.length?`<span class="chip red">미수 ${u.length}개월</span>`:'<span>칸을 누르면 바꿀 수 있어요</span>'}</h4>
-      <div class="pstrip">${months.map(k=>{const cell=pcell(id,k),st=pstat(cell);return `<div class="pc ${st} ${k===cur?'cur':''}" data-paycell="${id}|${k}"><b>${+k.slice(2)}월</b>${st==='paid'?(cell.a>=1000?won(Math.round(cell.a/1000))+'k':won(cell.a)):st?PS[st].n.replace('CMS 확인','CMS').replace('해당없음','–'):'·'}</div>`}).join('')}</div></div>
-    <div class="box"><h4>세무 일정 <span>${evs.length}</span></h4>${evs.length?evs.map(e=>`<div class="ck" data-ck="${esc(e.key)}|${id}"><span class="chk ${isDone(e,id)?'on':''}"></span><span class="tb"><b style="color:${TT[e.t].c}">${esc(e.label)}</b></span><span class="chip ${diffDays(e.date)<0&&!isDone(e,id)?'red':''}">${md(e.date)}</span></div>`).join(''):'<p class="note">앞뒤 석 달 안에 일정이 없어요. 아래 세무 설정을 확인하세요.</p>'}</div>
-    <div class="box"><h4>할 일 <span>${tasks.filter(openT).length}</span></h4>${tasks.slice(0,12).map(x=>`<div class="ck" data-task="${x.id}"><span class="chk ${x.status==='done'?'on':''}" data-chk="${x.id}"></span><span class="tb"><b>${esc(x.title)}</b></span>${x.due?`<span class="chip">${dueLabel(x.due)}</span>`:''}</div>`).join('')||'<p class="note">할 일이 없어요</p>'}</div>
-    ${logs.length?`<div class="box"><h4>톡·통화 기록 <span>${logs.length}</span></h4>${logs.slice(0,6).map(l=>`<div class="ck" data-a="logs"><span class="chip ${l.src==='통화'?'grn':'amb'}">${esc(l.src||'메모')}</span><span class="tb"><b>${esc(l.title||'')}</b><span class="ts">${esc(l.summary||'')}</span></span></div>`).join('')}</div>`:''}
     <div class="box"><h4>세무 설정 <span>기한 자동 계산에 쓰여요</span></h4><div style="display:flex;flex-direction:column;gap:10px">
       <div class="r2"><div><label>구분</label><select data-cf2="type"><option ${c.type==='법인'?'selected':''}>법인</option><option ${c.type!=='법인'?'selected':''}>개인</option></select></div>
         <div><label>과세유형</label><select data-cf2="vat">${['일반','간이','면세'].map(v=>`<option ${c.vat===v?'selected':''}>${v}</option>`).join('')}</select></div></div>
@@ -952,7 +962,18 @@ function openClient(id){
         ${c.type==='법인'?`<div><label>결산월</label><select data-cf2="fy">${[...Array(12)].map((_,i)=>`<option value="${i+1}" ${(+c.fy||12)===i+1?'selected':''}>${i+1}월</option>`).join('')}</select></div>`:`<div><label>성실신고 대상</label><select data-cf2="sincere"><option value="0" ${!c.sincere?'selected':''}>아니요 (5월)</option><option value="1" ${c.sincere?'selected':''}>예 (6월)</option></select></div>`}</div>
       <div class="r2"><div><label>개업일</label><input data-cf2="open" type="date" value="${esc(c.open||'')}"></div><div><label>폐업일</label><input data-cf2="close" type="date" value="${esc(c.close||'')}"></div></div>
       <div><label>상태</label><select data-cf2="status">${['','휴업','폐업'].map(v=>`<option value="${v}" ${(c.status||'')===v?'selected':''}>${v||'계속사업'}</option>`).join('')}</select></div></div></div>
-    <div style="display:flex;justify-content:flex-end"><button class="del" data-a="clientDel">거래처 삭제</button></div></div>`,'client');
+    <div style="display:flex;justify-content:flex-end"><button class="del" data-a="clientDel">거래처 삭제</button></div>`;
+  const feeBox=`<div class="box"><h4>기장료 · 수금 ${u.length?`<span class="chip red">미수 ${u.length}개월${c.fee?' · '+won(c.fee*u.length)+'원':''}</span>`:'<span class="chip grn">미수 없음</span>'}</h4>
+    ${ed?`<div class="r3" style="margin-bottom:10px">${f('fee','월 기장료','number')}${f('payDay','결제일','number')}<div><label>CMS</label><select data-cf2="cms">${[['','-'],['O','O'],['X','X']].map(([k,v])=>`<option value="${k}" ${(c.cms||'')===k?'selected':''}>${v}</option>`).join('')}</select></div></div><div class="r2" style="margin-bottom:10px">${f('adjFee','세무조정료','number')}${f('payInfo','결제 정보')}</div>`
+      :`<div class="feeh"><b>${c.fee?won(c.fee)+'원':'—'}</b><span>/ 월</span><span class="fm">${c.payDay?c.payDay+'일 결제':''}${c.cms==='O'?' · CMS':c.cms==='X'?' · CMS 아님':''}${c.adjFee?` · 조정료 ${won(c.adjFee)}원`:''}${c.payInfo?` · ${esc(c.payInfo)}`:''}</span></div>`}
+    <div class="pstrip">${months.map(k=>{const cell=pcell(id,k),st=pstat(cell);return `<div class="pc ${st} ${k===cur?'cur':''}" data-paycell="${id}|${k}"><b>${+k.slice(2)}월</b>${st==='paid'?(cell.a>=1000?won(Math.round(cell.a/1000))+'k':won(cell.a)):st?PS[st].n.replace('CMS 확인','CMS').replace('해당없음','–'):'·'}</div>`}).join('')}</div></div>`;
+  const side=feeBox+`
+    <div class="box"><h4>세무 일정 <span>${evs.length}</span></h4>${evs.length?evs.map(e=>`<div class="ck" data-ck="${esc(e.key)}|${id}"><span class="chk ${isDone(e,id)?'on':''}"></span><span class="tb"><b style="color:${TT[e.t].c}">${esc(e.label)}</b></span><span class="chip ${diffDays(e.date)<0&&!isDone(e,id)?'red':''}">${md(e.date)}</span></div>`).join(''):'<p class="note">앞뒤 석 달 안에 일정이 없어요.</p>'}</div>
+    <div class="box"><h4>할 일 <span>${tasks.filter(openT).length}</span><button class="chip" data-a="clientTask" style="margin-left:auto">+ 할 일</button></h4>${tasks.slice(0,12).map(x=>`<div class="ck" data-task="${x.id}"><span class="chk ${x.status==='done'?'on':''}" data-chk="${x.id}"></span><span class="tb"><b>${esc(x.title)}</b></span>${x.due?`<span class="chip">${dueLabel(x.due)}</span>`:''}</div>`).join('')||'<p class="note">할 일이 없어요</p>'}</div>
+    ${logs.length?`<div class="box"><h4>톡·통화 기록 <span>${logs.length}</span>${logs.length>8?`<button class="chip" data-logsof="${id}" style="margin-left:auto">전체 보기</button>`:''}</h4>${logs.slice(0,8).map(l=>`<div class="ck" data-logsof="${id}"><span class="chip ${l.src==='통화'?'grn':l.src==='내부톡'?'pur':'amb'}">${new Date(l.at).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})}</span><span class="tb"><b>${esc(l.title||'')}</b><span class="ts">${esc(l.summary||'')}</span></span></div>`).join('')}</div>`:''}`;
+  drawer(dh(esc(c.name),`<span class="chip ${c.type==='법인'?'acc':''}">${esc(c.type)}</span>${c.status==='폐업'?'<span class="chip red">폐업</span>':''}`)+`<div class="db">
+    <div class="links">${tel?`<a href="tel:${tel}">📞 ${esc(c.contact||c.ceo||'전화')}</a><a href="sms:${tel}">💬 문자</a>`:''}${c.email?`<a href="mailto:${esc(c.email)}">✉️ 메일</a>`:''}<a href="#" data-a="clientTask">+ 할 일</a></div>
+    <div class="dcols"><div class="dmain">${ed?basicEdit:basicView}</div><div class="dside">${side}</div></div></div>`,'client');
   renderVault(id);
 }
 
@@ -1231,6 +1252,8 @@ document.addEventListener('click',e=>{
   if((el=q('[data-pgm],[data-pgall],[data-pgna]'))){pgClick(el);return;}
   if((el=q('[data-pgc]'))){const [c,k]=el.dataset.pgc.split('|');openProg(c,k);return;}
   if((el=q('[data-pgf]'))){ui.pgf=el.dataset.pgf;render();return;}
+  if((el=q('[data-ccopy]'))){navigator.clipboard.writeText(el.dataset.ccopy).then(()=>toast('복사했어요'),()=>toast('복사하지 못했어요'));return;}
+  if((el=q('[data-logsof]'))){const id=el.dataset.logsof;if(ui.drawer)closeDrawer();ui.tab='logs';ui.lc=id;ui.llim=60;render();window.scrollTo(0,0);return;}
   if((el=q('[data-jsub]'))){ui.jsub=el.dataset.jsub;render();return;}
   if((el=q('.lg'))&&!q('select')&&!q('button')&&!q('img')){el.classList.toggle('open');return;}
   if((el=q('[data-vreveal]'))){const k=el.dataset.vreveal,b=$(`[data-vshow="${k}"]`);if(!ui.vcur||!b)return;b.textContent=ui.vcur.v[k];vTimer();setTimeout(()=>{if(b.isConnected)b.textContent=k==='rrn'?rrnMask(ui.vcur.v[k]):'••••••••'},10000);return;}
@@ -1263,7 +1286,7 @@ document.addEventListener('click',e=>{
     calPrev:()=>{let {y,m}=ui.cal;m--;if(m<1){m=12;y--}ui.cal={y,m};render();}, calNext:()=>{let {y,m}=ui.cal;m++;if(m>12){m=1;y++}ui.cal={y,m};render();},
     calToday:()=>{const d=new Date();ui.cal={y:d.getFullYear(),m:d.getMonth()+1};render();},
     pmPrev:()=>{ui.pm=ymAdd(ui.pm,-1);render();}, pmNext:()=>{ui.pm=ymAdd(ui.pm,1);render();}, pmCur:()=>{ui.pm=curYM();render();},
-    talkImport:()=>$('#talkIn').click(), logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
+    talkImport:()=>$('#talkIn').click(), cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
     pgPrev:()=>{ui.pg=pgAdd(ui.pg,-1);render();}, pgNext:()=>{ui.pg=pgAdd(ui.pg,1);render();}, pgCur:()=>{ui.pg=pgAdd(pgNow(),-1);render();},
     newClient:()=>{const n=prompt('상호');if(!n||!n.trim())return;const c={id:uid(),order:S.clients.length+1,type:'법인',name:n.trim(),bizno:'',ceo:'',corpno:'',contact:'',phone:'',biz1:'',biz2:'',fee:null,adjFee:null,wh:'',email:'',vat:'일반',fy:12,sincere:false,payDay:null,cms:'',payInfo:'',addr:'',memo:''};S.clients.push(c);save();render();openClient(c.id);},
     clientDel:()=>{const c=cl(ui.openClient);if(!c||!confirm(`${c.name}을(를) 삭제할까요? (할 일·기록은 남아요)`))return;S.clients=S.clients.filter(x=>x.id!==c.id);delete S.pay[c.id];S.tasks.forEach(t=>{if(t.client===c.id)t.client=null});save();closeDrawer();},
