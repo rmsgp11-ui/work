@@ -677,7 +677,7 @@ async function kvSet(k,v){const d=await idb();return new Promise(ok=>{const t=d.
 const oldLogs=()=>{const lim=Date.now()-ARCH_DAYS*864e5;return S.logs.filter(l=>l.at&&l.at<lim);};
 (async()=>{try{const h=await kvGet('dir');if(h){ui.archName=h.name;}}catch(e){}})();
 async function archDir(){if(!window.showDirectoryPicker)return toast('크롬(PC)에서만 폴더를 지정할 수 있어요');
-  toast('OneDrive › 업무 › '톡,통화 DB' 폴더를 골라 주세요');
+  toast('OneDrive › 업무 › 톡,통화 DB 폴더를 골라 주세요');
   try{const h=await window.showDirectoryPicker({id:'tokdb',mode:'readwrite',startIn:'documents'});await kvSet('dir',h);ui.archName=h.name;render();toast(`보관 폴더: ${h.name}`);}catch(e){}}
 const csvq=v=>{v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
 async function archLogs(){const L=oldLogs();if(!L.length)return toast('1년 지난 기록이 없어요');
