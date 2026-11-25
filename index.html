@@ -1081,9 +1081,12 @@ function taxList(kind,per,due){
   const yr=+per.slice(0,4),mid=per.includes('mid'),fin0=taxFin(kind,per),pst=mid?`${yr-1}-12-31`:`${yr}-01-01`,pend=mid?`${yr-1}-12-31`:`${yr}-12-31`;
   const ok=c=>{if(kind==='cit'){const fy=+c.fy||12;const fe=mEnd(fy===12?yr:yr,fy);if(mid){const pfe=mEnd(yr-1,fy);return liveIn(c,pfe,pfe);}const fs=fy===12?`${yr}-01-01`:`${yr-1}-${pad(fy+1)}-01`;return liveIn(c,fs,fe);}return liveIn(c,pst,pend);};
   let ents;
-  if(ag)ents=S.agents.filter(a=>D[a.id]).map(a=>({c:{id:a.id,name:a.name,type:a.type,ag:1},r:D[a.id]}));
+  if(ag)ents=S.agents.filter(a=>D[a.id]).map(a=>({c:{id:a.id,name:a.name,type:a.type,ag:1,ceo:((a.memo||'').match(/대표\s*([^\s,·]+)/)||[])[1]||''},r:D[a.id]}));
   else ents=S.clients.filter(c=>kind==='ye'?(c.wh==='당월'||c.wh==='반기'):(isP?c.type!=='법인':c.type==='법인')).filter(c=>ok(c)||(D[c.id]&&fin0(D[c.id])&&D[c.id].고지!=='미고지')).map(c=>({c,r:D[c.id]||{}}));
   const fin=taxFin(kind,per);
+  if(isP){/* 소득세는 대표자(사람) 단위 */const G=new Map(),w=x=>(fin(x.r)?100:0)+Object.keys(x.r).length;
+    ents.filter(x=>!x.r.hide).forEach(x=>{const k=(x.c.ceo||x.c.name).trim();if(!G.has(k))G.set(k,[]);G.get(k).push(x);});
+    ents=[...G.entries()].map(([k,L])=>{const P=L.slice().sort((a,b)=>w(b)-w(a))[0];return {c:Object.assign({},P.c,{name:k,biz:L.map(x=>x.c.name).filter(n=>n!==k).join(', '),grp:L.map(x=>x.c.id)}),r:P.r};});}
   ents=ents.filter(x=>!x.r.hide).sort((a,b)=>(fin(a.r)-fin(b.r))||sortKey(a.c).localeCompare(sortKey(b.c),'ko'));
   return {D,past,cs:ents,done:ents.filter(x=>fin(x.r)).length,fin};
 }
@@ -1102,7 +1105,7 @@ function vRepTax(kind){
   if(kind==='ye')return vRepYe(p,past,cs,done,fin);
   const tax=v=>{if(v==null||v==='')return '';return typeof v==='number'?won(v):esc(v);};
   const row=({c,r})=>{const k=`${kind}|${p.key}|${c.id}`,ok=!!r.전송;const pay=typeof r.납부==='number'?r.납부:null;
-    return `<tr class="${ok?'ok':''}"><td class="nm" ${c.ag?`data-agent="${c.id}"`:`data-client="${c.id}"`}><b>${esc(c.name)}</b><span>${esc(c.type||'')}${c.ag?' · 신고대리':c.sincere?' · 성실':''}</span></td>
+    return `<tr class="${ok?'ok':''}"><td class="nm" ${c.ag?`data-agent="${c.id}"`:`data-client="${c.id}"`}><b>${esc(c.name)}</b><span>${c.biz?esc(c.biz):esc(c.type||'')}${c.ag?' · 신고대리':c.sincere?' · 성실':''}</span></td>
     <td class="kinds">${TXS.map(([f,n])=>`<button class="kp step ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
     <td><input class="ri" data-rpi="${k}|유형" value="${esc(r.유형||'')}" placeholder="${kind==='pit'?'간편/복식/성실/추계':'일반/중소'}"></td>
     <td><input class="ri num" data-rpi="${k}|수입" value="${tax(r.수입)}" placeholder="${kind==='pit'?'수입금액':'매출액'}"></td>
@@ -1125,7 +1128,7 @@ function vRepTax(kind){
 function vRepPitMid(p,past,cs,done,fin,ag){
   const sumG=cs.reduce((a,x)=>a+(x.r.고지==='고지'&&typeof x.r.고지액==='number'?x.r.고지액:0),0),nG=cs.filter(x=>x.r.고지==='고지').length,nN=cs.filter(x=>x.r.고지==='미고지').length;
   const row=({c,r})=>{const k=`pit|${p.key}|${c.id}`,ok=fin(r);
-    return `<tr class="${ok?'ok':''}"><td class="nm" ${c.ag?`data-agent="${c.id}"`:`data-client="${c.id}"`}><b>${esc(c.name)}</b><span>${esc(c.type||'')}${c.ag?' · 신고대리':''}</span></td>
+    return `<tr class="${ok?'ok':''}"><td class="nm" ${c.ag?`data-agent="${c.id}"`:`data-client="${c.id}"`}><b>${esc(c.name)}</b><span>${c.biz?esc(c.biz):esc(c.type||'')}${c.ag?' · 신고대리':''}</span></td>
     <td class="kinds">${['고지','미고지'].map(v=>`<button class="kp step ${r.고지===v?'on':''}" data-rpg="${k}|${v}">${v}</button>`).join('')}</td>
     <td><input class="ri num ${r.고지==='고지'?'pay':''}" data-rpi="${k}|고지액" value="${typeof r.고지액==='number'?won(r.고지액):esc(r.고지액||'')}" placeholder="${r.고지==='미고지'?'·':'고지금액'}"></td>
     <td><button class="ox ${r.전달?'on':''}" data-rpt="${k}|전달" title="납부서 전달">${r.전달?'○':''}</button></td>
