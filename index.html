@@ -924,13 +924,13 @@ const VT=[['수집','수집'],['카드작업','카드작업'],['부속','부속�
 function rptHead(kind){return head('신고 현황')+`<div class="fbar" style="margin-bottom:10px">${RT.map(([k,n])=>`<button class="fchip ${kind===k?'on':''}" data-rk="${k}">${n}</button>`).join('')}</div>`;}
 function vRep(){
   const kind=ui.rk||'wh';
-  if(kind!=='wh'&&kind!=='vat')return vRepGrid();
-  return rptHead(kind)+`<div class="csplit rsplit"><div class="cleft">${repSide(kind)}</div><div class="rmain">${ui.rv==='grid'?vRepGrid(true):kind==='wh'?vRepWh():vRepVat()}</div></div>`;
+  if(kind!=='wh'&&kind!=='vat'&&kind!=='gan')return vRepGrid();
+  return rptHead(kind)+`<div class="csplit rsplit"><div class="cleft">${repSide(kind)}</div><div class="rmain">${ui.rv==='grid'?vRepGrid(true):kind==='wh'?vRepWh():kind==='gan'?vRepGan():vRepVat()}</div></div>`;
 }
 function repSide(kind){
   const Y=ui.ry||new Date().getFullYear(),T=todayStr();let items='';
   const it=(sel,on,t,sub,done,tot,late)=>`<div class="rsi ${on?'on':''}" data-rsel="${sel}"><div class="t"><b>${t}</b><span>${sub}</span></div>${tot?`<div class="p"><span class="${done>=tot?'ok':late?'late':''}">${done}/${tot}</span><i><em style="width:${Math.round(done/tot*100)}%"></em></i></div>`:'<div class="p"><span class="sub">—</span></div>'}</div>`;
-  if(kind==='wh'){const cur=ui.rwm||pgAdd(pgNow(),-1);for(let m=1;m<=12;m++){const L=whList(Y,m);if(L.due>addDays(T,70)&&!L.cs.length)continue;items+=it(`wh|${L.ym}`,ui.rv!=='grid'&&cur===L.ym,`${m}월 귀속`,`기한 ${md(L.due)}`,L.done,L.cs.length,L.past&&L.done<L.cs.length);}}
+  if(kind==='wh'||kind==='gan'){const cur=ui.rwm||pgAdd(pgNow(),-1);for(let m=1;m<=12;m++){const L=kind==='gan'?ganList(Y,m):whList(Y,m);if(L.due>addDays(T,70)&&!L.cs.length)continue;items+=it(`wh|${L.ym}`,ui.rv!=='grid'&&cur===L.ym,`${m}월 귀속`,`${kind==='gan'?'제출':'기한'} ${md(L.due)}`,L.done,L.cs.length,L.past&&L.done<L.cs.length);}}
   else{const cur=ui.rvp||'2p';VP.forEach(([pk,n])=>{const L=vatList(Y,pk);items+=it(`vat|${pk}`,ui.rv!=='grid'&&cur===pk,n,`기한 ${md(L.due)}`,L.done,L.cs.length,L.past&&L.done<L.cs.length);});}
   return `<div class="calhead" style="margin-bottom:8px"><button class="nb" data-a="ryPrev">‹</button><b>${Y}년</b><button class="nb" data-a="ryNext">›</button></div>
   <div class="card list rsl">${items}<div class="rsi ${ui.rv==='grid'?'on':''}" data-rsel="grid"><div class="t"><b>📅 한 해 한눈에</b><span>거래처 × 월 체크표</span></div></div></div>`;
@@ -966,6 +966,30 @@ function vRepWh(){
   ${todo.length?`<tr class="grp"><td colspan="${nc}">할 것 ${todo.length}</td></tr>${todo.map(row).join('')}`:''}
   ${dn.length?`<tr class="grp"><td colspan="${nc}">완료 ${dn.length}</td></tr>${dn.map(row).join('')}`:''}
   ${cs.length?'':`<tr><td colspan="${nc}" class="empty">이 달 원천세 대상이 없어요</td></tr>`}</tbody></table></div></div>`;
+}
+
+function ganList(y,m){const L=whList(y,m),ym=L.ym,due=nextBiz(`${m===12?y+1:y}-${pad(m===12?1:m+1)}-${lastDay(m===12?y+1:y,m===12?1:m+1)}`),past=due<todayStr();
+  const need=(c,r)=>{const st=!!(r.일용||r.사업||r.기타||(y>=2027&&r.급여));const n={D:!!r.일용,S:!!(r.사업||r.기타),G:y>=2027&&!!r.급여};if(!st&&!(S.rpt.wh[ym]||{})[c.id]&&c.wh==='사업소득')n.S=true;return n;};
+  const cs=L.cs.map(x=>({...x,n:need(x.c,x.r)})).filter(x=>x.n.D||x.n.S||x.n.G).map(x=>({...x,ok:(!x.n.D||x.r.ganD)&&(!x.n.S||x.r.ganS)&&(!x.n.G||x.r.ganG)}))
+    .sort((a,b)=>(a.ok-b.ok)||sortKey(a.c).localeCompare(sortKey(b.c),'ko'));
+  return {ym,due,past,cs,done:cs.filter(x=>x.ok).length};}
+function vRepGan(){
+  const def=pgAdd(pgNow(),-1),ym0=ui.rwm||def,y=+ym0.slice(0,4),m=+ym0.slice(5,7);
+  const {ym,due,past,cs,done}=ganList(y,m),g27=y>=2027;
+  const cell=(k,f,on,ph)=>on?`<input class="ri dt" data-rpi="${k}|${f}" value="" placeholder="${ph}">`:'<span class="sub">·</span>';
+  const row=({c,r,n,ok})=>{const k=`wh|${ym}|${c.id}`;const inp=(f,on)=>on?`<input class="ri dt" data-rpi="${k}|${f}" value="${esc(r[f]||'')}" placeholder="제출일">`:'<span class="sub">·</span>';
+    return `<tr class="${ok?'ok':''}"><td class="nm" data-client="${c.id}"><b>${esc(c.name)}</b><span>${[n.G&&'근로',n.D&&'일용',n.S&&'사업·기타'].filter(Boolean).join(' · ')}</span></td>
+    <td><span class="st ${ok?'d':past?'l':''}" style="display:inline-block;text-align:center">${ok?'✓ 제출':past?'미제출':'제출 전'}</span></td>
+    ${g27?`<td>${inp('ganG',n.G)}</td>`:''}<td>${inp('ganD',n.D)}</td><td>${inp('ganS',n.S)}</td>
+    <td class="memo"><input class="ri wide" data-rpi="${k}|memo" value="${esc(r.memo||'')}" placeholder="메모"></td></tr>`};
+  const todo=cs.filter(x=>!x.ok),dn=cs.filter(x=>x.ok),nc=g27?6:5;
+  return `<div class="rtitle"><b>${y}년 ${m}월 귀속 간이지급명세서</b><span class="note">제출기한 <b style="color:${past&&todo.length?'var(--red)':'inherit'}">${md(due)}</b></span></div>
+  ${rpProg(done,cs.length)}
+  <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm">거래처</th><th>상태</th>${g27?'<th>간이 (근로)</th>':''}<th>간이 (일용)</th><th>간이 (사업·기타)</th><th class="memo">참고사항</th></tr></thead><tbody>
+  ${todo.length?`<tr class="grp"><td colspan="${nc}">제출할 것 ${todo.length}</td></tr>${todo.map(row).join('')}`:''}
+  ${dn.length?`<tr class="grp"><td colspan="${nc}">제출 완료 ${dn.length}</td></tr>${dn.map(row).join('')}`:''}
+  ${cs.length?'':`<tr><td colspan="${nc}" class="empty">이 달 간이지급명세서 대상이 없어요</td></tr>`}</tbody></table></div></div>
+  <p class="note" style="margin-top:8px">원천세 현황표와 같은 칸이라 어느 쪽에서 날짜를 넣어도 같이 바뀌어요. ${g27?'2027년부터 근로소득도 매월 제출이에요.':'2026년은 일용·사업(기타) 매월 제출, 근로는 반기(1월·7월)예요.'} 빈 칸을 두 번 누르면 오늘 날짜가 들어가요.</p>`;
 }
 const VSTEP=[['수집','수집'],['카드작업','카드'],['작성','작성'],['전달','전달'],['전송','전송'],['부속','부속']];
 function vatList(Y,pk){const pd=VP.find(x=>x[0]===pk),key=`${Y}-${pk}`,D=S.rpt.vat[key]||{};
