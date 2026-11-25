@@ -205,6 +205,9 @@ body.wide main{max-width:1760px}
 .rt tbody tr:hover td{background:var(--soft)}.rt td.na{color:var(--line)}
 .rc{min-width:44px;padding:4px 6px;border-radius:7px;border:1px solid transparent;background:var(--soft);color:var(--sub);font-size:12px;font-weight:600;cursor:pointer}
 .rc.d{background:var(--grnS);color:var(--grn)}.rc.l{background:var(--redS);color:var(--red);border-color:var(--red)}
+.fixframe{display:flex;flex-direction:column;height:calc(100dvh - 116px)}.fixframe #sres{flex:1;min-height:0;display:flex;flex-direction:column}
+.fixframe .pgtab{flex:1;min-height:0;display:flex;flex-direction:column}.fixframe .pgbody{flex:1;min-height:0;overflow:auto}.fixframe .pgrw.hd{position:static}
+@media(max-width:760px){.fixframe{height:calc(100dvh - 190px)}}
 .pgtab{padding:0;overflow:hidden}
 .pgrw{display:grid;grid-template-columns:minmax(150px,1.1fr) repeat(4,minmax(0,1fr));gap:14px;align-items:center;padding:9px 14px;border-top:1px solid var(--line)}
 .pgrw:hover{background:var(--soft)}.pgrw.hd{border-top:0;font-size:12px;color:var(--sub);padding-top:10px;padding-bottom:6px;position:sticky;top:0;background:var(--panel);z-index:1}.pgrw.hd:hover{background:var(--panel)}
@@ -1195,8 +1198,7 @@ function vProgYear(){
   let arr=S.clients.filter(c=>{const r=pgRange(c,y);if(r[0]>12||r[1]<1)return false;return c.status!=='폐업'||(c.close&&+c.close.slice(0,4)>=y);});
   const rows=arr.map(c=>{const bars=PG.map(([k])=>pgBar(c,k,y,bm));return {c,bars,miss:bars.reduce((a,x)=>a+x.miss,0)}});
   const st=PG.map(([k,n],i)=>{const app=rows.filter(r=>!pgna(r.c.id,k)),ok=app.filter(r=>r.bars[i].ok).length;return `<button class="card stat ${ok<app.length?'warn':''} ${ui.pgk===k?'sel':''}" data-pgk="${k}" style="text-align:left;cursor:pointer"><b>${ok}/${app.length}</b><span>${n} ${bm}월까지 완료${ok<app.length?` · ${app.length-ok}곳 밀림`:''}</span></button>`}).join('');
-  return `<div class="rtitle"><b>한 해 한눈에</b><span class="note">1월부터 기준월까지 다 들어갔는지</span></div>
-  <div class="calhead"><button class="nb" data-a="pgPrev">‹</button><b>${y}년 ${bm}월까지</b><button class="nb" data-a="pgNext">›</button>${b!==pgAdd(pgNow(),-1)?`<button class="btn g s" data-a="pgCur">지난달 기준</button>`:''}</div>
+  return `<div class="calhead"><button class="nb" data-a="pgPrev">‹</button><b>${y}년 ${bm}월까지</b><button class="nb" data-a="pgNext">›</button>${b!==pgAdd(pgNow(),-1)?`<button class="btn g s" data-a="pgCur">지난달 기준</button>`:''}</div>
   <div class="stats">${st}</div>
   <div class="fbar" style="margin:14px 0 8px">
     <button class="fchip ${ui.pgf!=='late'?'on':''}" data-pgf="all">전체</button><button class="fchip ${ui.pgf==='late'?'on':''}" data-pgf="late">밀린 곳만</button>
@@ -1204,8 +1206,8 @@ function vProgYear(){
     <select class="sel" data-in="pgs"><option value="name" ${ui.pgs!=='late'?'selected':''}>가나다순</option><option value="late" ${ui.pgs==='late'?'selected':''}>많이 밀린 순</option></select>
     <input class="search" data-in="pq" placeholder="거래처 검색" value="${esc(ui.pq||'')}">
   </div>
-  <div id="sres">${pgList(rows,y,bm)}</div>
-  <div class="pglg" style="margin-top:10px"><span><i style="background:var(--grn)"></i>완료</span><span><i style="background:var(--amb)"></i>진행·확인</span><span><i style="background:color-mix(in srgb,var(--red) 14%,var(--soft))"></i>아직 안 된 달</span><span><i style="background:repeating-linear-gradient(45deg,var(--soft) 0 3px,var(--line) 3px 6px)"></i>해당없음</span><span><i style="border:1px dashed var(--line)"></i>개업 전·폐업 후</span><span>칸을 누르면 월별로 고칠 수 있어요</span></div>`;
+  <div class="pglg" style="margin:0 0 8px"><span><i style="background:var(--grn)"></i>완료</span><span><i style="background:var(--amb)"></i>진행·확인</span><span><i style="background:color-mix(in srgb,var(--red) 14%,var(--soft))"></i>아직 안 된 달</span><span><i style="background:repeating-linear-gradient(45deg,var(--soft) 0 3px,var(--line) 3px 6px)"></i>해당없음</span><span><i style="border:1px dashed var(--line)"></i>개업 전·폐업 후</span><span>칸을 누르면 월별로 고칠 수 있어요</span></div>
+  <div id="sres">${pgList(rows,y,bm)}</div>`;
 }
 function pgList(rows,y,bm){
   let show=rows;
@@ -1218,20 +1220,13 @@ function pgList(rows,y,bm){
   const filt=[ui.pgk?PG.find(([k])=>k===ui.pgk)[1]+' 밀린 곳':'',ui.pgt||''].filter(Boolean).join(' · ');
   return `${filt?`<div class="note" style="margin-bottom:6px">${filt} ${show.length}곳 · <a href="#" data-a="pgReset">필터 지우기</a></div>`:''}
   <div class="card pgtab"><div class="pgrw hd"><div class="nm">거래처 <span>${show.length}곳</span></div>${PG.map(([k,n])=>`<div class="it"><b>${n}</b>${mo}</div>`).join('')}</div>
-  ${show.map(({c,bars,miss})=>{const r=pgRange(c,y);return `<div class="pgrw"><div class="nm" data-pgc="${c.id}"><b>${esc(c.name)}</b><span>${r[0]>1?`<em class="op">${r[0]}월 개업</em>`:''}${r[1]<12?`<em class="cl">${r[1]}월 폐업</em>`:''}${miss?`<em class="ms">${miss}칸 밀림</em>`:'<em class="dn">완료</em>'}</span></div>
-    ${bars.map((x,i)=>`<div class="it" data-pgc="${c.id}|${PG[i][0]}"><small>${PG[i][1]}</small>${x.h}</div>`).join('')}</div>`}).join('')||`<div class="empty">조건에 맞는 거래처가 없어요</div>`}</div>`;
+  <div class="pgbody">${show.map(({c,bars,miss})=>{const r=pgRange(c,y);return `<div class="pgrw"><div class="nm" data-pgc="${c.id}"><b>${esc(c.name)}</b><span>${r[0]>1?`<em class="op">${r[0]}월 개업</em>`:''}${r[1]<12?`<em class="cl">${r[1]}월 폐업</em>`:''}${miss?`<em class="ms">${miss}칸 밀림</em>`:'<em class="dn">완료</em>'}</span></div>
+    ${bars.map((x,i)=>`<div class="it" data-pgc="${c.id}|${PG[i][0]}"><small>${PG[i][1]}</small>${x.h}</div>`).join('')}</div>`}).join('')||`<div class="empty">조건에 맞는 거래처가 없어요</div>`}</div></div>`;
 }
 
 function pgMonth(c,y,m){const r=pgRange(c,y);if(!pgIn(r,m))return null;const ym=`${y}-${pad(m)}`;const cells=PG.map(([k])=>pgna(c.id,k)?{na:1}:{v:pgv(c.id,k,ym)});const need=cells.filter(x=>!x.na);return {cells,ok:need.every(x=>x.v==='d'||x.v==='x'),n:need.filter(x=>x.v==='d'||x.v==='x').length,t:need.length};}
 function pgMonthList(y,m){return S.clients.filter(c=>c.status!=='폐업'||(c.close&&+c.close.slice(0,4)>=y)).map(c=>({c,m:pgMonth(c,y,m)})).filter(x=>x.m).sort((a,b)=>(a.m.ok-b.m.ok)||sortKey(a.c).localeCompare(sortKey(b.c),'ko'));}
-function vProg(){
-  const def=pgAdd(pgNow(),-1),cur=ui.pgm||def,y=+cur.slice(0,4),m=+cur.slice(5,7),T=pgNow();
-  let items='';for(let i=1;i<=12;i++){const ym=`${y}-${pad(i)}`;if(ym>T)break;const L=pgMonthList(y,i),d=L.filter(x=>x.m.ok).length;
-    items+=`<div class="rsi ${ui.pgv!=='year'&&cur===ym?'on':''}" data-pgmo="${ym}"><div class="t"><b>${i}월</b><span>장부</span></div><div class="p"><span class="${d>=L.length?'ok':'late'}">${d}/${L.length}</span><i><em style="width:${L.length?Math.round(d/L.length*100):0}%"></em></i></div></div>`;}
-  const side=`<div class="calhead" style="margin-bottom:8px"><button class="nb" data-a="pgyPrev">‹</button><b>${y}년</b><button class="nb" data-a="pgyNext">›</button></div>
-  <div class="card list rsl">${items}<div class="rsi ${ui.pgv==='year'?'on':''}" data-pgmo="year"><div class="t"><b>📅 한 해 한눈에</b><span>거래처 × 12개월 막대</span></div></div></div>`;
-  return head('기장 진도')+`<div class="csplit rsplit"><div class="cleft">${side}</div><div class="rmain">${ui.pgv==='year'?vProgYear():vProgMonth(y,m)}</div></div>`;
-}
+function vProg(){return `<div class="fixframe">${head('기장 진도')}${vProgYear()}</div>`;}
 const PGT={d:['완료','d'],p:['진행','p'],x:['해당없음','x'],'':['—','']};
 function vProgMonth(y,m){
   const ym=`${y}-${pad(m)}`;let L=pgMonthList(y,m);
