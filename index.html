@@ -218,7 +218,7 @@ select.sel{background:var(--panel);border:1px solid var(--line);border-radius:10
   .head{margin-bottom:12px}
   .head .sp{margin-left:0;width:100%}
   .head .sp .btn{flex:1;justify-content:center}
-  .tabs{display:grid;grid-template-columns:repeat(6,1fr);position:fixed;bottom:0;left:0;right:0;z-index:15;background:var(--panel);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .tabs{display:grid;grid-template-columns:repeat(7,1fr);position:fixed;bottom:0;left:0;right:0;z-index:15;background:var(--panel);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
   .tabs button{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11px;color:var(--sub);font-weight:600;position:relative}
   .tabs button .ic{font-size:19px;line-height:1.2;filter:grayscale(1);opacity:.55}
   .tabs button.on{color:var(--acc)}
@@ -324,7 +324,8 @@ const ds=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
 
 /* ---------- 상태 ---------- */
 function migrate(s){
-  s=Object.assign({v:2,tasks:[],clients:[],pay:{},checks:{},logs:[],projects:[],theme:'light',updated:0},s||{});
+  s=Object.assign({v:2,tasks:[],clients:[],pay:{},checks:{},logs:[],jobs:[],projects:[],theme:'light',updated:0},s||{});
+  if(!Array.isArray(s.jobs))s.jobs=[];
   if(Array.isArray(s.calls)){s.calls.forEach(c=>s.logs.push({id:c.id,at:c.at,src:'통화',client:null,title:c.title,summary:c.summary,points:c.points||[],theirs:c.theirs||[],text:c.transcript||'',taskIds:c.taskIds||[]}));delete s.calls;}
   s.tasks.forEach(t=>{if(t.client===undefined)t.client=null;});
   s.v=2; return s;
@@ -472,11 +473,11 @@ function parse(text){
 }
 
 /* ---------- 화면 ---------- */
-const TABS=[{id:'home',n:'홈',ic:'🏠'},{id:'tasks',n:'할 일',ic:'✅'},{id:'cal',n:'세무달력',sn:'달력',ic:'📅'},{id:'clients',n:'거래처',ic:'🏢'},{id:'pay',n:'수금',ic:'💰'},{id:'logs',n:'기록',ic:'📞'}];
+const TABS=[{id:'home',n:'홈',ic:'🏠'},{id:'tasks',n:'할 일',ic:'✅'},{id:'cal',n:'세무달력',sn:'달력',ic:'📅'},{id:'clients',n:'거래처',ic:'🏢'},{id:'pay',n:'수금',ic:'💰'},{id:'logs',n:'기록',ic:'📞'},{id:'jobs',n:'위하고 작업',sn:'위하고',ic:'🤖'}];
 const openT=t=>t.status!=='done';
 function badges(){
   const t=todayStr();
-  return {tasks:S.tasks.filter(x=>openT(x)&&x.due&&x.due<=t).length,pay:S.clients.filter(c=>unpaidList(c.id).length).length};
+  return {tasks:S.tasks.filter(x=>openT(x)&&x.due&&x.due<=t).length,pay:S.clients.filter(c=>unpaidList(c.id).length).length,jobs:S.jobs.filter(j=>j.status==='check'||j.status==='fail').length};
 }
 function render(){
   document.documentElement.classList.toggle('dark',S.theme==='dark');
@@ -485,7 +486,7 @@ function render(){
   $('#nav').innerHTML=TABS.map(x=>`<button class="nav ${ui.tab===x.id?'on':''}" data-tab="${x.id}"><span class="ic">${x.ic}</span>${x.n}${b[x.id]?`<span class="n">${b[x.id]}</span>`:''}</button>`).join('');
   $('#tabs').innerHTML=TABS.map(x=>`<button class="${ui.tab===x.id?'on':''}" data-tab="${x.id}"><span class="ic">${x.ic}</span>${x.sn||x.n}${b[x.id]?`<span class="n">${b[x.id]}</span>`:''}</button>`).join('');
   $('#mtitle').textContent=TABS.find(x=>x.id===ui.tab).n;
-  $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs})[ui.tab]();
+  $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs,jobs:vJobs})[ui.tab]();
   if(ui.syncT) setSync(ui.syncT,ui.syncE);
 }
 const head=(title,extra='')=>{const d=new Date();return `<div class="head"><h1>${title}</h1><span class="sub">${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일</span><span class="sync" id="dsync"></span>${extra?`<div class="sp">${extra}</div>`:''}</div>`};
@@ -637,6 +638,71 @@ function vLogs(){
   <p class="note" style="margin-bottom:12px">톡이나 익시오 통화 요약을 복사해 <b>업무에 넣기</b> 단축어를 누르면, AI가 요약해서 여기에 남기고 할 일을 만들어요. 거래처도 자동으로 연결돼요.</p>
   ${logs.length?logs.map(logCard).join(''):'<div class="card"><div class="empty">아직 기록이 없어요</div></div>'}`;
 }
+
+/* ---------- 위하고 작업함 ---------- */
+const JK={pay:'급여대장 입력',etc:'이자·사업소득 입력',slip:'자동전표 처리',other:'기타'};
+const JS_={wait:{n:'대기',cls:'blu'},doing:{n:'진행 중',cls:'amb'},check:{n:'확인 필요',cls:'red'},done:{n:'완료',cls:'grn'},fail:{n:'실패',cls:'red'}};
+function jobCard(j){
+  const st=JS_[j.status]||JS_.wait,c=cl(j.client);
+  return `<div class="card lg" data-job="${j.id}"><div class="lh"><span class="chip ${st.cls}">${st.n}</span><b>${esc(JK[j.kind]||'작업')}${j.ym?` · ${esc(j.ym.replace('-','.'))}`:''}</b>${c?`<span class="chip acc">${esc(c.name)}</span>`:''}<span class="tm">${new Date(j.created).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}</span></div>
+    ${j.result?`<div class="ls">${esc(j.result.split('\n')[0])}</div>`:j.memo?`<div class="ls">${esc(j.memo)}</div>`:''}
+    <div class="lx">${j.memo?`<div class="lab">요청 메모</div><pre>${esc(j.memo)}</pre>`:''}
+      ${j.text?`<div class="lab">붙여넣은 표</div><pre>${esc(j.text)}</pre>`:''}
+      ${j.img?`<div class="lab">첨부 사진</div><img src="${j.img}" style="max-width:100%;border-radius:8px;border:1px solid var(--line)">`:''}
+      ${j.result?`<div class="lab">처리 결과</div><pre>${esc(j.result)}</pre>`:''}
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        ${j.status==='check'||j.status==='fail'?`<button class="btn s" data-jobact="ok|${j.id}">확인했어요</button>`:''}
+        ${j.status!=='wait'?`<button class="btn g s" data-jobact="retry|${j.id}">다시 맡기기</button>`:''}
+        <button class="del" data-jobact="del|${j.id}" style="margin-left:auto">삭제</button></div></div></div>`;
+}
+function vJobs(){
+  const js=S.jobs.slice().sort((a,b)=>b.created-a.created);
+  const act=js.filter(j=>j.status==='wait'||j.status==='doing'),chk=js.filter(j=>j.status==='check'||j.status==='fail'),dn=js.filter(j=>j.status==='done').slice(0,30);
+  return head('위하고 작업',`<button class="btn" data-a="jobNew">＋ 작업 맡기기</button>`)+`
+  <p class="note" style="margin-bottom:12px">급여대장 같은 자료를 여기에 올려두면 <b>평일 오전 10시·오후 3시</b>에 Claude가 위하고에서 처리하고 결과를 남겨요. 그 시간에 노트북과 크롬(위하고 로그인)이 켜져 있어야 해요.</p>
+  ${chk.length?`<div class="sec"><h2 style="color:var(--red)">확인 필요</h2></div>${chk.map(jobCard).join('')}`:''}
+  <div class="sec"><h2>대기 · 진행 중</h2></div>${act.length?act.map(jobCard).join(''):'<div class="card"><div class="empty">맡긴 작업이 없어요</div></div>'}
+  ${dn.length?`<div class="sec"><h2>완료</h2></div>${dn.map(jobCard).join('')}`:''}`;
+}
+function jobForm(){
+  const d0=new Date(),ym=`${d0.getFullYear()}-${pad(d0.getMonth()+1)}`;ui.jobImg='';
+  $('#mbox').innerHTML=`<h3>위하고 작업 맡기기</h3>
+    <select id="jC" class="sel" style="width:100%">${copt('')}</select>
+    <div style="display:flex;gap:8px"><select id="jK" class="sel" style="flex:1">${Object.entries(JK).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
+      <input id="jY" type="month" class="sel" value="${ym}" style="flex:1"></div>
+    <textarea id="jT" style="width:100%;min-height:130px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 11px" placeholder="엑셀 급여대장을 복사해서 붙여넣기 (가장 정확해요)"></textarea>
+    <label class="btn g" style="justify-content:center">📷 사진·캡처 첨부<input id="jImg" type="file" accept="image/*" style="display:none"></label>
+    <div id="jImgP" class="note"></div>
+    <input id="jM" class="sel" style="width:100%" placeholder="메모 (예: 김병식 11/2 퇴사, 지급일 25일)">
+    <div style="display:flex;gap:8px"><button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">취소</button><button class="btn" data-a="jobSave" style="flex:1;justify-content:center">맡기기</button></div>`;
+  $('#modal').classList.add('on');
+}
+function shrinkImg(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{
+  const go=(w,q)=>{const sc=Math.min(1,w/im.width),cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);return cv.toDataURL('image/jpeg',q);};
+  let u=go(1600,.75);if(u.length>420000)u=go(1300,.6);if(u.length>420000)u=go(1100,.5);res(u);};im.onerror=rej;im.src=r.result;};r.onerror=rej;r.readAsDataURL(file);});}
+function jobSave(){
+  const client=$('#jC').value||null,kind=$('#jK').value,ym=$('#jY').value||todayStr().slice(0,7),text=$('#jT').value.trim(),memo=$('#jM').value.trim(),img=ui.jobImg||'';
+  if(!client) return toast('거래처를 골라 주세요');
+  if(!text&&!img&&!memo) return toast('표를 붙여넣거나 사진을 첨부해 주세요');
+  S.jobs.push({id:uid(),client,kind,ym,text,img,memo,status:'wait',result:'',created:Date.now(),doneAt:null});
+  trimJobs();save();$('#modal').classList.remove('on');ui.tab='jobs';render();toast('맡겼어요 · 다음 처리 시간에 진행해요');
+}
+function trimJobs(){const now=Date.now();S.jobs.forEach(j=>{if(j.status==='done'&&j.img&&now-(j.doneAt||now)>3*864e5)j.img='';});
+  S.jobs=S.jobs.filter(j=>j.status!=='done'||now-(j.doneAt||now)<90*864e5);
+  if(JSON.stringify(S).length>850000)toast('저장 공간이 거의 찼어요. 완료된 작업의 사진을 지워 주세요');}
+function jobAct(v){const [a,id]=v.split('|'),j=S.jobs.find(x=>x.id===id);if(!j)return;
+  if(a==='del'){if(!confirm('이 작업을 삭제할까요?'))return;S.jobs=S.jobs.filter(x=>x.id!==id);}
+  else if(a==='retry'){j.status='wait';j.result=(j.result?j.result+'\n\n':'')+'— 다시 맡김 '+new Date().toLocaleString('ko-KR');}
+  else if(a==='ok'){j.status='done';j.doneAt=Date.now();}
+  save();render();}
+/* Claude가 크롬에서 작업함을 읽고 결과를 남길 때 쓰는 연결 */
+window.__jobs={
+  ready:()=>!!user,
+  list:(st)=>S.jobs.filter(j=>!st||j.status===st).map(j=>{const c=cl(j.client)||{};return {id:j.id,client:c.name||'',bizno:c.bizno||'',type:c.type||'',kind:JK[j.kind]||j.kind,ym:j.ym,text:j.text,memo:j.memo,hasImg:!!j.img,status:j.status,result:j.result,created:new Date(j.created).toISOString()};}),
+  img:(id)=>{const j=S.jobs.find(x=>x.id===id);return j?j.img:''},
+  update:(id,patch)=>{const j=S.jobs.find(x=>x.id===id);if(!j)return false;['status','result'].forEach(k=>{if(patch[k]!==undefined)j[k]=patch[k]});
+    if(patch.status==='done'){j.doneAt=Date.now();j.img='';}save();if(!ui.drawer)render();return true;}
+};
 
 /* ---------- 서랍 ---------- */
 function drawer(html,kind){const keep=ui.drawer===kind?$('#drawer').scrollTop:0;$('#drawer').innerHTML=html;$('#drawer').classList.add('on');$('#shade').classList.add('on');ui.drawer=kind;$('#drawer').scrollTop=keep;}
@@ -974,7 +1040,8 @@ document.addEventListener('click',e=>{
   if((el=q('[data-cf]'))){ui.cf=el.dataset.cf;render();return;}
   if((el=q('[data-subdel]'))){const x=S.tasks.find(t=>t.id===ui.openTask);x.subs=x.subs.filter(s=>s.id!==el.dataset.subdel);save();openTask(x.id);return;}
   if((el=q('[data-logdel]'))){if(confirm('이 기록을 삭제할까요? (할 일은 남아요)')){S.logs=S.logs.filter(l=>l.id!==el.dataset.logdel);save();render();}return;}
-  if((el=q('.lg'))&&!q('select')&&!q('button')){el.classList.toggle('open');return;}
+  if((el=q('[data-jobact]'))){jobAct(el.dataset.jobact);return;}
+  if((el=q('.lg'))&&!q('select')&&!q('button')&&!q('img')){el.classList.toggle('open');return;}
   if((el=q('[data-vreveal]'))){const k=el.dataset.vreveal,b=$(`[data-vshow="${k}"]`);if(!ui.vcur||!b)return;b.textContent=ui.vcur.v[k];vTimer();setTimeout(()=>{if(b.isConnected)b.textContent=k==='rrn'?rrnMask(ui.vcur.v[k]):'••••••••'},10000);return;}
   if((el=q('[data-vcopy]'))){const v=ui.vcur&&ui.vcur.v[el.dataset.vcopy];if(!v)return;navigator.clipboard.writeText(v).then(()=>toast('복사했어요'),()=>toast('복사하지 못했어요'));vTimer();return;}
   el=q('[data-a]'); if(!el) return; const a=el.dataset.a;
@@ -1009,6 +1076,7 @@ document.addEventListener('click',e=>{
     clientDel:()=>{const c=cl(ui.openClient);if(!c||!confirm(`${c.name}을(를) 삭제할까요? (할 일·기록은 남아요)`))return;S.clients=S.clients.filter(x=>x.id!==c.id);delete S.pay[c.id];S.tasks.forEach(t=>{if(t.client===c.id)t.client=null});save();closeDrawer();},
     clientTask:()=>{const t=prompt('할 일 (예: 급여대장 요청 내일)');if(!t)return;const p=parse(t);S.tasks.push({id:uid(),...p,client:ui.openClient,status:'todo',memo:'',subs:[],created:Date.now(),doneAt:null});save();openClient(ui.openClient);toast('할 일을 추가했어요');},
     taskDel:()=>{const x=S.tasks.find(t=>t.id===ui.openTask);const i=S.tasks.indexOf(x);S.tasks.splice(i,1);save();closeDrawer();toast('삭제했어요',()=>{S.tasks.splice(i,0,x);save();render();});},
+    jobNew:jobForm, jobSave,
     live:openLive, logs:()=>{ui.tab='logs';closeDrawer();}
   };
   if(acts[a]) acts[a]();
@@ -1030,6 +1098,7 @@ document.addEventListener('change',e=>{
   if(d.pk!==undefined){picks[+d.pk].on=el.checked;return;}
   if(d.pc!==undefined){picks[+d.pc].client=el.value||null;return;}
   if(d.pmc){pickMeta.client=el.value||null;picks.forEach(p=>{if(!p.client)p.client=pickMeta.client});return;}
+  if(el.id==='jImg'&&el.files[0]){$('#jImgP').textContent='사진 줄이는 중…';shrinkImg(el.files[0]).then(u=>{ui.jobImg=u;$('#jImgP').innerHTML=`<img src="${u}" style="max-width:100%;max-height:160px;border-radius:8px"> ${Math.round(u.length/1024)}KB`;}).catch(()=>{$('#jImgP').textContent='사진을 읽지 못했어요 (JPG·PNG로 올려 주세요)';});return;}
   if(d.logclient){const l=S.logs.find(x=>x.id===d.logclient);l.client=el.value||null;save();return;}
   if(d.mine!==undefined&&L&&L.ai){L.picked[L.ai.mine[+d.mine].title]=el.checked;return;}
 });
