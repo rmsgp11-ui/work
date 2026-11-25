@@ -679,9 +679,6 @@ function vHome(){
   ${!S.clients.length?`<div class="card" style="padding:16px;margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">거래처 데이터를 넣으면 세무 기한이 자동으로 달력에 들어가요.</span><button class="btn" data-a="import">거래처 가져오기</button></div>`:''}
   <div class="hgrid">
     <div>
-      ${pastOpen.length?`<div class="sec"><h2 style="color:var(--red)">⚠ 체크 안 한 지난 기한</h2><button class="more" data-tab="cal">달력 ›</button></div><div class="card list">${pastOpen.map(dlRow).join('')}</div>`:''}
-      <div class="sec"><h2>2주 안 마감</h2><button class="more" data-tab="cal">달력 ›</button></div>
-      <div class="card list">${evs.length?evs.map(dlRow).join(''):`<div class="empty">2주 안에 남은 기한이 없어요 👍</div>`}</div>
       <div class="sec"><h2>오늘 할 일${late?` <span class="chip red">기한 지남 ${late}</span>`:''}</h2><button class="more" data-tab="tasks">전체 ›</button></div>
       ${quickBar()}
       <div class="card list">${todayTasks.length?todayTasks.map(taskRow).join(''):'<div class="empty">오늘 할 일을 다 끝냈어요 🎉</div>'}</div>
@@ -692,6 +689,9 @@ function vHome(){
     <div>
       <div class="sec"><h2>진행 중인 신고</h2><button class="more" data-tab="rep">신고 현황 ›</button></div>
       <div class="card list hrl">${R.length?R.map(repRow).join(''):'<div class="empty">진행 중인 신고가 없어요</div>'}</div>
+      ${pastOpen.length?`<div class="sec"><h2 style="color:var(--red)">⚠ 체크 안 한 지난 기한</h2><button class="more" data-tab="cal">달력 ›</button></div><div class="card list">${pastOpen.map(dlRow).join('')}</div>`:''}
+      <div class="sec"><h2>2주 안 마감</h2><button class="more" data-tab="cal">달력 ›</button></div>
+      <div class="card list">${evs.length?evs.map(dlRow).join(''):`<div class="empty">2주 안에 남은 기한이 없어요 👍</div>`}</div>
     </div>
   </div>`;
 }
