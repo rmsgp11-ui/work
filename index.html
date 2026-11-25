@@ -159,6 +159,12 @@ body.wide main{max-width:1760px}
 .rmode{display:inline-flex;gap:0;margin-bottom:10px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}.rmode button{padding:8px 18px;border:0;background:transparent;font-weight:700;color:var(--sub);cursor:pointer}.rmode button.on{background:var(--acc);color:#fff}.rmode span{font-size:11px;opacity:.8}
 .agl{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);cursor:pointer;font-size:13px}.agl:first-of-type{border-top:0}.agl span{color:var(--sub);font-size:12px}
 .ri.num.pay{color:var(--red);font-weight:700}.ri.num.refund{color:var(--blu);font-weight:700}
+.rmain .rscroll{overflow-x:hidden}.rmain .xt{table-layout:auto;width:100%}
+.rmain .xt th,.rmain .xt td{padding:8px 6px}.rmain .xt td.nm{min-width:120px;max-width:190px}
+.rmain .kp{padding:2px 6px;font-size:11px;margin-right:2px}.rmain .kinds{white-space:normal;min-width:150px}
+.rmain .ri.dt{width:84px}.rmain .ri.num{width:96px}.rmain .kd .seg2{display:flex;margin:3px 0 0}
+.rmain .xt th.memo,.rmain .xt td.memo{width:auto;min-width:110px}.rmain .ri.wide{min-width:0;width:100%}
+.rmain .st{min-width:0;padding:4px 8px}
 .rsplit{grid-template-columns:1fr}@media(min-width:900px){.rsplit{grid-template-columns:260px minmax(0,1fr)}}
 .rmain{min-width:0}.rtitle{display:flex;align-items:baseline;gap:10px;margin:2px 0 10px}.rtitle b{font-size:18px}
 .rsl{padding:0}.rsi{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);cursor:pointer}.rsi:first-child{border-top:0}.rsi:hover{background:var(--soft)}
@@ -593,7 +599,7 @@ function render(){
   $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs,jobs:vJobs,prog:vProg,rep:vRep})[ui.tab]();
   if(ui.syncT) setSync(ui.syncT,ui.syncE);
   if(ui.tab==='jobs')fillImgs();
-  document.body.classList.toggle('wide',ui.tab==='clients');
+  document.body.classList.toggle('wide',ui.tab==='clients'||ui.tab==='rep');
   if(ui.tab==='clients'&&paneMode()&&ui.selClient&&cl(ui.selClient))openClient(ui.selClient);
 }
 const head=(title,extra='')=>{const d=new Date();return `<div class="head"><h1>${title}</h1><span class="sub">${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일</span><span class="sync" id="dsync"></span>${extra?`<div class="sp">${extra}</div>`:''}</div>`};
@@ -885,7 +891,7 @@ function jobAct(v){const [a,id]=v.split('|'),j=S.jobs.find(x=>x.id===id);if(!j)r
 
 
 /* ---------- 신고 현황 ---------- */
-const RT=[['wh','원천세'],['vat','부가세'],['gan','간이지급명세서'],['pit','소득세'],['cit','법인세']];
+const RT=[['wh','원천세'],['vat','부가세'],['ye','연말정산'],['pit','소득세'],['cit','법인세']];
 function repCols(kind,Y){
   const M12=[...Array(12)].map((_,i)=>i+1), nx=m=>m===12?[Y+1,1]:[Y,m+1];
   if(kind==='wh')return M12.map(m=>({h:m+'월',sub:'귀속',wym:`${Y}-${pad(m)}`,ev:[[...nx(m),['wh']]]}));
@@ -932,7 +938,7 @@ function rptHead(kind){const ag=ui.rmode==='ag';const list=ag?RT.filter(([k])=>k
 function vRep(){
   if(ui.rmode==='ag'&&ui.rk!=='pit'&&ui.rk!=='cit')ui.rk='pit';
   const kind=ui.rk||'wh';
-  if(kind==='pit'||kind==='cit')return rptHead(kind)+`<div class="csplit rsplit"><div class="cleft">${taxSide(kind)}</div><div class="rmain">${ui.rv==='grid'&&ui.rmode!=='ag'?vRepGrid(true):vRepTax(kind)}</div></div>`;
+  if(kind==='pit'||kind==='cit'||kind==='ye')return rptHead(kind)+`<div class="csplit rsplit"><div class="cleft">${taxSide(kind)}</div><div class="rmain">${ui.rv==='grid'&&ui.rmode!=='ag'&&kind!=='ye'?vRepGrid(true):vRepTax(kind)}</div></div>`;
   if(kind!=='wh'&&kind!=='vat'&&kind!=='gan')return vRepGrid();
   return rptHead(kind)+`<div class="csplit rsplit"><div class="cleft">${repSide(kind)}</div><div class="rmain">${ui.rv==='grid'?vRepGrid(true):kind==='wh'?vRepWh():kind==='gan'?vRepGan():vRepVat()}</div></div>`;
 }
@@ -1031,17 +1037,18 @@ function vRepVat(){
 /* 소득세·법인세 (기장 / 신고대리) */
 const TXS=[['자료','자료'],['작성','작성'],['검토','검토'],['전달','전달'],['전송','전송'],['수수료','수수료']];
 function taxPers(kind,Y){
+  if(kind==='ye')return [{key:`${Y-1}`,n:`${Y-1}년 귀속`,sub:'연말정산',due:nextBiz(`${Y}-03-10`)},{key:`${Y}`,n:`${Y}년 귀속`,sub:'연말정산',due:nextBiz(`${Y+1}-03-10`)}];
   if(kind==='pit')return [{key:`${Y-1}`,n:`${Y-1}년 귀속`,sub:'확정신고',due:nextBiz(`${Y}-06-01`)},{key:`${Y}-mid`,n:`${Y}년 중간예납`,sub:'고지·추계',due:nextBiz(`${Y}-11-30`)},{key:`${Y}`,n:`${Y}년 귀속`,sub:'확정신고',due:nextBiz(`${Y+1}-06-01`)}];
   return [{key:`${Y-1}`,n:`${Y-1} 사업연도`,sub:'법인세 신고',due:nextBiz(`${Y}-03-31`)},{key:`${Y}-mid`,n:`${Y} 중간예납`,sub:'8월',due:nextBiz(`${Y}-08-31`)},{key:`${Y}`,n:`${Y} 사업연도`,sub:'법인세 신고',due:nextBiz(`${Y+1}-03-31`)}];
 }
 const agt=id=>S.agents.find(a=>a.id===id);
-const taxFin=(kind,per)=>kind==='pit'&&per.includes('mid')?(r=>r.고지==='미고지'||(r.고지==='고지'&&!!r.전달)):(r=>!!r.전송);
+const taxFin=(kind,per)=>kind==='ye'?(r=>!!r.제출):kind==='pit'&&per.includes('mid')?(r=>r.고지==='미고지'||(r.고지==='고지'&&!!r.전달)):(r=>!!r.전송);
 function taxList(kind,per,due){
   const ag=ui.rmode==='ag',D=((S.rpt[kind]||{})[per])||{},past=due<todayStr(),isP=kind==='pit';
   const yr=+per.slice(0,4),pend=per.includes('mid')?`${yr}-06-30`:`${yr}-12-31`;
   let ents;
   if(ag)ents=S.agents.filter(a=>D[a.id]).map(a=>({c:{id:a.id,name:a.name,type:a.type,ag:1},r:D[a.id]}));
-  else ents=S.clients.filter(c=>c.status!=='폐업'||D[c.id]).filter(c=>(isP?c.type!=='법인':c.type==='법인')).filter(c=>D[c.id]||!(c.open&&c.open>pend)).map(c=>({c,r:D[c.id]||{}}));
+  else ents=S.clients.filter(c=>c.status!=='폐업'||D[c.id]).filter(c=>kind==='ye'?(c.wh==='당월'||c.wh==='반기'):(isP?c.type!=='법인':c.type==='법인')).filter(c=>D[c.id]||!(c.open&&c.open>pend)).map(c=>({c,r:D[c.id]||{}}));
   const fin=taxFin(kind,per);
   ents=ents.filter(x=>!x.r.hide).sort((a,b)=>(fin(a.r)-fin(b.r))||sortKey(a.c).localeCompare(sortKey(b.c),'ko'));
   return {D,past,cs:ents,done:ents.filter(x=>fin(x.r)).length,fin};
@@ -1051,13 +1058,14 @@ function taxSide(kind){
   const it=(sel,on,t,sub,done,tot,late)=>`<div class="rsi ${on?'on':''}" data-rtp="${sel}"><div class="t"><b>${t}</b><span>${sub}</span></div>${tot?`<div class="p"><span class="${done>=tot?'ok':late?'late':''}">${done}/${tot}</span><i><em style="width:${Math.round(done/tot*100)}%"></em></i></div>`:'<div class="p"><span class="sub">—</span></div>'}</div>`;
   const items=taxPers(kind,Y).map(p=>{const L=taxList(kind,p.key,p.due);return it(p.key,ui.rv!=='grid'&&cur===p.key,p.n,`${p.sub} · 기한 ${md(p.due)}`,L.done,L.cs.length,L.past&&L.done<L.cs.length)}).join('');
   return `<div class="calhead" style="margin-bottom:8px"><button class="nb" data-a="ryPrev">‹</button><b>${Y}년</b><button class="nb" data-a="ryNext">›</button></div>
-  <div class="card list rsl">${items}${ui.rmode==='ag'?'':`<div class="rsi ${ui.rv==='grid'?'on':''}" data-rsel="grid"><div class="t"><b>📅 한 해 한눈에</b><span>거래처 × 신고 체크표</span></div></div>`}</div>
+  <div class="card list rsl">${items}${ui.rmode==='ag'||kind==='ye'?'':`<div class="rsi ${ui.rv==='grid'?'on':''}" data-rsel="grid"><div class="t"><b>📅 한 해 한눈에</b><span>거래처 × 신고 체크표</span></div></div>`}</div>
   ${ui.rmode==='ag'?`<div class="card" style="margin-top:10px;padding:10px 14px"><div class="lab">등록된 신고대리 ${S.agents.length}곳</div>${S.agents.slice().sort((a,b)=>a.name.localeCompare(b.name,'ko')).map(a=>`<div class="agl" data-agent="${a.id}"><b>${esc(a.name)}</b><span>${esc(a.type)}${a.fee?' · '+won(a.fee)+'원':''}</span></div>`).join('')||'<p class="note">아직 없어요. 위의 ＋ 신고대리 등록으로 추가하세요.</p>'}</div>`:''}`;
 }
 function vRepTax(kind){
   const Y=ui.ry||new Date().getFullYear(),P=taxPers(kind,Y),p=P.find(x=>x.key===ui.rtp)||P[0],ag=ui.rmode==='ag';
   const {past,cs,done,fin}=taxList(kind,p.key,p.due);
   if(kind==='pit'&&p.key.includes('mid'))return vRepPitMid(p,past,cs,done,fin,ag);
+  if(kind==='ye')return vRepYe(p,past,cs,done,fin);
   const tax=v=>{if(v==null||v==='')return '';return typeof v==='number'?won(v):esc(v);};
   const row=({c,r})=>{const k=`${kind}|${p.key}|${c.id}`,ok=!!r.전송;const pay=typeof r.납부==='number'?r.납부:null;
     return `<tr class="${ok?'ok':''}"><td class="nm" ${c.ag?`data-agent="${c.id}"`:`data-client="${c.id}"`}><b>${esc(c.name)}</b><span>${esc(c.type||'')}${c.ag?' · 신고대리':c.sincere?' · 성실':''}</span></td>
@@ -1100,6 +1108,25 @@ function vRepPitMid(p,past,cs,done,fin,ag){
   ${cs.length?'':`<tr><td colspan="${nc}" class="empty">대상이 없어요</td></tr>`}</tbody></table></div></div>
   <p class="note" style="margin-top:8px">'미고지'이거나, '고지'이고 납부서를 전달했으면 완료로 내려가요.</p>`;
 }
+
+const YES=[['요청','자료요청'],['수령','자료수령'],['계산','계산'],['검토','검토'],['전달','결과전달'],['제출','지급명세서 제출']];
+function vRepYe(p,past,cs,done,fin){
+  const num=v=>typeof v==='number'?won(v):esc(v||'');
+  const row=({c,r})=>{const k=`ye|${p.key}|${c.id}`,ok=fin(r);
+    return `<tr class="${ok?'ok':''}"><td class="nm" data-client="${c.id}"><b>${esc(c.name)}</b><span>${esc(c.type||'')} · ${esc(WHN[c.wh]||'')}</span></td>
+    <td class="kinds">${YES.map(([f,n])=>`<button class="kp step ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
+    <td><input class="ri num" data-rpi="${k}|인원" value="${num(r.인원)}" placeholder="인원"></td>
+    <td><input class="ri num ${typeof r.정산==='number'?(r.정산<0?'refund':'pay'):''}" data-rpi="${k}|정산" value="${num(r.정산)}" placeholder="추징(−환급)"></td>
+    <td class="memo"><input class="ri wide" data-rpi="${k}|memo" value="${esc(r.memo||'')}" placeholder="메모 (중도퇴사·특이사항)"></td></tr>`};
+  const todo=cs.filter(x=>!fin(x.r)),dn=cs.filter(x=>fin(x.r));
+  return `<div class="rtitle"><b>${p.n} 연말정산</b><span class="note">지급명세서 제출·원천세 신고 기한 <b style="color:${past&&todo.length?'var(--red)':'inherit'}">${md(p.due)}</b></span></div>
+  ${rpProg(done,cs.length)}
+  <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm">거래처</th><th>진행 단계</th><th class="r">인원</th><th class="r">정산세액</th><th class="memo">메모</th></tr></thead><tbody>
+  ${todo.length?`<tr class="grp"><td colspan="5">할 것 ${todo.length}</td></tr>${todo.map(row).join('')}`:''}
+  ${dn.length?`<tr class="grp"><td colspan="5">제출 완료 ${dn.length}</td></tr>${dn.map(row).join('')}`:''}
+  ${cs.length?'':'<tr><td colspan="5" class="empty">직원이 있는 거래처가 없어요 (거래처 원천세 설정이 매월·반기인 곳이 대상)</td></tr>'}</tbody></table></div></div>
+  <p class="note" style="margin-top:8px">대상은 원천세 설정이 매월·반기인 거래처예요. <b>지급명세서 제출</b>을 켜면 완료로 내려가고 세무 일정(3/10 지급명세서)도 체크돼요.</p>`;
+}
 function agentForm(id,after){
   const a=id?agt(id):{name:'',type:'개인',bizno:'',ceo:'',phone:'',fee:'',memo:''};
   $('#mbox').innerHTML=`<h3>${id?'신고대리 정보':'신고대리 등록'}</h3>
@@ -1120,6 +1147,7 @@ function rptSync(kind,per,cid,r){
   if(kind==='wh'){const y=+per.slice(0,4),m=+per.slice(5,7);const [y2,m2]=m===12?[y+1,1]:[y,m+1];
     rawEvents(y2,m2).filter(e=>e.t==='wh').forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;if(r.st==='완료')S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});
     const R=whRow(r);rawEvents(y2,m2).filter(e=>e.t==='gan').forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;const v=e.label.includes('사업')?R.ganS:e.label.includes('근로')?R.ganG:null;if(v===null)return;if(v)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
+  else if(kind==='ye'){const yr=+per.slice(0,4);rawEvents(yr+1,3).filter(e=>e.t==='jg'&&e.ids.includes(cid)).forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;if(r.제출)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
   else if(kind==='pit'||kind==='cit'){const yr=+per.slice(0,4),mid=per.includes('mid');const ts=kind==='pit'?(mid?['pitm']:['pit']):(mid?['citm']:['cit','citl']);const ey=mid?yr:yr+1;
     for(let mm=1;mm<=12;mm++)rawEvents(ey,mm).filter(e=>ts.includes(e.t)&&e.ids.includes(cid)).forEach(e=>{const k=`${e.t}|${e.raw}|${e.label}|${cid}`;const ok=taxFin(kind,per)(r);if(ok)S.checks[k]=S.checks[k]||Date.now();else delete S.checks[k];});}
   else{const [Y,pk]=per.split('-');const pd=VP.find(x=>x[0]===pk);const ey=pk==='2f'?+Y+1:+Y;const ok=pk.endsWith('p')?r.전송:r.작성;
