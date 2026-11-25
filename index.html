@@ -989,7 +989,7 @@ function rptSet(spec,val){const [kind,per,cid,f]=spec.split('|');const T=S.rpt[k
   if(kind==='wh'&&r.gan!==undefined){const R=whRow(r);['ganD','ganS','kdDate','kdWay'].forEach(x=>{if(R[x])r[x]=R[x]});delete r.gan;}
   if(val===undefined){if(f==='st')r.st=r.st==='완료'?'':'완료';else r[f]=r[f]?'':'○';}else r[f]=val;
   rptSync(kind,per,cid,r);save();}
-window.__rpt={put:(kind,per,rows)=>{const T=S.rpt[kind];T[per]=T[per]||{};let n=0;rows.forEach(o=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(o.bizno));if(!c)return;T[per][c.id]=Object.assign(T[per][c.id]||{},o.d);rptSync(kind,per,c.id,T[per][c.id]);n++;});save();if(!ui.drawer)render();return n;}};
+window.__rpt={del:(kind,per,bizno)=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(bizno));const T=S.rpt[kind][per];if(!c||!T||!T[c.id])return 0;delete T[c.id];save();if(!ui.drawer)render();return 1;},put:(kind,per,rows)=>{const T=S.rpt[kind];T[per]=T[per]||{};let n=0;rows.forEach(o=>{const c=S.clients.find(x=>String(x.bizno||'').replace(/\D/g,'')===String(o.bizno));if(!c)return;T[per][c.id]=Object.assign(T[per][c.id]||{},o.d);rptSync(kind,per,c.id,T[per][c.id]);n++;});save();if(!ui.drawer)render();return n;}};
 /* ---------- 기장 진도 ---------- */
 const PG=[['card','카드'],['bank','통장'],['tax','계산서'],['pay','급여']];
 const PGN={card:'카드 전표',bank:'통장 전표',tax:'전자세금계산서·계산서',pay:'급여 회계전표'};
