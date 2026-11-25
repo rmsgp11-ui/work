@@ -1193,7 +1193,7 @@ function pgCell(cid,k,basis){
 }
 function pgBar(c,k,y,bm){
   if(pgna(c.id,k))return {h:`<div class="bar na">${'<i></i>'.repeat(12)}</div><span class="n">없음</span>`,miss:0,ok:true};
-  const r=pgRange(c,y);let dn=0,need=0;const seg=[...Array(12)].map((_,m)=>{const v=pgv(c.id,k,`${y}-${pad(m+1)}`);if(!pgIn(r,m+1))return `<i class="out"></i>`;if(m<bm){need++;if(v==='d'||v==='x')dn++;}return `<i class="${v}${m+1>bm?' fut':(!v?' gap':'')}" data-pgq="${c.id}|${k}|${y}-${pad(m+1)}" title="${m+1}월 ${PGS[v]||'미완료'} · 누르면 ${v==='d'?'되돌림':'완료'}"></i>`}).join('');
+  const r=pgRange(c,y);let dn=0,need=0;const seg=[...Array(12)].map((_,m)=>{const v=pgv(c.id,k,`${y}-${pad(m+1)}`);if(!pgIn(r,m+1))return `<i class="out"></i>`;if(m<bm){need++;if(v==='d'||v==='x')dn++;}return `<i class="${v}${m+1>bm?' fut':(!v?' gap':'')}" data-pgq="${c.id}|${k}|${y}-${pad(m+1)}" title="${m+1}월 ${PGS[v]||'미완료'} · 누르면 ${{'':'진행중',p:'완료',d:'비움',x:'진행중'}[v||'']}"></i>`}).join('');
   const ok=dn>=need;return {h:`<div class="bar">${seg}</div><span class="n ${ok?'ok':'no'}">${need?dn+'/'+need:'—'}</span>`,miss:need-dn,ok};
 }
 function vProgYear(){
@@ -1641,7 +1641,7 @@ document.addEventListener('click',e=>{
   if((el=q('[data-logdel]'))){if(confirm('이 기록을 삭제할까요? (할 일은 남아요)')){S.logs=S.logs.filter(l=>l.id!==el.dataset.logdel);save();render();}return;}
   if((el=q('[data-jobact]'))){jobAct(el.dataset.jobact);return;}
   if((el=q('[data-jzoom]'))){const im=el.querySelector('img');if(im&&im.src){const w=window.open();if(w)w.document.write(`<title>첨부 사진</title><body style="margin:0;background:#111"><img src="${im.src}" style="max-width:100%;display:block;margin:auto">`);}return;}
-  if((el=q('[data-pgq]'))){const [cid,k,ym]=el.dataset.pgq.split('|'),v=pgv(cid,k,ym);pgSet(cid,k,ym,v==='d'?'':'d');save();render();return;}
+  if((el=q('[data-pgq]'))){const [cid,k,ym]=el.dataset.pgq.split('|'),v=pgv(cid,k,ym);pgSet(cid,k,ym,{'':'p',p:'d',d:'',x:'p'}[v||'']);save();render();return;}
   if((el=q('[data-pgx]'))){const [cid,k,ym]=el.dataset.pgx.split('|'),v=pgv(cid,k,ym);pgSet(cid,k,ym,{'':'d',d:'p',p:'x',x:''}[v]);save();render();return;}
   if((el=q('[data-pgmo]'))){const v=el.dataset.pgmo;if(v==='year')ui.pgv='year';else{ui.pgv='month';ui.pgm=v;}render();return;}
   if((el=q('[data-pgm],[data-pgall],[data-pgna]'))){pgClick(el);return;}
