@@ -159,7 +159,7 @@ body.wide main{max-width:1760px}
 .rmode{display:inline-flex;gap:0;margin-bottom:10px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}.rmode button{padding:8px 18px;border:0;background:transparent;font-weight:700;color:var(--sub);cursor:pointer}.rmode button.on{background:var(--acc);color:#fff}.rmode span{font-size:11px;opacity:.8}
 .agl{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);cursor:pointer;font-size:13px}.agl:first-of-type{border-top:0}.agl span{color:var(--sub);font-size:12px}
 .ri.num.pay{color:var(--red);font-weight:700}.ri.num.refund{color:var(--blu);font-weight:700}
-.repframe .rsplit{flex:1;min-height:0;align-items:stretch}.repframe .cleft{min-height:0;overflow:auto}
+.repframe .rsplit{flex:1;min-height:0;align-items:stretch;grid-template-rows:minmax(0,1fr)}.repframe .cleft{min-height:0;overflow:auto}
 .repframe .rmain{display:flex;flex-direction:column;min-height:0}.repframe .rmain .rtab{flex:1;min-height:0;display:flex;flex-direction:column}
 .repframe .rmain .rscroll{flex:1;min-height:0;max-height:none;overflow-y:auto;overflow-x:hidden}.repframe .rmain>.note{flex:none}
 @media(max-width:899px){.repframe{height:auto}.repframe .rsplit{flex:none}}
