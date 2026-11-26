@@ -309,6 +309,7 @@ body.wide main{max-width:1760px}
 .links a{font-size:13px;padding:6px 11px;border-radius:99px;background:var(--acc2);color:var(--acc);text-decoration:none;font-weight:700}
 .modal{position:fixed;inset:0;z-index:30;display:none;place-items:center;background:rgba(15,18,24,.35);padding:18px}
 .modal.on{display:grid}
+.vx{display:block;font-size:11px;font-weight:500;color:var(--sub);white-space:nowrap}.chip .vx{display:inline;color:inherit;opacity:.75}
 .rvt th,.rvt td{border-bottom:1px solid var(--line);padding:5px 6px}.rred{color:var(--red)}
 .rkpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}.rkpi>div{background:var(--soft);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}.rkpi span{font-size:12px;color:var(--sub)}.rkpi b{font-size:22px;letter-spacing:-.3px}.rkpi i{font-style:normal;font-size:12.5px;font-weight:700;color:var(--grn)}.rkpi i.bad{color:var(--red)}.rkpi .warn{background:color-mix(in srgb,var(--red) 8%,var(--panel))}
 .rpts{margin:0 0 14px;padding:12px 14px 12px 30px;background:color-mix(in srgb,var(--acc) 6%,var(--panel));border-radius:12px;font-size:14px;line-height:1.75}
@@ -885,12 +886,12 @@ function vInv(){
     <div class="card stat"><b>${cnt('grn')}곳</b><span>일치</span></div></div><div class="sec"><h2>${2000+ +String(curYM()).slice(0,2)}년 거래처별 (공급가액 기준)</h2><span class="more">발행 내역 기준일 ${esc(S.invAt||'')} · 수금은 부가세 뺀 금액으로 환산 · 조정료·추가 청구 포함</span></div>
   <div class="pscroll">
   <div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
-  <thead><tr style="text-align:left;color:var(--sub);border-bottom:1px solid var(--line)"><th style="padding:8px">거래처</th><th style="padding:8px;text-align:right">월 기장료</th><th style="padding:8px;text-align:right">수금(확인)</th><th style="padding:8px">수금 상태 불명·미수</th><th style="padding:8px;text-align:right">발행</th><th style="padding:8px">발행일</th><th style="padding:8px">판정</th></tr></thead>
+  <thead><tr style="text-align:left;color:var(--sub);border-bottom:1px solid var(--line)"><th style="padding:8px">거래처</th><th style="padding:8px;text-align:right">월 기장료</th><th style="padding:8px;text-align:right">수금(확인) 공급가 + VAT</th><th style="padding:8px">수금 상태 불명·미수</th><th style="padding:8px;text-align:right">발행 공급가 + 세액</th><th style="padding:8px">발행일</th><th style="padding:8px">판정</th></tr></thead>
   <tbody>${R.map(r=>`<tr style="border-bottom:1px solid var(--line)"><td style="padding:8px"><b data-client="${r.c.id}" style="cursor:pointer">${esc(r.c.name)}</b></td>
     <td style="padding:8px;text-align:right">${r.fee?won(r.fee):'-'}</td>
-    <td style="padding:8px;text-align:right">${won(r.paid)}<div style="color:var(--sub);font-size:11px">${r.pm}개월${r.fp.length?` + ${r.fp.map(f=>esc(f.kind)).join('·')} ${won(r.fpS)}`:''}</div></td>
+    <td style="padding:8px;text-align:right">${won(r.paid)}<small class="vx"> + VAT ${won(vfree(r.c)?0:Math.round(r.paid*0.1))}</small><div style="color:var(--sub);font-size:11px">${r.pm}개월${r.fp.length?` + ${r.fp.map(f=>esc(f.kind)).join('·')} ${won(r.fpS)}`:''}</div></td>
     <td style="padding:8px;font-size:12px">${r.unk?`<span class="chip amb">확인필요 ${r.unk}개월</span> `:''}${r.un?`<span class="chip red">미수 ${r.un}개월</span> `:''}${r.fu.map(f=>`<span class="chip pur" data-fee="${f.id}" style="cursor:pointer">${esc(f.kind)} 미수 ${won(Math.round(f.amt/1.1))}</span> `).join('')}</td>
-    <td style="padding:8px;text-align:right">${won(r.iss)}<div style="color:var(--sub);font-size:11px">${r.fee?(Math.round(r.iss/r.fee*10)/10)+'개월분':''}</div></td>
+    <td style="padding:8px;text-align:right">${wvs(r.iss,r.c)}<div style="color:var(--sub);font-size:11px">${r.fee?(Math.round(r.iss/r.fee*10)/10)+'개월분':''}</div></td>
     <td style="padding:8px;font-size:12px;color:var(--sub)">${r.L.map(x=>md2(x[0])+(x[2]?'(미발송)':'')).join(' · ')}</td>
     <td style="padding:8px"><span class="chip ${r.cls}">${r.st}</span></td></tr>`).join('')}</tbody></table></div>
 </div>`;
@@ -1058,22 +1059,26 @@ function payRep(){ui.ry=ui.ry||String(curYM()).slice(0,2);const Y=ui.ry;
   $('#mbox').innerHTML=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">20${Y}년 수금 보고서</h3><button class="nb" data-repy="-1">‹</button><button class="nb" data-repy="1">›</button>
     <button class="btn g s" data-a="repXls" style="margin-left:auto">엑셀로 저장</button><button class="btn g s" data-a="repPrint">인쇄 / PDF</button><button class="btn s" data-a="modalClose">닫기</button></div>
     <div id="repBody" style="max-height:76vh;overflow:auto;padding-right:4px">${repHTML(Y,repCalc(Y))}</div>`;$('#modal').classList.add('on');}
-function repHTML(Y,R){const w=n=>n?won(n):'—',r_='style="text-align:right"';
+function repSplit(R){const S2=(t,c)=>spl(t,c);const rows=R.rows.map(r=>({r,b:S2(r.b,r.c),a:S2(r.a,r.c),u:S2(r.u,r.c),ua:S2(r.uAll,r.c),i:[r.iss,itax(r.iss,r.c)]}));
+  const sum=k=>rows.reduce((t,x)=>[t[0]+x[k][0],t[1]+x[k][1]],[0,0]);return {rows,T:{b:sum('b'),a:sum('a'),u:sum('u'),ua:sum('ua'),i:sum('i')}};}
+function repHTML(Y,R){const r_='style="text-align:right"',X=repSplit(R);
+  const sv=(p)=>p[0]||p[1]?`${won(p[0])}<small class="vx">VAT ${won(p[1])}</small>`:'—';const si=(p)=>p[0]?`${won(p[0])}<small class="vx">세액 ${won(p[1])}</small>`:'—';
   const tbl=(head,body,empty)=>`<table class="rvt rpt"><thead><tr>${head}</tr></thead><tbody>${body||`<tr><td colspan="9" class="rnone">${empty}</td></tr>`}</tbody></table>`;
   const sec=(t,sub,inner)=>`<div class="rsec"><div class="rsh"><b>${t}</b>${sub?`<span>${sub}</span>`:''}</div>${inner}</div>`;
-  const mx=Math.max(1,...R.mon.map(m=>m.b));
-  return `<div class="rkpi"><div><span>20${Y}년 청구</span><b>${won(R.T.b)}</b></div><div><span>20${Y}년 입금</span><b>${won(R.T.a)}</b><i class="${R.rate<90?'bad':''}">수금률 ${R.rate}%</i></div><div class="${R.T.uAll?'warn':''}"><span>지금 미수</span><b>${won(R.T.uAll)}</b><i class="${R.due.length?'bad':''}">${R.due.length}곳</i></div><div><span>세금계산서 발행 (공급가)</span><b>${won(R.T.iss)}</b></div></div>
-  ${sec('월별 흐름','초록 = 입금, 빨강 = 미수',`<div class="rmon">${R.mon.map((m,i)=>i+1>R.lastM?'':`<div><span>${i+1}월</span><div class="rbar"><i style="width:${Math.round(m.b/mx*100)}%"><em style="width:${m.b?Math.round(m.a/m.b*100):0}%"></em></i></div><b>${m.a?won(m.a):'—'}</b><small class="${m.u?'rred':''}">${m.u?'미수 '+won(m.u):m.b?'완납':''}</small></div>`).join('')}</div>`)}
-  ${sec('미수 거래처',`${R.due.length}곳 · ${won(R.T.uAll)}원`,tbl(`<th>거래처</th><th>미수 달</th><th ${r_}>개월</th><th ${r_}>미수금액</th>`,
-    R.due.slice().sort((x,y)=>y.uAll-x.uAll).map(r=>`<tr><td><b>${esc(r.c.name)}</b></td><td>${esc(mrange(r.ul))}${r.fo.length?` · ${r.fo.map(f=>esc(f.kind)).join('·')}`:''}</td><td ${r_}>${r.ul.length||''}</td><td ${r_} class="rred"><b>${won(r.uAll)}</b></td></tr>`).join('')+(R.due.length?`<tr style="font-weight:700"><td>합계</td><td></td><td></td><td ${r_} class="rred">${won(R.T.uAll)}</td></tr>`:''),'미수 거래처가 없어요'))}
-  ${sec('거래처별',`20${Y}년 · ${R.rows.length}곳`,tbl(`<th>거래처</th><th ${r_}>월 기장료</th><th ${r_}>청구</th><th ${r_}>입금</th><th ${r_}>미수</th><th ${r_}>세금계산서(공급가)</th>`,
-    R.rows.slice().sort((x,y)=>(x.c.order||0)-(y.c.order||0)).map(r=>`<tr><td>${esc(r.c.name)}</td><td ${r_}>${w(r.c.fee)}</td><td ${r_}>${w(r.b)}</td><td ${r_}>${w(r.a)}</td><td ${r_} ${r.u?'class="rred"':''}>${w(r.u)}</td><td ${r_}>${w(r.iss)}</td></tr>`).join('')+`<tr style="font-weight:700"><td>합계</td><td></td><td ${r_}>${won(R.T.b)}</td><td ${r_}>${won(R.T.a)}</td><td ${r_}>${won(R.T.u)}</td><td ${r_}>${won(R.T.iss)}</td></tr>`,'자료가 없어요'))}
-  <p class="note">금액은 부가세 포함(세금계산서 칸만 공급가). 미수 거래처는 오늘 기준 전체, 거래처별은 20${Y}년 기준이에요.</p>`;}
-async function repXls(){const X=await loadXLSX().catch(e=>{toast(e.message);return null;});if(!X)return;const Y=ui.ry,R=repCalc(Y),wb=X.utils.book_new();
-  X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet([['거래처','미수 달','개월','미수금액'],...R.due.slice().sort((x,y)=>y.uAll-x.uAll).map(r=>[r.c.name,mrange(r.ul),r.ul.length,r.uAll]),['합계','','',R.T.uAll]]),'미수 거래처');
-  X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet([['월','청구','입금','미수','세금계산서(공급가)'],...R.mon.map((m,i)=>[`${i+1}월`,m.b,m.a,m.u,m.i]),['합계',R.T.b,R.T.a,R.T.u,R.T.iss]]),'월별');
-  X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet([['거래처','사업자번호','월 기장료','청구','입금','미수','세금계산서(공급가)'],...R.rows.slice().sort((x,y)=>(x.c.order||0)-(y.c.order||0)).map(r=>[r.c.name,r.c.bizno||'',r.c.fee||0,r.b,r.a,r.u,r.iss]),['합계','','',R.T.b,R.T.a,R.T.u,R.T.iss]]),'거래처별');
-  X.writeFile(wb,`수금보고서_20${Y}.xlsx`);}
+  const mx=Math.max(1,...R.mon.map(m=>m.b));const byId=Object.fromEntries(X.rows.map(x=>[x.r.c.id,x]));
+  const k=(lab,p,extra,cls,tax)=>`<div class="${cls||''}"><span>${lab}</span><b>${won(p[0])}</b><small class="vx" style="font-size:12px">${tax?'세액':'VAT'} ${won(p[1])} · 합계 ${won(p[0]+p[1])}</small>${extra||''}</div>`;
+  return `<div class="rkpi">${k(`20${Y}년 청구 (공급가)`,X.T.b)}${k(`20${Y}년 입금 (공급가)`,X.T.a,`<i class="${R.rate<90?'bad':''}">수금률 ${R.rate}%</i>`)}${k('지금 미수 (공급가)',X.T.ua,`<i class="${R.due.length?'bad':''}">${R.due.length}곳</i>`,R.T.uAll?'warn':'')}${k('세금계산서 발행 (공급가)',X.T.i,'','',1)}</div>
+  ${sec('월별 흐름','초록 = 입금, 빨강 = 미수 · 공급가 기준',`<div class="rmon">${R.mon.map((m,i)=>i+1>R.lastM?'':`<div><span>${i+1}월</span><div class="rbar"><i style="width:${Math.round(m.b/mx*100)}%"><em style="width:${m.b?Math.round(m.a/m.b*100):0}%"></em></i></div><b>${m.a?won(spl(m.a)[0]):'—'}</b><small class="${m.u?'rred':''}">${m.u?'미수 '+won(spl(m.u)[0]):m.b?'완납':''}</small></div>`).join('')}</div>`)}
+  ${sec('미수 거래처',`${R.due.length}곳 · 공급가 ${won(X.T.ua[0])} · VAT ${won(X.T.ua[1])}`,tbl(`<th>거래처</th><th>미수 달</th><th ${r_}>개월</th><th ${r_}>미수 공급가 / VAT</th>`,
+    R.due.slice().sort((x,y)=>y.uAll-x.uAll).map(r=>`<tr><td><b>${esc(r.c.name)}</b></td><td>${esc(mrange(r.ul))}${r.fo.length?` · ${r.fo.map(f=>esc(f.kind)).join('·')}`:''}</td><td ${r_}>${r.ul.length||''}</td><td ${r_} class="rred"><b>${sv(byId[r.c.id].ua)}</b></td></tr>`).join('')+(R.due.length?`<tr style="font-weight:700"><td>합계</td><td></td><td></td><td ${r_} class="rred">${sv(X.T.ua)}</td></tr>`:''),'미수 거래처가 없어요'))}
+  ${sec('거래처별',`20${Y}년 · ${R.rows.length}곳 · 금액 아래 작은 글씨가 VAT(세액)`,tbl(`<th>거래처</th><th ${r_}>월 기장료</th><th ${r_}>청구</th><th ${r_}>입금</th><th ${r_}>미수</th><th ${r_}>세금계산서</th>`,
+    X.rows.slice().sort((x,y)=>(x.r.c.order||0)-(y.r.c.order||0)).map(x=>`<tr><td>${esc(x.r.c.name)}</td><td ${r_}>${x.r.c.fee?won(x.r.c.fee):'—'}</td><td ${r_}>${sv(x.b)}</td><td ${r_}>${sv(x.a)}</td><td ${r_} ${x.r.u?'class="rred"':''}>${sv(x.u)}</td><td ${r_}>${si(x.i)}</td></tr>`).join('')+`<tr style="font-weight:700"><td>합계</td><td></td><td ${r_}>${sv(X.T.b)}</td><td ${r_}>${sv(X.T.a)}</td><td ${r_}>${sv(X.T.u)}</td><td ${r_}>${si(X.T.i)}</td></tr>`,'자료가 없어요'))}
+  <p class="note">큰 글씨는 공급가, 아래 작은 글씨는 VAT(세금계산서는 세액)예요. 면세 거래처는 VAT 0. 미수 거래처는 오늘 기준 전체, 거래처별은 20${Y}년 기준이에요.</p>`;}
+async function repXls(){const X0=await loadXLSX().catch(e=>{toast(e.message);return null;});if(!X0)return;const Y=ui.ry,R=repCalc(Y),X=repSplit(R),wb=X0.utils.book_new();const byId=Object.fromEntries(X.rows.map(x=>[x.r.c.id,x]));
+  X0.utils.book_append_sheet(wb,X0.utils.aoa_to_sheet([['거래처','미수 달','개월','미수 공급가','미수 VAT','미수 합계'],...R.due.slice().sort((x,y)=>y.uAll-x.uAll).map(r=>{const u=byId[r.c.id].ua;return [r.c.name,mrange(r.ul),r.ul.length,u[0],u[1],u[0]+u[1]];}),['합계','','',X.T.ua[0],X.T.ua[1],X.T.ua[0]+X.T.ua[1]]]),'미수 거래처');
+  X0.utils.book_append_sheet(wb,X0.utils.aoa_to_sheet([['월','청구 공급가','청구 VAT','입금 공급가','입금 VAT','미수 공급가','미수 VAT','세금계산서 공급가','세금계산서 세액'],...R.mon.map((m,i)=>{const b=spl(m.b),a=spl(m.a),u=spl(m.u);return [`${i+1}월`,b[0],b[1],a[0],a[1],u[0],u[1],m.i,Math.round(m.i*0.1)];})]),'월별');
+  X0.utils.book_append_sheet(wb,X0.utils.aoa_to_sheet([['거래처','사업자번호','월 기장료','청구 공급가','청구 VAT','입금 공급가','입금 VAT','미수 공급가','미수 VAT','세금계산서 공급가','세금계산서 세액'],...X.rows.slice().sort((x,y)=>(x.r.c.order||0)-(y.r.c.order||0)).map(x=>[x.r.c.name,x.r.c.bizno||'',x.r.c.fee||0,x.b[0],x.b[1],x.a[0],x.a[1],x.u[0],x.u[1],x.i[0],x.i[1]]),['합계','','',X.T.b[0],X.T.b[1],X.T.a[0],X.T.a[1],X.T.u[0],X.T.u[1],X.T.i[0],X.T.i[1]]]),'거래처별');
+  X0.writeFile(wb,`수금보고서_20${Y}.xlsx`);}
 function repPrint(){const Y=ui.ry;const w=window.open('','_blank');if(!w)return toast('팝업이 막혔어요');
   const css=[...document.querySelectorAll('style')].map(s=>s.textContent).join('\n');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>20${Y}년 수금 보고서</title><style>${css}</style><style>*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{background:#fff;padding:24px;font-family:'Malgun Gothic',sans-serif}.rsec{overflow:visible!important}.rpt{min-width:0!important}.rkpi{grid-template-columns:repeat(4,1fr)!important}.rmon>div{grid-template-columns:42px 1fr 120px 130px!important}details{display:block}details>*{display:block}.rpt{page-break-inside:auto}tr{page-break-inside:avoid}@page{size:A4;margin:14mm}</style></head><body><h2 style="margin:0 0 4px">20${Y}년 수금 보고서</h2><p class="note" style="margin:0 0 12px">작성일 ${todayStr()}</p>${repHTML(Y,repCalc(Y))}<script>setTimeout(()=>print(),400)<\/script></body></html>`);w.document.close();}
@@ -1092,26 +1097,26 @@ function vPay(){
   return `<div class="fixframe payframe">`+head('수금',`<button class="btn g" data-a="payRep">📊 보고서</button>${SALE?'<button class="btn g" data-a="payTpl">📄 양식 받기</button>':''}<button class="btn g" data-a="payUp" title="CMS 수납내역·세금계산서 발행내역 또는 양식 엑셀">📥 엑셀 올리기</button>`)+paySeg()+`
   <div class="calhead"><button class="nb" data-a="pmPrev">‹</button><b>${ymLabel(ym)}</b><button class="nb" data-a="pmNext">›</button>${ym!==cur?`<button class="btn g s" data-a="pmCur">이번 달</button>`:''}</div>
   <div class="stats" style="grid-template-columns:repeat(3,1fr)">
-    <div class="card stat"><b>${won(paid)}원</b><span>입금 ${pc}곳</span></div>
+    <div class="card stat"><b>${won(spl(paid)[0])}원</b><span>입금 ${pc}곳 · 공급가 (VAT ${won(spl(paid)[1])} · 합계 ${won(paid)})</span></div>
     <div class="card stat ${_ul.length?'warn':''}"><b>${_ul.length}곳</b><span>미수 ${won(_ut)}원 · 이번 달 미수 ${uc}곳${ua?' '+won(ua)+'원':''}</span></div>
     <div class="card stat"><b>${cx}곳</b><span>CMS 확인 필요 · 미표시 ${arr.filter(c=>!pstat(pcell(c.id,ym))).length}곳</span></div>
   </div>
   ${(()=>{const row=c=>{const cell=pcell(c.id,ym),st=pstat(cell),p=PS[st];
       return `<div class="prow" style="padding:8px 14px"><div class="pn pn1" data-payd="${c.id}"><b>${esc(c.name)}</b><span>${c.fee?`월 ${won(c.fee)}원`:'기장료 미입력'}${c.payDay?` · ${c.payDay}일 결제`:''}${c.cms==='O'?' · CMS':c.cms==='X'?' · CMS 아님':''}${cell&&cell.m?` · <em style="font-style:normal;color:${st==='unpaid'?'var(--red)':'var(--sub)'}">${esc(cell.m)}</em>`:''}</span></div>
-      <button class="pst chip ${p?p.cls:''}" data-paycell="${c.id}|${ym}">${p?(st==='paid'?won(cell.a)||'입금':p.n):'—'}</button></div>`};
+      <button class="pst chip ${p?p.cls:''}" data-paycell="${c.id}|${ym}">${p?(st==='paid'?(cell.a?wv(cell.a,c):'입금'):p.n):'—'}</button></div>`};
     const P=arr.filter(c=>pstat(pcell(c.id,ym))==='paid'),O=arr.filter(c=>{const t=pstat(pcell(c.id,ym));return t!=='paid'&&t!=='unpaid'});
     const feeU=(S.fees||[]).filter(f=>f.st!=='paid');const uids=[...new Set(allU.map(x=>x.c.id).concat(feeU.map(f=>f.cid)))];
     const UL=uids.map(id=>({c:cl(id),l:unpaidList(id),f:feeOpen(id)})).filter(x=>x.c);
     const tot=UL.reduce((a,{c,l,f})=>a+l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0)+f.reduce((t,x)=>t+x.amt,0),0);
     const feeP=(S.fees||[]).filter(f=>f.st==='paid'&&String(f.paidAt||'').slice(2,4)+String(f.paidAt||'').slice(5,7)===ym);
     const urow=({c,l,f})=>{const sum=l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0)+f.reduce((t,x)=>t+x.amt,0),m=(pcell(c.id,ym)||{}).m;
-      return `<div class="prow" style="align-items:flex-start"><div class="pn" data-payd="${c.id}"><div class="pn1"><b>${esc(c.name)}</b>${m&&pstat(pcell(c.id,ym))==='unpaid'?`<span style="color:var(--red)">${esc(m)}</span>`:'<span></span>'}</div><span style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${l.map(k=>`<button class="chip ${k===ym?'red':''}" data-paycell="${c.id}|${k}" title="눌러서 상태 변경">${ymLabel(k).slice(5)}월</button>`).join('')}${f.map(x=>`<button class="chip pur" data-fee="${x.id}" title="${esc(x.title||x.kind)}">${esc(x.kind)} ${won(x.amt)}${x.inv?'':' · 미발행'}</button>`).join('')}</span></div><span class="chip red" style="white-space:nowrap">${l.length?l.length+'개월':''}${l.length&&f.length?' + ':''}${f.length?f.map(x=>x.kind).join('·'):''} · ${won(sum)}원</span></div>`};
+      return `<div class="prow" style="align-items:flex-start"><div class="pn" data-payd="${c.id}"><div class="pn1"><b>${esc(c.name)}</b>${m&&pstat(pcell(c.id,ym))==='unpaid'?`<span style="color:var(--red)">${esc(m)}</span>`:'<span></span>'}</div><span style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${l.map(k=>`<button class="chip ${k===ym?'red':''}" data-paycell="${c.id}|${k}" title="눌러서 상태 변경">${ymLabel(k).slice(5)}월</button>`).join('')}${f.map(x=>`<button class="chip pur" data-fee="${x.id}" title="${esc(x.title||x.kind)}">${esc(x.kind)} ${won(x.amt)}${x.inv?'':' · 미발행'}</button>`).join('')}</span></div><span class="chip red" style="white-space:nowrap">${l.length?l.length+'개월':''}${l.length&&f.length?' + ':''}${f.length?f.map(x=>x.kind).join('·'):''} · ${wv(sum,c)}</span></div>`};
     return `<div class="pcols pfix"><div class="pcol">
-      <div class="pbox" style="flex:3"><div class="sec"><h2 style="color:var(--grn)">${ymLabel(ym)} 수금 ${P.length}곳${feeP.length?` + 추가 청구 ${feeP.length}건`:''}</h2><span class="more">${won(paid+feeP.reduce((a,x)=>a+x.amt,0))}원</span></div>
-      <div class="card list">${P.map(row).join('')}${feeP.map(x=>`<div class="prow"><div class="pn" data-client="${x.cid}"><b>${esc((cl(x.cid)||{}).name||'')}</b><span>${esc(x.kind)}${x.title?' · '+esc(x.title):''} · ${esc(x.paidAt)} 입금${x.inv?'':' · 세금계산서 미발행'}</span></div><button class="pst chip grn" data-fee="${x.id}">${won(x.amt)}</button></div>`).join('')}${!P.length&&!feeP.length?'<div class="empty">아직 입금 표시가 없어요</div>':''}</div></div>
+      <div class="pbox" style="flex:3"><div class="sec"><h2 style="color:var(--grn)">${ymLabel(ym)} 수금 ${P.length}곳${feeP.length?` + 추가 청구 ${feeP.length}건`:''}</h2><span class="more">${(()=>{const T=P.reduce((a,c)=>{const [x,y]=spl(pcell(c.id,ym).a||0,c);return [a[0]+x,a[1]+y];},[0,0]);feeP.forEach(f=>{const [x,y]=spl(f.amt,cl(f.cid));T[0]+=x;T[1]+=y;});return `공급가 ${won(T[0])} · VAT ${won(T[1])} · 합계 ${won(T[0]+T[1])}원`;})()}</span></div>
+      <div class="card list">${P.map(row).join('')}${feeP.map(x=>`<div class="prow"><div class="pn" data-client="${x.cid}"><b>${esc((cl(x.cid)||{}).name||'')}</b><span>${esc(x.kind)}${x.title?' · '+esc(x.title):''} · ${esc(x.paidAt)} 입금${x.inv?'':' · 세금계산서 미발행'}</span></div><button class="pst chip grn" data-fee="${x.id}">${wv(x.amt,cl(x.cid))}</button></div>`).join('')}${!P.length&&!feeP.length?'<div class="empty">아직 입금 표시가 없어요</div>':''}</div></div>
       <div class="pbox" style="flex:2"><div class="sec"><h2>그 외 ${O.length}곳</h2><span class="more">CMS 확인·통장이체·해당없음·미표시</span></div><div class="card list">${O.map(row).join('')||'<div class="empty">없어요</div>'}</div></div>
     </div><div class="pcol">
-      <div class="pbox"><div class="sec"><h2 style="color:var(--red)">미수 ${UL.length}곳</h2><button class="btn g s" data-a="feeNew">＋ 조정료·추가 청구</button><span class="more">${won(tot)}원 · 월 칩을 누르면 상태 변경</span></div>
+      <div class="pbox"><div class="sec"><h2 style="color:var(--red)">미수 ${UL.length}곳</h2><button class="btn g s" data-a="feeNew">＋ 조정료·추가 청구</button><span class="more">${(()=>{const [x,y]=spl(tot);return `공급가 ${won(x)} · VAT ${won(y)} · 합계 ${won(tot)}원`;})()} · 월 칩을 누르면 상태 변경</span></div>
       <div class="card list">${UL.map(urow).join('')||'<div class="empty">밀린 미수가 없어요</div>'}</div></div>
     </div></div></div>`})()}`;
 }
@@ -1798,6 +1803,8 @@ function openClient(id){cardClose();
 
 /* ---------- 조정료 등 추가 청구 ---------- */
 const FK=['조정료','신고수수료','결산료','상담료','기타'];
+const vfree=c=>!!(c&&c.vat==='면세');const spl=(t,c)=>{t=+t||0;if(vfree(c))return [t,0];const x=Math.round(t/1.1);return [x,t-x];};const itax=(sup,c)=>vfree(c)?0:Math.round((+sup||0)*0.1);
+const wv=(t,c)=>{const [a,b]=spl(t,c);return `${won(a)}<small class="vx"> + VAT ${won(b)}</small>`;};const wvs=(sup,c)=>`${won(sup)}<small class="vx"> + 세액 ${won(itax(sup,c))}</small>`;
 const fyy=v=>{const d=String(v||'').replace(/\D/g,'');return d.length>=6?d.slice(2,4):d.slice(0,2);};
 const feeOpen=cid=>(S.fees||[]).filter(f=>f.cid===cid&&f.st!=='paid');
 function openFee(id,cid){
@@ -1837,26 +1844,26 @@ function openPayDetail(cid,yy){
     const a=v&&v.a!=null?v.a:0,u=st==='unpaid'?(v.u||(c.fee?Math.round(c.fee*1.1):0)):0,b=v&&v.b?v.b:(a||u||0);
     tA+=a;tB+=b;tI+=inv;tU+=u;
     rows.push(`<tr style="border-top:1px solid var(--line)${k>cur?';opacity:.45':''}"><td style="padding:6px 8px">${m}월</td>
-      <td style="padding:6px 8px;text-align:right">${b?won(b):''}</td>
-      <td style="padding:6px 8px;text-align:right;color:var(--grn);font-weight:600">${a?won(a):''}</td>
+      <td style="padding:6px 8px;text-align:right">${b?wv(b,c):''}</td>
+      <td style="padding:6px 8px;text-align:right;color:var(--grn);font-weight:600">${a?wv(a,c):''}</td>
       <td style="padding:6px 8px"><button class="chip ${ps?ps.cls:''}" data-paycell="${cid}|${k}">${ps?ps.n:'—'}</button></td>
-      <td style="padding:6px 8px;text-align:right;color:var(--red)">${u?won(u):''}</td>
-      <td style="padding:6px 8px;text-align:right">${inv?won(Math.round(inv*1.1)):''}${unsent?' <span class="chip amb">미발송</span>':''}</td>
+      <td style="padding:6px 8px;text-align:right;color:var(--red)">${u?wv(u,c):''}</td>
+      <td style="padding:6px 8px;text-align:right">${inv?wvs(inv,c):''}${unsent?' <span class="chip amb">미발송</span>':''}</td>
       <td style="padding:6px 8px;color:var(--sub);font-size:11px">${esc(v&&v.m||'')}</td></tr>`);}
   const fu=fees.filter(f=>f.st!=='paid').reduce((a,f)=>a+f.amt,0),fp=fees.filter(f=>f.st==='paid').reduce((a,f)=>a+f.amt,0);
-  const iT=Math.round(tI*1.1),gap=tA+fp-iT;
+  const iT=tI+itax(tI,c),gap=spl(tA+fp,c)[0]-tI;
   $('#mbox').classList.add('mbw');ui.pdCid=cid;ui.pdY=Y;
   $('#mbox').innerHTML=`<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1">${esc(c.name)} · 20${Y}년 수금</h3><button class="nb" data-payd="${cid}|${pad(+Y-1)}">‹</button><button class="nb" data-payd="${cid}|${pad(+Y+1)}">›</button></div>
-    <div style="font-size:12px;color:var(--sub)">${c.fee?`월 기장료 ${won(c.fee)}원(부가세 별도)`:'기장료 미입력'}${c.cms==='O'?' · CMS':''}${c.payDay?` · ${c.payDay}일 결제`:''} · 금액은 부가세 포함</div>
+    <div style="font-size:12px;color:var(--sub)">${c.fee?`월 기장료 ${won(c.fee)}원(부가세 별도)`:'기장료 미입력'}${c.cms==='O'?' · CMS':''}${c.payDay?` · ${c.payDay}일 결제`:''} · 금액은 공급가 + VAT로 표시</div>
     <div class="stats" style="grid-template-columns:repeat(4,1fr);margin:0">
-      <div class="card stat"><b>${won(tA+fp)}원</b><span>입금</span></div>
-      <div class="card stat ${tU+fu?'warn':''}"><b>${won(tU+fu)}원</b><span>미수</span></div>
-      <div class="card stat"><b>${won(iT)}원</b><span>세금계산서 발행</span></div>
-      <div class="card stat ${gap>1000?'warn':''}"><b>${gap>1000?'덜 발행 '+won(gap):gap<-1000?'먼저 발행 '+won(-gap):'일치'}</b><span>입금 − 발행</span></div></div>
+      <div class="card stat"><b>${won(spl(tA+fp,c)[0])}원</b><span>입금 (공급가)<br>VAT ${won(spl(tA+fp,c)[1])}</span></div>
+      <div class="card stat ${tU+fu?'warn':''}"><b>${won(spl(tU+fu,c)[0])}원</b><span>미수 (공급가)<br>VAT ${won(spl(tU+fu,c)[1])}</span></div>
+      <div class="card stat"><b>${won(tI)}원</b><span>세금계산서 (공급가)<br>세액 ${won(itax(tI,c))}</span></div>
+      <div class="card stat ${gap>1000?'warn':''}"><b>${gap>1000?'덜 발행 '+won(gap):gap<-1000?'먼저 발행 '+won(-gap):'일치'}</b><span>입금 − 발행 (공급가)</span></div></div>
     <div style="overflow:auto;max-height:52vh;border:1px solid var(--line);border-radius:10px"><table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr style="text-align:left;color:var(--sub)"><th style="padding:6px 8px">월</th><th style="padding:6px 8px;text-align:right">청구</th><th style="padding:6px 8px;text-align:right">입금</th><th style="padding:6px 8px">상태</th><th style="padding:6px 8px;text-align:right">미수</th><th style="padding:6px 8px;text-align:right">세금계산서</th><th style="padding:6px 8px">메모</th></tr></thead>
-      <tbody>${rows.join('')}<tr style="border-top:2px solid var(--line);font-weight:700"><td style="padding:6px 8px">합계</td><td style="padding:6px 8px;text-align:right">${won(tB)}</td><td style="padding:6px 8px;text-align:right;color:var(--grn)">${won(tA)}</td><td></td><td style="padding:6px 8px;text-align:right;color:var(--red)">${won(tU)}</td><td style="padding:6px 8px;text-align:right">${won(iT)}</td><td></td></tr></tbody></table></div>
-    ${fees.length?`<div><div class="lab" style="margin-bottom:4px">조정료·추가 청구</div>${fees.map(f=>`<button class="chip ${f.st==='paid'?'grn':'pur'}" data-fee="${f.id}" style="margin:0 4px 4px 0">${esc(f.kind)} ${won(f.amt)} · ${f.st==='paid'?'입금 '+esc(f.paidAt||''):'미수'}${f.inv?'':' · 미발행'}</button>`).join('')}</div>`:''}
+      <tbody>${rows.join('')}<tr style="border-top:2px solid var(--line);font-weight:700"><td style="padding:6px 8px">합계</td><td style="padding:6px 8px;text-align:right">${wv(tB,c)}</td><td style="padding:6px 8px;text-align:right;color:var(--grn)">${wv(tA,c)}</td><td></td><td style="padding:6px 8px;text-align:right;color:var(--red)">${wv(tU,c)}</td><td style="padding:6px 8px;text-align:right">${wvs(tI,c)}</td><td></td></tr></tbody></table></div>
+    ${fees.length?`<div><div class="lab" style="margin-bottom:4px">조정료·추가 청구</div>${fees.map(f=>`<button class="chip ${f.st==='paid'?'grn':'pur'}" data-fee="${f.id}" style="margin:0 4px 4px 0">${esc(f.kind)} ${wv(f.amt,c)} · ${f.st==='paid'?'입금 '+esc(f.paidAt||''):'미수'}${f.inv?'':' · 미발행'}</button>`).join('')}</div>`:''}
     <div style="display:flex;gap:8px"><button class="btn g" data-feefor="${cid}">＋ 조정료·추가 청구</button><button class="btn g" data-client="${cid}">거래처 정보</button><button class="btn" data-a="modalClose" style="margin-left:auto">닫기</button></div>`;
   $('#modal').classList.add('on');
 }
