@@ -818,7 +818,7 @@ function vPay(){
   const ym=ui.pm, cur=curYM();
   const arr=S.clients.filter(c=>c.status!=='폐업').sort((a,b)=>(a.order||0)-(b.order||0));
   let paid=0,pc=0,uc=0,ua=0;
-  let cx=0;arr.forEach(c=>{const cell=pcell(c.id,ym),st=pstat(cell);if(st==='paid'){paid+=cell.a||0;pc++;}if(st==='unpaid'){uc++;ua+=c.fee||0;}if(st==='cmsx')cx++;});
+  let cx=0;arr.forEach(c=>{const cell=pcell(c.id,ym),st=pstat(cell);if(st==='paid'){paid+=cell.a||0;pc++;}if(st==='unpaid'){uc++;ua+=cell.u||(c.fee?Math.round(c.fee*1.1):0);}if(st==='cmsx')cx++;});
   const allU=S.clients.map(c=>({c,l:unpaidList(c.id)})).filter(x=>x.l.length);
   return head('수금')+`
   <div class="calhead"><button class="nb" data-a="pmPrev">‹</button><b>${ymLabel(ym)}</b><button class="nb" data-a="pmNext">›</button>${ym!==cur?`<button class="btn g s" data-a="pmCur">이번 달</button>`:''}</div>
@@ -831,7 +831,7 @@ function vPay(){
   <div class="card list">${arr.map(c=>{const cell=pcell(c.id,ym),st=pstat(cell),p=PS[st];
     return `<div class="prow"><div class="pn" data-client="${c.id}"><b>${esc(c.name)}</b><span>${c.fee?`월 ${won(c.fee)}원`:'기장료 미입력'}${c.payDay?` · ${c.payDay}일 결제`:''}${c.cms==='O'?' · CMS':c.cms==='X'?' · CMS 아님':''}</span>${cell&&cell.m?`<span style="display:block;color:${st==='unpaid'?'var(--red)':'var(--sub)'}">${esc(cell.m)}</span>`:''}</div>
       <button class="pst chip ${p?p.cls:''}" data-paycell="${c.id}|${ym}">${p?(st==='paid'?won(cell.a)||'입금':p.n):'—'}</button></div>`}).join('')||'<div class="empty">거래처가 없어요</div>'}</div>
-  ${allU.length?`<div class="sec"><h2 style="color:var(--red)">밀린 미수</h2></div><div class="card list">${allU.map(({c,l})=>`<div class="prow"><div class="pn" data-client="${c.id}"><b>${esc(c.name)}</b><span>${l.map(ymLabel).join(', ')}</span></div><span class="chip red">${l.length}개월${c.fee?' · '+won(c.fee*l.length)+'원':''}</span></div>`).join('')}</div>`:''}`;
+  ${allU.length?`<div class="sec"><h2 style="color:var(--red)">밀린 미수</h2></div><div class="card list">${allU.map(({c,l})=>`<div class="prow"><div class="pn" data-client="${c.id}"><b>${esc(c.name)}</b><span>${l.map(ymLabel).join(', ')}</span></div><span class="chip red">${l.length}개월 · ${won(l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0))}원</span></div>`).join('')}</div>`:''}`;
 }
 function logCard(l){
   const c=cl(l.client),tasks=(l.taskIds||[]).map(id=>S.tasks.find(t=>t.id===id)).filter(Boolean);
