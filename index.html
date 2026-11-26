@@ -259,7 +259,7 @@ body.wide main{max-width:1760px}
 .pgm button.fut{opacity:.45}
 @media(max-width:520px){.pgh,.pgr{grid-template-columns:minmax(0,1fr) repeat(4,46px);gap:4px;padding:8px 10px}.pgc{font-size:11px}}
 .pcols{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}@media(max-width:900px){.pcols{grid-template-columns:1fr}}
-.payframe .stats{flex:none}.pfix{flex:1;min-height:0;align-items:stretch}.pcol{display:flex;flex-direction:column;gap:12px;min-height:0}.pbox{display:flex;flex-direction:column;min-height:0;flex:1}.pbox .sec{flex:none}.pbox>.card.list{flex:1;min-height:0;overflow:auto}
+.payframe .stats{flex:none}.pn1{display:flex;align-items:baseline;gap:10px}.pn1 b{flex:none;max-width:45%}.pn1 span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pfix{flex:1;min-height:0;align-items:stretch}.pcol{display:flex;flex-direction:column;gap:12px;min-height:0}.pbox{display:flex;flex-direction:column;min-height:0;flex:1}.pbox .sec{flex:none}.pbox>.card.list{flex:1;min-height:0;overflow:auto}
 .pscroll{flex:1;min-height:0;overflow:auto}.payframe thead th{position:sticky;top:0;background:var(--panel);z-index:1}
 @media(max-width:900px){.payframe{height:auto}.pbox>.card.list,.pscroll{overflow:visible;flex:none}}
 .prow{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line)}
@@ -880,7 +880,7 @@ function vPay(){
     <div class="card stat"><b>${cx}곳</b><span>CMS 확인 필요 · 미표시 ${arr.filter(c=>!pstat(pcell(c.id,ym))).length}곳</span></div>
   </div>
   ${(()=>{const row=c=>{const cell=pcell(c.id,ym),st=pstat(cell),p=PS[st];
-      return `<div class="prow"><div class="pn" data-client="${c.id}"><b>${esc(c.name)}</b><span>${c.fee?`월 ${won(c.fee)}원`:'기장료 미입력'}${c.payDay?` · ${c.payDay}일 결제`:''}${c.cms==='O'?' · CMS':c.cms==='X'?' · CMS 아님':''}</span>${cell&&cell.m?`<span style="display:block;color:${st==='unpaid'?'var(--red)':'var(--sub)'}">${esc(cell.m)}</span>`:''}</div>
+      return `<div class="prow" style="padding:8px 14px"><div class="pn pn1" data-client="${c.id}"><b>${esc(c.name)}</b><span>${c.fee?`월 ${won(c.fee)}원`:'기장료 미입력'}${c.payDay?` · ${c.payDay}일 결제`:''}${c.cms==='O'?' · CMS':c.cms==='X'?' · CMS 아님':''}${cell&&cell.m?` · <em style="font-style:normal;color:${st==='unpaid'?'var(--red)':'var(--sub)'}">${esc(cell.m)}</em>`:''}</span></div>
       <button class="pst chip ${p?p.cls:''}" data-paycell="${c.id}|${ym}">${p?(st==='paid'?won(cell.a)||'입금':p.n):'—'}</button></div>`};
     const P=arr.filter(c=>pstat(pcell(c.id,ym))==='paid'),O=arr.filter(c=>{const t=pstat(pcell(c.id,ym));return t!=='paid'&&t!=='unpaid'});
     const feeU=(S.fees||[]).filter(f=>f.st!=='paid');const uids=[...new Set(allU.map(x=>x.c.id).concat(feeU.map(f=>f.cid)))];
