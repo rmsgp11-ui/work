@@ -829,7 +829,7 @@ function vPay(){
   </div>
   <div class="sec"><h2>${ymLabel(ym)} 거래처별</h2><span class="more">상태를 누르면 바꿀 수 있어요</span></div>
   <div class="card list">${arr.map(c=>{const cell=pcell(c.id,ym),st=pstat(cell),p=PS[st];
-    return `<div class="prow"><div class="pn" data-client="${c.id}"><b>${esc(c.name)}</b><span>${c.fee?`월 ${won(c.fee)}원`:'기장료 미입력'}${c.payDay?` · ${c.payDay}일 결제`:''}${c.cms==='O'?' · CMS':c.cms==='X'?' · CMS 아님':''}</span></div>
+    return `<div class="prow"><div class="pn" data-client="${c.id}"><b>${esc(c.name)}</b><span>${c.fee?`월 ${won(c.fee)}원`:'기장료 미입력'}${c.payDay?` · ${c.payDay}일 결제`:''}${c.cms==='O'?' · CMS':c.cms==='X'?' · CMS 아님':''}</span>${cell&&cell.m?`<span style="color:${st==='unpaid'?'var(--red)':'var(--sub)'}">${esc(cell.m)}</span>`:''}</div>
       <button class="pst chip ${p?p.cls:''}" data-paycell="${c.id}|${ym}">${p?(st==='paid'?won(cell.a)||'입금':p.n):'—'}</button></div>`}).join('')||'<div class="empty">거래처가 없어요</div>'}</div>
   ${allU.length?`<div class="sec"><h2 style="color:var(--red)">밀린 미수</h2></div><div class="card list">${allU.map(({c,l})=>`<div class="prow"><div class="pn" data-client="${c.id}"><b>${esc(c.name)}</b><span>${l.map(ymLabel).join(', ')}</span></div><span class="chip red">${l.length}개월${c.fee?' · '+won(c.fee*l.length)+'원':''}</span></div>`).join('')}</div>`:''}`;
 }
@@ -883,7 +883,7 @@ window.__checks={
     const e=rawEvents(o.y,o.m).find(e=>e.t===o.t&&(!o.label||e.label.startsWith(o.label)));if(!e){miss.push((o.name||c.name)+' '+o.t+' '+o.y+'-'+o.m);continue;}
     const k=`${e.t}|${e.raw}|${e.label}|${c.id}`;if(!S.checks[k])S.checks[k]=Date.now();ok++;}
     save();if(!ui.drawer)render();return {ok,miss};}
-};window.__matchClient=n=>{const id=matchClient(n);const c=id&&cl(id);return c?c.name:null};
+};window.__pay={get:ym=>S.clients.map(c=>({id:c.id,name:c.name,biz:c.biz||c.bizno||'',fee:c.fee||0,cell:pcell(c.id,ym)})),set:arr=>{arr.forEach(({id,ym,cell})=>{S.pay[id]=S.pay[id]||{};if(cell)S.pay[id][ym]=cell;else delete S.pay[id][ym];});save();if(!ui.drawer)render();return arr.length;}};window.__matchClient=n=>{const id=matchClient(n);const c=id&&cl(id);return c?c.name:null};
 
 
 /* ---------- 자동화 기록 (Claude 처리 내역) ---------- */
