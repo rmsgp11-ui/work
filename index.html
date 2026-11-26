@@ -859,16 +859,18 @@ function invRows(){
       if(v.a!=null){const sup=fee&&v.a>fee*1.05?Math.round(v.a/1.1):v.a;paid+=sup;pm++;months.push([k,'p',sup]);}
       else if(v.s==='transfer'||v.s==='cmsx'||v.s==='etc'){unk++;months.push([k,'q']);}
       else if(v.s==='unpaid'){un++;months.push([k,'u']);}}
-    const iss=L.reduce((a,x)=>a+x[1],0);if(!iss&&!paid&&!unk&&!un)continue;
+    const FY=(S.fees||[]).filter(f=>f.cid===c.id&&((f.st==='paid'&&f.paidAt?String(f.paidAt).slice(2,4):fyy(f.ym))===Y));
+    const fp=FY.filter(f=>f.st==='paid'),fu=FY.filter(f=>f.st!=='paid');const fpS=fp.reduce((a,f)=>a+Math.round(f.amt/1.1),0),fuS=fu.reduce((a,f)=>a+Math.round(f.amt/1.1),0);paid+=fpS;
+    const iss=L.reduce((a,x)=>a+x[1],0);if(!iss&&!paid&&!unk&&!un&&!fuS)continue;
     const last=L.length?L[L.length-1][0]:'';const unsent=L.filter(x=>x[2]).length;
     const diff=paid-iss,over=-diff;let st,cls;
-    if(!paid&&!L.length){if(unk){st='CMS 입금 확인 · 발행 없음';cls='amb';}else{st='미수 · 발행 없음';cls='blu';}}
+    if(!paid&&!L.length){if(fuS&&!unk&&!un){st='조정료 미수 · 발행 없음';cls='blu';}else if(unk){st='CMS 입금 확인 · 발행 없음';cls='amb';}else{st='미수 · 발행 없음';cls='blu';}}
     else if(Math.abs(diff)<1000){st='일치';cls='grn';}
     else if(diff>0){st=L.length?`덜 발행 ${won(diff)}`:`발행 없음 · ${won(diff)}`;cls='red';}
     else if(unk&&over<=(un+unk)*fee+1000){st=`CMS 입금 확인 ${won(over)}`;cls='amb';}
-    else if(over<=un*fee+1000){st=`미수분 발행 ${won(over)}`;cls='blu';}
+    else if(over<=un*fee+fuS+1000){st=`미수분 발행 ${won(over)}`;cls='blu';}
     else {st=`앱 수금 기록 빠짐? ${won(over)}`;cls='pur';}
-    out.push({c,fee,paid,pm,unk,un,iss,last,unsent,diff,st,cls,L});}
+    out.push({c,fee,paid,pm,unk,un,iss,last,unsent,diff,st,cls,L,fp,fu,fpS,fuS});}
   const rank={red:0,pur:1,amb:2,blu:3,grn:4};return out.sort((a,b)=>rank[a.cls]-rank[b.cls]||Math.abs(b.diff)-Math.abs(a.diff));
 }
 function vInv(){
@@ -880,14 +882,14 @@ function vInv(){
     <div class="card stat"><b>${cnt('pur')}곳</b><span>앱 수금 기록 빠짐?</span></div>
     <div class="card stat"><b>${cnt('amb')}곳</b><span>CMS 입금 확인 필요</span></div>
     <div class="card stat"><b>${cnt('blu')}곳</b><span>미수분 발행(정상)</span></div>
-    <div class="card stat"><b>${cnt('grn')}곳</b><span>일치</span></div></div><div class="sec"><h2>${2000+ +String(curYM()).slice(0,2)}년 거래처별 (공급가액 기준)</h2><span class="more">발행 내역 기준일 ${esc(S.invAt||'')} · 수금은 부가세 뺀 금액으로 환산</span></div>
+    <div class="card stat"><b>${cnt('grn')}곳</b><span>일치</span></div></div><div class="sec"><h2>${2000+ +String(curYM()).slice(0,2)}년 거래처별 (공급가액 기준)</h2><span class="more">발행 내역 기준일 ${esc(S.invAt||'')} · 수금은 부가세 뺀 금액으로 환산 · 조정료·추가 청구 포함</span></div>
   <div class="pscroll">
   <div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
   <thead><tr style="text-align:left;color:var(--sub);border-bottom:1px solid var(--line)"><th style="padding:8px">거래처</th><th style="padding:8px;text-align:right">월 기장료</th><th style="padding:8px;text-align:right">수금(확인)</th><th style="padding:8px">수금 상태 불명·미수</th><th style="padding:8px;text-align:right">발행</th><th style="padding:8px">발행일</th><th style="padding:8px">판정</th></tr></thead>
   <tbody>${R.map(r=>`<tr style="border-bottom:1px solid var(--line)"><td style="padding:8px"><b data-client="${r.c.id}" style="cursor:pointer">${esc(r.c.name)}</b></td>
     <td style="padding:8px;text-align:right">${r.fee?won(r.fee):'-'}</td>
-    <td style="padding:8px;text-align:right">${won(r.paid)}<div style="color:var(--sub);font-size:11px">${r.pm}개월</div></td>
-    <td style="padding:8px;font-size:12px">${r.unk?`<span class="chip amb">확인필요 ${r.unk}개월</span> `:''}${r.un?`<span class="chip red">미수 ${r.un}개월</span>`:''}</td>
+    <td style="padding:8px;text-align:right">${won(r.paid)}<div style="color:var(--sub);font-size:11px">${r.pm}개월${r.fp.length?` + ${r.fp.map(f=>esc(f.kind)).join('·')} ${won(r.fpS)}`:''}</div></td>
+    <td style="padding:8px;font-size:12px">${r.unk?`<span class="chip amb">확인필요 ${r.unk}개월</span> `:''}${r.un?`<span class="chip red">미수 ${r.un}개월</span> `:''}${r.fu.map(f=>`<span class="chip pur" data-fee="${f.id}" style="cursor:pointer">${esc(f.kind)} 미수 ${won(Math.round(f.amt/1.1))}</span> `).join('')}</td>
     <td style="padding:8px;text-align:right">${won(r.iss)}<div style="color:var(--sub);font-size:11px">${r.fee?(Math.round(r.iss/r.fee*10)/10)+'개월분':''}</div></td>
     <td style="padding:8px;font-size:12px;color:var(--sub)">${r.L.map(x=>md2(x[0])+(x[2]?'(미발송)':'')).join(' · ')}</td>
     <td style="padding:8px"><span class="chip ${r.cls}">${r.st}</span></td></tr>`).join('')}</tbody></table></div>
@@ -1025,7 +1027,7 @@ function cDelete(){const c=cl(ui.openClient);if(!c)return;if(!confirm(`'${c.name
 
 /* ---------- 수금 보고서 ---------- */
 function repData(Y){const cur=curYM(),rows=[],mon=Array.from({length:12},()=>({b:0,a:0,u:0,i:0}));const lastM=Y<String(cur).slice(0,2)?12:+String(cur).slice(2,4);
-  for(const c of S.clients){if(c.status==='폐업'&&!(S.pay[c.id]))continue;const p=S.pay[c.id]||{},L=((S.inv||{})[c.id]||[]).filter(x=>x[0].slice(0,2)===Y),F=(S.fees||[]).filter(f=>f.cid===c.id&&String(f.ym||'').replace(/\D/g,'').slice(2,4)===Y);
+  for(const c of S.clients){if(c.status==='폐업'&&!(S.pay[c.id]))continue;const p=S.pay[c.id]||{},L=((S.inv||{})[c.id]||[]).filter(x=>x[0].slice(0,2)===Y),F=(S.fees||[]).filter(f=>f.cid===c.id&&fyy(f.ym)===Y);
     let b=0,a=0,u=0,blank=0,lastPaid='';
     for(let m=1;m<=12;m++){const k=Y+pad(m),v=p[k];if(m>lastM)break;if(!v){blank++;continue;}const st=pstat(v);
       if(st==='paid'){a+=v.a||0;b+=v.b||v.a||0;mon[m-1].a+=v.a||0;mon[m-1].b+=v.b||v.a||0;lastPaid=k;}
@@ -1796,6 +1798,7 @@ function openClient(id){cardClose();
 
 /* ---------- 조정료 등 추가 청구 ---------- */
 const FK=['조정료','신고수수료','결산료','상담료','기타'];
+const fyy=v=>{const d=String(v||'').replace(/\D/g,'');return d.length>=6?d.slice(2,4):d.slice(0,2);};
 const feeOpen=cid=>(S.fees||[]).filter(f=>f.cid===cid&&f.st!=='paid');
 function openFee(id,cid){
   $('#mbox').classList.remove('mbw','mbx');
