@@ -308,6 +308,8 @@ body.wide main{max-width:1760px}
 .links a{font-size:13px;padding:6px 11px;border-radius:99px;background:var(--acc2);color:var(--acc);text-decoration:none;font-weight:700}
 .modal{position:fixed;inset:0;z-index:30;display:none;place-items:center;background:rgba(15,18,24,.35);padding:18px}
 .modal.on{display:grid}
+#cardpop{display:none;position:fixed;left:16px;bottom:16px;width:340px;max-width:calc(100vw - 32px);z-index:40;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+@media(max-width:900px){#cardpop{width:280px;left:8px;bottom:8px}}
 .modal .mb.mbw{width:min(760px,100%)}.modal .mb{background:var(--panel);border-radius:16px;padding:18px;width:min(360px,100%);display:flex;flex-direction:column;gap:12px}
 .modal h3{margin:0;font-size:17px}
 .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -1499,7 +1501,7 @@ window.__jobs={
 function drawer(html,kind){
   if(kind==='client'&&ui.tab==='clients'&&paneMode()&&$('#cpane')){const p=$('#cpane'),keep=ui.drawer===kind?p.scrollTop:0;p.innerHTML=html;ui.drawer=kind;p.scrollTop=keep;document.querySelectorAll('.crow').forEach(r=>r.classList.toggle('on',r.dataset.client===ui.openClient));return;}
   const keep=ui.drawer===kind?$('#drawer').scrollTop:0;$('#drawer').innerHTML=html;$('#drawer').classList.add('on');$('#shade').classList.add('on');ui.drawer=kind;$('#drawer').scrollTop=keep;}
-function closeDrawer(){$('#drawer').classList.remove('on');$('#shade').classList.remove('on');ui.drawer=null;ui.openTask=null;ui.openClient=null;ui.selClient=null;ui.openDay=null;render();}
+function closeDrawer(){cardClose();$('#drawer').classList.remove('on');$('#shade').classList.remove('on');ui.drawer=null;ui.openTask=null;ui.openClient=null;ui.selClient=null;ui.openDay=null;render();}
 const dh=(t,extra='')=>`<div class="dh"><h3>${t}</h3>${extra}<button class="x" data-a="close">×</button></div>`;
 const copt=sel=>`<option value="">거래처 없음</option>`+S.clients.map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${esc(c.name)}</option>`).join('');
 function refreshDrawer(){if(ui.drawer==='day')openDay(ui.openDay);else if(ui.drawer==='client')openClient(ui.openClient);else if(ui.drawer==='task')openTask(ui.openTask);}
@@ -1782,12 +1784,12 @@ function shrinkCard(file){return new Promise((res,rej)=>{const r=new FileReader(
   const go=(w,q)=>{const sc=Math.min(1,w/im.width),cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);const x=cv.getContext('2d');x.filter='grayscale(1) contrast(1.15)';x.drawImage(im,0,0,cv.width,cv.height);return cv.toDataURL('image/jpeg',q);};
   let u=go(900,.7);if(u.length>110000)u=go(800,.6);if(u.length>110000)u=go(700,.5);res(u);};im.onerror=rej;im.src=r.result;};r.onerror=rej;r.readAsDataURL(file);});}
 function cardView(){const v=ui.vcur&&ui.vcur.v;if(!v||!v.card)return;const c=cl(ui.vcur.id);
-  $('#mbox').classList.add('mbw');
-  $('#mbox').innerHTML=`<h3>${esc(c?c.name:'')} · 홈택스 보안카드</h3><img src="${v.card}" style="width:100%;border-radius:10px;border:1px solid var(--line)" alt="보안카드">
-    <div style="display:flex;gap:8px"><button class="btn g" data-a="cardUp">바꾸기</button><button class="btn g" data-a="cardDel" style="color:var(--red)">삭제</button><button class="btn" data-a="modalClose" style="margin-left:auto">닫기</button></div>`;
-  $('#modal').classList.add('on');}
+  let p=$('#cardpop');if(!p){p=document.createElement('div');p.id='cardpop';document.body.appendChild(p);}
+  p.innerHTML=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><b style="font-size:13px">${esc(c?c.name:'')} · 보안카드</b><button class="btn g" data-a="cardUp" style="margin-left:auto;padding:3px 8px;font-size:12px">바꾸기</button><button class="btn g" data-a="cardDel" style="padding:3px 8px;font-size:12px;color:var(--red)">삭제</button><button class="btn g" data-a="cardClose" style="padding:3px 8px;font-size:12px">✕</button></div><img src="${v.card}" style="width:100%;border-radius:8px;border:1px solid var(--line);display:block" alt="보안카드">`;
+  p.style.display='block';}
 function cardUp(){const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=async()=>{const f=i.files[0];if(!f)return;try{const u=await shrinkCard(f);const id=ui.vcur.id;S.sec=S.sec||{};S.sec[id]=Object.assign({},S.sec[id]||{},{card:u});save();ui.vcur.v.card=u;renderVault(id);toast('보안카드를 올렸어요');cardView();}catch(e){toast('사진을 읽지 못했어요');}};i.click();}
-function cardDel(){if(!confirm('보안카드 사진을 지울까요?'))return;const id=ui.vcur.id;if(S.sec[id])delete S.sec[id].card;save();$('#modal').classList.remove('on');$('#mbox').classList.remove('mbw');renderVault(id);}
+function cardDel(){if(!confirm('보안카드 사진을 지울까요?'))return;const id=ui.vcur.id;if(S.sec[id])delete S.sec[id].card;save();cardClose();renderVault(id);}
+function cardClose(){const p=$('#cardpop');if(p)p.style.display='none';}
 window.__sec={setCard:(name,u)=>{const id=matchClient(name);if(!id)return 'no client';S.sec=S.sec||{};S.sec[id]=Object.assign({},S.sec[id]||{},{card:u});save();return cl(id).name;},setCert:(name,cn,cp)=>{const id=matchClient(name);if(!id)return 'no client';S.sec=S.sec||{};S.sec[id]=Object.assign({},S.sec[id]||{},{certName:cn,certPw:cp||''});save();return cl(id).name;}};
 function vEdit(){
   $('#mbox').classList.remove('mbw');
@@ -1965,7 +1967,7 @@ document.addEventListener('click',e=>{
   el=q('[data-a]'); if(!el) return; const a=el.dataset.a;
   if(el.tagName==='A') e.preventDefault();
   const acts={
-    close:closeDrawer, modalClose:()=>{$('#modal').classList.remove('on');$('#mbox').classList.remove('mbw');}, cardView, cardUp, cardDel, feeNew:()=>openFee(), feeSave:saveFee, feeDel:()=>{if(!confirm('이 청구를 지울까요?'))return;S.fees=S.fees.filter(x=>x.id!==ui.feeId);save();$('#modal').classList.remove('on');render();if(ui.pdBack){const b=ui.pdBack;ui.pdBack=null;openPayDetail(b,ui.pdY);}},
+    close:closeDrawer, modalClose:()=>{$('#modal').classList.remove('on');$('#mbox').classList.remove('mbw');}, cardView, cardUp, cardDel, cardClose, feeNew:()=>openFee(), feeSave:saveFee, feeDel:()=>{if(!confirm('이 청구를 지울까요?'))return;S.fees=S.fees.filter(x=>x.id!==ui.feeId);save();$('#modal').classList.remove('on');render();if(ui.pdBack){const b=ui.pdBack;ui.pdBack=null;openPayDetail(b,ui.pdY);}},
     theme:()=>{S.theme=S.theme==='dark'?'light':'dark';save();render();$('#modal').classList.remove('on');},
     backup:()=>{const b=document.createElement('a');b.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));b.download=`업무-백업-${todayStr()}.json`;b.click();toast('백업 파일을 저장했어요');},
     restore:()=>$('#fileIn').click(),
