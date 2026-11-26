@@ -309,6 +309,7 @@ body.wide main{max-width:1760px}
 .links a{font-size:13px;padding:6px 11px;border-radius:99px;background:var(--acc2);color:var(--acc);text-decoration:none;font-weight:700}
 .modal{position:fixed;inset:0;z-index:30;display:none;place-items:center;background:rgba(15,18,24,.35);padding:18px}
 .modal.on{display:grid}
+.calsplit{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}@media(min-width:1100px){.calsplit{grid-template-columns:minmax(0,1fr) 380px}.calside{position:sticky;top:12px;max-height:calc(100dvh - 24px);overflow:auto}}
 #cardpop{display:none;position:fixed;left:16px;bottom:16px;width:340px;max-width:calc(100vw - 32px);z-index:40;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
 @media(max-width:900px){#cardpop{width:280px;left:8px;bottom:8px}}
 .modal .mb.mbw{width:min(760px,100%)}.modal .mb{background:var(--panel);border-radius:16px;padding:18px;width:min(360px,100%);display:flex;flex-direction:column;gap:12px}
@@ -758,17 +759,13 @@ function taskRow(x){
     ${x.due?`<span class="chip ${openT(x)&&n<0?'red':n===0?'grn':''}">${dueLabel(x.due)}</span>`:''}</div>`;
 }
 function vTasks(){
-  const t=todayStr(), F2={today:x=>openT(x)&&x.due&&x.due<=t,week:x=>openT(x)&&x.due&&x.due<=addDays(t,7),all:openT,nodate:x=>openT(x)&&!x.due,board:()=>true,done:x=>x.status==='done'};
-  const fl=[['today','오늘'],['week','7일'],['all','전체'],['nodate','날짜 없음'],['board','보드'],['done','완료']];
+  const t=todayStr(), F2={today:x=>openT(x)&&x.due&&x.due<=t,week:x=>openT(x)&&x.due&&x.due<=addDays(t,7),all:openT,nodate:x=>openT(x)&&!x.due,done:x=>x.status==='done'};
+  const fl=[['today','오늘'],['week','7일'],['all','전체'],['nodate','날짜 없음'],['done','완료']];
   let arr=S.tasks.filter(F2[ui.tf]);
   if(ui.q){const q=ui.q.toLowerCase();arr=arr.filter(x=>(x.title+' '+x.memo+' '+cname(x.client)).toLowerCase().includes(q));}
   let body;
-  if(ui.tf==='board'){
-    body=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">${[['todo','할 일'],['doing','진행 중'],['done','완료']].map(([k,n])=>{
-      let it=sortTasks(arr.filter(x=>x.status===k)); if(k==='done') it=it.sort((a,b)=>(b.doneAt||0)-(a.doneAt||0)).slice(0,30);
-      return `<div class="card" style="padding:10px;background:var(--soft)" data-col="${k}"><div style="font-weight:700;font-size:14px;margin:2px 4px 8px">${n} <span style="color:var(--sub);font-weight:400">${arr.filter(x=>x.status===k).length}</span></div>
-        ${it.map(x=>`<div class="card" style="padding:10px 12px;margin-bottom:8px;cursor:grab" draggable="true" data-task="${x.id}"><div style="font-weight:600">${esc(x.title)}</div><div class="pm">${x.client?`<span class="chip acc">${esc(cname(x.client))}</span>`:''}${x.due?`<span class="chip">${dueLabel(x.due)}</span>`:''}</div></div>`).join('')}</div>`}).join('')}</div>`;
-  }else if(!arr.length) body=`<div class="card"><div class="empty">${ui.q?'검색 결과가 없어요':ui.tf==='today'?'오늘 할 일을 다 끝냈어요 🎉':'할 일이 없어요'}</div></div>`;
+  if(ui.tf==='board')ui.tf='all';
+  if(!arr.length) body=`<div class="card"><div class="empty">${ui.q?'검색 결과가 없어요':ui.tf==='today'?'오늘 할 일을 다 끝냈어요 🎉':'할 일이 없어요'}</div></div>`;
   else if(ui.tf==='done') body=`<div class="card list">${arr.sort((a,b)=>(b.doneAt||0)-(a.doneAt||0)).map(taskRow).join('')}</div>`;
   else{
     const s=sortTasks(arr);
@@ -801,10 +798,10 @@ function vCal(){
   return head('세무달력',`<button class="btn g" data-a="calToday">오늘</button>`)+`
   <div class="calhead"><button class="nb" data-a="calPrev">‹</button><b>${y}년 ${m}월</b><button class="nb" data-a="calNext">›</button>
     <span style="margin-left:auto;font-size:13px;color:var(--sub)">날짜를 누르면 거래처별로 체크할 수 있어요</span></div>
-  <div class="card cal">${WD.map(w=>`<div class="wd">${w}</div>`).join('')}${cells}</div>
+  <div class="calsplit"><div class="calmain"><div class="card cal">${WD.map(w=>`<div class="wd">${w}</div>`).join('')}${cells}</div>
   <div class="legend">${used.map(k=>`<span><span class="dot" style="background:${TT[k].c}"></span> ${TT[k].n}</span>`).join('')}<span><span class="dot" style="background:var(--mute)"></span> 할 일</span></div>
-  ${mon.length?`<div class="sec"><h2>${m}월 기한 목록</h2></div><div class="card list">${mon.map(dlRow).join('')}</div>`:''}
-  <p class="note" style="margin-top:12px">기한은 거래처의 원천세 주기·과세유형·결산월로 자동 계산되고, 주말·공휴일이면 다음 영업일로 옮겨져요. 거래처 화면에서 세무 설정을 바꿀 수 있어요.</p>`;
+  <p class="note" style="margin-top:12px">기한은 거래처의 원천세 주기·과세유형·결산월로 자동 계산되고, 주말·공휴일이면 다음 영업일로 옮겨져요. 거래처 화면에서 세무 설정을 바꿀 수 있어요.</p></div>
+  <div class="calside"><div class="sec" style="margin-top:0"><h2>${m}월 기한 목록</h2></div>${mon.length?`<div class="card list">${mon.map(dlRow).join('')}</div>`:'<div class="card"><div class="empty">이번 달 기한이 없어요</div></div>'}</div></div>`;
 }
 const paneMode=()=>window.innerWidth>=900;
 const sortKey=c=>String(c.name||'').replace(/\(주\)|㈜|주식회사|\(유\)|유한회사|\[.*?\]|\s/g,'');
@@ -868,6 +865,45 @@ function vInv(){
     <td style="padding:8px"><span class="chip ${r.cls}">${r.st}</span></td></tr>`).join('')}</tbody></table></div>
 </div>`;
 }
+function loadXLSX(){if(window.XLSX)return Promise.resolve(window.XLSX);return new Promise((ok,no)=>{const t=document.createElement('script');t.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';t.onload=()=>ok(window.XLSX);t.onerror=()=>no(new Error('엑셀 읽기 도구를 불러오지 못했어요'));document.head.appendChild(t);});}
+const xnum=v=>{if(typeof v==='number')return v;const n=+String(v||'').replace(/[^\d.-]/g,'');return isNaN(n)?0:n;};
+function xfind(name,biz){const b=String(biz||'').replace(/\D/g,'');if(b.length===10){const c=S.clients.find(c=>String(c.biz||c.bizno||c.brn||'').replace(/\D/g,'')===b);if(c)return c.id;}return matchClient(name);}
+function payUp(){const i=document.createElement('input');i.type='file';i.accept='.xls,.xlsx,.csv';i.multiple=true;i.onchange=async()=>{for(const f of i.files)await payFile(f);};i.click();}
+async function payFile(f){let rows;try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array',cellDates:false});rows=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:true});}catch(e){return toast(e.message||'파일을 읽지 못했어요');}
+  const H=k=>rows.findIndex(r=>k.every(x=>r.map(v=>String(v).trim()).includes(x)));
+  let h=H(['수납금액','청구월','회원명']);if(h>=0)return payCms(rows,h,f.name);
+  h=H(['전표번호','공급가액','거래처명']);if(h>=0)return payInvFile(rows,h,f.name);
+  toast(`${f.name}: CMS 수납내역이나 세금계산서 발행내역이 아니에요`);}
+function payCms(rows,h,fn,dry){const hd=rows[h].map(v=>String(v).trim()),ix=k=>hd.indexOf(k);
+  const I={n:ix('회원명'),ym:ix('청구월'),b:ix('청구금액'),a:ix('수납금액'),u:ix('미납금액'),t:ix('청구타입'),d:ix('청구완납일자'),d2:ix('결제일(납부기간)')};
+  const G={};for(const r of rows.slice(h+1)){const nm=String(r[I.n]||'').trim(),ymr=String(r[I.ym]||'').replace(/\D/g,'');if(!nm||ymr.length<6)continue;
+    const cid=xfind(nm);if(!cid)continue;const ym=ymr.slice(2,6),k=cid+'|'+ym,g=G[k]=G[k]||{cid,ym,a:0,b:0,u:0,add:0,d:''};
+    const b=xnum(r[I.b]),a=xnum(r[I.a]),u=xnum(r[I.u]);g.b+=b;g.a+=a;g.u+=u;if(String(r[I.t]).includes('추가'))g.add+=b;
+    const d=String((I.d>=0&&r[I.d])||(I.d2>=0&&r[I.d2])||'').replace(/\D/g,'');if(a&&d.length>=8&&d>g.d)g.d=d;}
+  let n=0,pd=0,un=0;const cs=new Set(),out=[];
+  for(const g of Object.values(G)){let cell;
+    if(g.u>0){cell={s:'unpaid',u:g.u,b:g.b,m:`CMS 미납 ${g.u.toLocaleString()}원`+(g.a?` (수납 ${g.a.toLocaleString()}원)`:'')};un++;}
+    else if(g.a>0){cell={a:g.a,b:g.b,m:`CMS ${g.d?g.d.slice(4,6)+'/'+g.d.slice(6,8)+' ':''}수납`+(g.add?` (추가청구 ${g.add.toLocaleString()} 포함)`:'')};pd++;}
+    else continue;
+    if(dry){out.push([cl(g.cid).name,g.ym,cell]);continue;}
+    S.pay[g.cid]=S.pay[g.cid]||{};S.pay[g.cid][g.ym]=cell;n++;cs.add(g.cid);}
+  if(dry)return out;
+  S.cmsAt=todayStr();save();render();toast(`CMS 수납내역 반영 · ${cs.size}곳 ${n}개월 (수납 ${pd} · 미납 ${un})`);}
+function payInvFile(rows,h,fn,dry){const hd=rows[h].map(v=>String(v).trim()),ix=k=>hd.indexOf(k);
+  const I={no:ix('전표번호'),n:ix('거래처명'),b:ix('사업자등록증'),s:ix('공급가액'),e:ix('전자세금')};
+  const add={};let lo='999999',hi='000000',cnt=0;
+  for(const r of rows.slice(h+1)){const no=String(r[I.no]||'').trim();if(!/^\d\d-\d{4}-/.test(no))continue;
+    const d=no.slice(0,2)+no.slice(3,7);if(d<lo)lo=d;if(d>hi)hi=d;
+    const cid=xfind(String(r[I.n]||'').trim(),r[I.b]);if(!cid)continue;
+    const it=[d,xnum(r[I.s])];if(I.e>=0&&String(r[I.e]).trim()!=='신고완료')it.push(1);(add[cid]=add[cid]||[]).push(it);cnt++;}
+  if(hi==='000000')return toast('발행 내역 줄을 찾지 못했어요');
+  if(dry)return {lo,hi,add:Object.fromEntries(Object.entries(add).map(([k,v])=>[cl(k).name,v]))};
+  const inv=Object.assign({},S.inv||{});
+  for(const k of Object.keys(inv)){inv[k]=inv[k].filter(x=>x[0]<lo||x[0]>hi);if(!inv[k].length)delete inv[k];}
+  for(const [k,L] of Object.entries(add))inv[k]=(inv[k]||[]).concat(L).sort((a,b)=>a[0]<b[0]?-1:1);
+  S.inv=inv;delete S.invOther;S.invAt=todayStr();ui.pv='inv';save();render();
+  toast(`세금계산서 발행내역 반영 · ${Object.keys(add).length}곳 ${cnt}건 (${lo.slice(2,4)}/${lo.slice(4)}~${hi.slice(2,4)}/${hi.slice(4)})`);}
+window.__payDry=(rows)=>{const H=k=>rows.findIndex(r=>k.every(x=>r.map(v=>String(v).trim()).includes(x)));let h=H(['수납금액','청구월','회원명']);if(h>=0)return payCms(rows,h,'',1);h=H(['전표번호','공급가액','거래처명']);return h>=0?payInvFile(rows,h,'',1):null;};
 window.__inv={set:(map,other,at)=>{S.inv=map;delete S.invOther;S.invAt=at||todayStr();save();if(!ui.drawer)render();return Object.keys(map).length;},clients:()=>S.clients.map(c=>({id:c.id,name:c.name,biz:String(c.biz||c.bizno||c.brn||'').replace(/-/g,'')}))};
 
 function vPay(){
@@ -876,8 +912,8 @@ function vPay(){
   let paid=0,pc=0,uc=0,ua=0;
   let cx=0;arr.forEach(c=>{const cell=pcell(c.id,ym),st=pstat(cell);if(st==='paid'){paid+=cell.a||0;pc++;}if(st==='unpaid'){uc++;ua+=cell.u||(c.fee?Math.round(c.fee*1.1):0);}if(st==='cmsx')cx++;});
   const allU=S.clients.map(c=>({c,l:unpaidList(c.id)})).filter(x=>x.l.length);
-  if(ui.pv==='inv')return `<div class="fixframe payframe">`+head('수금')+paySeg()+vInv()+`</div>`;
-  return `<div class="fixframe payframe">`+head('수금')+paySeg()+`
+  if(ui.pv==='inv')return `<div class="fixframe payframe">`+head('수금',`<button class="btn g" data-a="payUp" title="CMS 수납내역 또는 세금계산서 발행내역(거래전표리스트) 엑셀">📥 엑셀 올리기</button>`)+paySeg()+vInv()+`</div>`;
+  return `<div class="fixframe payframe">`+head('수금',`<button class="btn g" data-a="payUp" title="CMS 수납내역 또는 세금계산서 발행내역(거래전표리스트) 엑셀">📥 엑셀 올리기</button>`)+paySeg()+`
   <div class="calhead"><button class="nb" data-a="pmPrev">‹</button><b>${ymLabel(ym)}</b><button class="nb" data-a="pmNext">›</button>${ym!==cur?`<button class="btn g s" data-a="pmCur">이번 달</button>`:''}</div>
   <div class="stats" style="grid-template-columns:repeat(3,1fr)">
     <div class="card stat"><b>${won(paid)}원</b><span>입금 ${pc}곳</span></div>
@@ -988,7 +1024,7 @@ window.__autos={add:o=>{S.autos=S.autos||[];const r=Object.assign({id:uid(),at:D
 
 /* ---------- 위하고 작업함 ---------- */
 const JK={pay:'급여대장 입력',etc:'이자·사업소득 입력',slip:'자동전표 처리',other:'기타'};
-const JS_={wait:{n:'대기',cls:'blu'},doing:{n:'진행 중',cls:'amb'},check:{n:'확인 필요',cls:'red'},done:{n:'완료',cls:'grn'},fail:{n:'실패',cls:'red'}};
+const JS_={ready:{n:'올려둠',cls:''},wait:{n:'수행 대기',cls:'blu'},doing:{n:'진행 중',cls:'amb'},check:{n:'확인 필요',cls:'red'},done:{n:'완료',cls:'grn'},fail:{n:'실패',cls:'red'}};
 /* 사진은 work/{uid}/files/{fid} 문서에 따로 저장 → 검토 완료 시 삭제 */
 const imgCache={};
 const fileRef=fid=>F.FS.doc(F.db,'work',user.uid,'files',fid);
@@ -1009,7 +1045,7 @@ function jobCard(j){
       ${j.result?`<div class="lab">처리 결과</div><pre>${esc(j.result)}</pre>`:''}
       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
         ${j.status==='check'||j.status==='fail'?`<button class="btn s" data-jobact="ok|${j.id}">확인했어요</button>`:''}
-        ${j.status!=='wait'?`<button class="btn g s" data-jobact="retry|${j.id}">다시 맡기기</button>`:''}
+        ${j.status==='wait'?`<button class="btn g s" data-jobact="hold|${j.id}">수행 취소</button>`:j.status!=='ready'?`<button class="btn g s" data-jobact="retry|${j.id}">다시 맡기기</button>`:''}
         <button class="del" data-jobact="del|${j.id}" style="margin-left:auto">삭제</button></div></div></div>`;
 }
 function vJobs(){
@@ -1017,11 +1053,12 @@ function vJobs(){
   const unrev=js.filter(j=>j.review&&!j.reviewed&&j.status!=='wait'&&j.status!=='doing').length;
   const seg=`<div class="seg" style="display:flex;gap:6px;margin-bottom:12px"><button class="btn ${ui.jsub!=='rev'?'':'g'}" data-jsub="box">작업함</button><button class="btn ${ui.jsub==='rev'?'':'g'}" data-jsub="rev">검토${unrev?` <span class="chip red" style="margin-left:4px">${unrev}</span>`:''}</button></div>`;
   if(ui.jsub==='rev') return head('위하고 작업 · 검토')+seg+vReview(js);
-  const act=js.filter(j=>j.status==='wait'||j.status==='doing'),chk=js.filter(j=>j.status==='check'||j.status==='fail'),dn=js.filter(j=>j.status==='done').slice(0,30);
-  return head('위하고 작업',`<button class="btn" data-a="jobNew">＋ 작업 맡기기</button>`)+seg+`
-  <p class="note" style="margin-bottom:12px">급여대장 같은 자료를 여기에 올려두면 <b>평일 오전 10시·오후 3시</b>에 Claude가 위하고에서 처리하고 결과를 남겨요. 그 시간에 노트북과 크롬(위하고 로그인)이 켜져 있어야 해요.</p>
+  const rd=js.filter(j=>j.status==='ready'),act=js.filter(j=>j.status==='wait'||j.status==='doing'),chk=js.filter(j=>j.status==='check'||j.status==='fail'),dn=js.filter(j=>j.status==='done').slice(0,30);
+  return head('위하고 작업',`<button class="btn g" data-a="jobNew">＋ 작업 올리기</button>${rd.length?`<button class="btn" data-a="jobRun">▶ 일괄 수행 ${rd.length}건</button>`:''}`)+seg+`
+  <p class="note" style="margin-bottom:12px">급여대장 같은 자료를 <b>작업 올리기</b>로 올려두고, 다 올렸으면 <b>▶ 일괄 수행</b>을 누르세요. 수행 대기로 넘어간 작업을 Claude가 한꺼번에 위하고에서 처리하고 결과를 남겨요(평일 오전 10시·오후 3시 자동 처리, 바로 돌리려면 채팅에 "위하고 작업 수행"이라고 말해 주세요). 처리할 때 노트북과 크롬(위하고 로그인)이 켜져 있어야 해요.${S.jobReq?` <span style="color:var(--sub)">· 마지막 수행 요청 ${new Date(S.jobReq).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})}</span>`:''}</p>
+  ${rd.length?`<div class="sec"><h2>올려둔 작업 · 수행 전</h2></div>${rd.map(jobCard).join('')}`:''}
   ${chk.length?`<div class="sec"><h2 style="color:var(--red)">확인 필요</h2></div>${chk.map(jobCard).join('')}`:''}
-  <div class="sec"><h2>대기 · 진행 중</h2></div>${act.length?act.map(jobCard).join(''):'<div class="card"><div class="empty">맡긴 작업이 없어요</div></div>'}
+  <div class="sec"><h2>수행 대기 · 진행 중</h2></div>${act.length?act.map(jobCard).join(''):'<div class="card"><div class="empty">수행 대기 중인 작업이 없어요</div></div>'}
   ${dn.length?`<div class="sec"><h2>완료</h2></div>${dn.map(jobCard).join('')}`:''}`;
 }
 
@@ -1061,7 +1098,7 @@ function jobForm(){
     <label class="btn g" style="justify-content:center">📷 사진·캡처 첨부<input id="jImg" type="file" accept="image/*" style="display:none"></label>
     <div id="jImgP" class="note"></div>
     <input id="jM" class="sel" style="width:100%" placeholder="메모 (예: 김병식 11/2 퇴사, 지급일 25일)">
-    <div style="display:flex;gap:8px"><button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">취소</button><button class="btn" data-a="jobSave" style="flex:1;justify-content:center">맡기기</button></div>`;
+    <div style="display:flex;gap:8px"><button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">취소</button><button class="btn" data-a="jobSave" style="flex:1;justify-content:center">올리기</button></div>`;
   $('#modal').classList.add('on');
 }
 function shrinkImg(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{
@@ -1072,8 +1109,8 @@ async function jobSave(){
   if(!client) return toast('거래처를 골라 주세요');
   if(!text&&!img&&!memo) return toast('표를 붙여넣거나 사진을 첨부해 주세요');
   if(img&&F&&user){try{imgRef=await putImg(img);img='';}catch(e){toast('사진 저장 칸 권한이 없어요 — Firebase 규칙에 files 줄을 넣어 주세요');return;}}
-  S.jobs.push({id:uid(),client,kind,ym,text,img,imgRef,memo,status:'wait',result:'',reviewed:null,created:Date.now(),doneAt:null});
-  trimJobs();save();$('#modal').classList.remove('on');ui.tab='jobs';render();toast('맡겼어요 · 다음 처리 시간에 진행해요');
+  S.jobs.push({id:uid(),client,kind,ym,text,img,imgRef,memo,status:'ready',result:'',reviewed:null,created:Date.now(),doneAt:null});
+  trimJobs();save();$('#modal').classList.remove('on');ui.tab='jobs';render();toast('올려뒀어요 · ▶ 일괄 수행을 누르면 처리해요');
 }
 function trimJobs(){const now=Date.now();S.jobs.filter(j=>j.reviewed&&hasImg(j)).forEach(j=>dropImg(j));
   S.jobs.filter(j=>j.status==='done'&&now-(j.doneAt||now)>=90*864e5).forEach(j=>dropImg(j));
@@ -1081,7 +1118,8 @@ function trimJobs(){const now=Date.now();S.jobs.filter(j=>j.reviewed&&hasImg(j))
   if(JSON.stringify(S).length>850000)toast('저장 공간이 거의 찼어요. 완료된 작업의 사진을 지워 주세요');}
 function jobAct(v){const [a,id]=v.split('|'),j=S.jobs.find(x=>x.id===id);if(!j)return;
   if(a==='del'){if(!confirm('이 작업을 삭제할까요?'))return;dropImg(j);S.jobs=S.jobs.filter(x=>x.id!==id);}
-  else if(a==='retry'){j.status='wait';j.reviewed=null;j.result=(j.result?j.result+'\n\n':'')+'— 다시 맡김 '+new Date().toLocaleString('ko-KR');}
+  else if(a==='retry'){j.status='ready';j.reviewed=null;j.result=(j.result?j.result+'\n\n':'')+'— 다시 맡김 '+new Date().toLocaleString('ko-KR');}
+  else if(a==='hold'){if(j.status==='wait')j.status='ready';}
   else if(a==='ok'){j.status='done';j.doneAt=Date.now();}
   else if(a==='rev'){j.reviewed=Date.now();if(j.status==='check'||j.status==='fail'){j.status='done';j.doneAt=Date.now();}if(j.client&&j.ym&&Array.isArray(j.prog))j.prog.forEach(k=>PGN[k]&&pgSet(j.client,k,j.ym,'d'));if(hasImg(j)){dropImg(j);toast('검토 완료 · 사진은 삭제했어요');}}
   else if(a==='unrev'){j.reviewed=null;}
@@ -2010,7 +2048,7 @@ document.addEventListener('click',e=>{
     clientDel:()=>{const c=cl(ui.openClient);if(!c||!confirm(`${c.name}을(를) 삭제할까요? (할 일·기록은 남아요)`))return;S.clients=S.clients.filter(x=>x.id!==c.id);delete S.pay[c.id];S.tasks.forEach(t=>{if(t.client===c.id)t.client=null});save();closeDrawer();},
     clientTask:()=>{const t=prompt('할 일 (예: 급여대장 요청 내일)');if(!t)return;const p=parse(t);S.tasks.push({id:uid(),...p,client:ui.openClient,status:'todo',memo:'',subs:[],created:Date.now(),doneAt:null});save();openClient(ui.openClient);toast('할 일을 추가했어요');},
     taskDel:()=>{const x=S.tasks.find(t=>t.id===ui.openTask);const i=S.tasks.indexOf(x);S.tasks.splice(i,1);save();closeDrawer();toast('삭제했어요',()=>{S.tasks.splice(i,0,x);save();render();});},
-    jobNew:jobForm, jobSave,
+    payUp, jobNew:jobForm, jobSave, jobRun:()=>{const r=S.jobs.filter(j=>j.status==='ready');if(!r.length)return;if(!confirm(`올려둔 작업 ${r.length}건을 일괄 수행할까요?`))return;r.forEach(j=>j.status='wait');S.jobReq=Date.now();save();render();toast(`${r.length}건 수행 요청했어요`);},
     live:openLive, logs:()=>{ui.tab='logs';closeDrawer();}
   };
   if(acts[a]) acts[a]();
