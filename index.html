@@ -932,7 +932,11 @@ async function payDb(pick,quiet){
   const msg=(done.length?`'${h.name}'에서 ${done.length}개 반영: ${done.join(', ')}`:'')+(stop?`${done.length?' · ':''}'${stop}'은 열을 골라 주세요 (고른 뒤 🔄 다시 누르면 나머지 진행)`:'');
   if(!stop)setTimeout(()=>toast(msg),1600);else if(done.length)toast(msg);}
 window.__payDb=payDb;
-let dbAutoOn=false;function payDbAuto(){if(SALE||TEST||dbAutoOn)return;dbAutoOn=true;setTimeout(()=>payDb(false,true),2500);setInterval(()=>{if(!document.hidden)payDb(false,true);},30*60*1000);}
+let dbAutoOn=false;
+/* 매월 15일·26일 오전 10:20 이후, 앱이 켜져 있으면 그날 한 번 자동 확인 (놓치면 그날 앱을 여는 때) */
+function payDbDue(){const d=new Date();if(![15,26].includes(d.getDate()))return false;if(d.getHours()*60+d.getMinutes()<10*60+20)return false;
+  const day=d.toISOString().slice(0,10);if(S.dbAutoDay===day)return false;S.dbAutoDay=day;return true;}
+function payDbAuto(){if(SALE||TEST||dbAutoOn)return;dbAutoOn=true;const t=()=>{if(payDbDue()){save();payDb(false,true);}};setTimeout(t,2500);setInterval(t,60*1000);}
 function payUp(){const i=document.createElement('input');i.type='file';i.accept='.xls,.xlsx,.csv';i.multiple=true;i.onchange=async()=>{for(const f of i.files)await payFile(f);};i.click();}
 async function payFile(f){let rows;try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array',cellDates:false});rows=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:true});}catch(e){return toast(e.message||'파일을 읽지 못했어요');}
   xApplyMaps(rows);
