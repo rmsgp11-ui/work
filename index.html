@@ -1589,7 +1589,7 @@ function openFee(id,cid){
     <div><label class="lab">청구 금액 (부가세 포함)</label><input id="fAmt" type="number" inputmode="numeric" value="${f.amt}"></div>
     <div class="r2"><div><label class="lab">상태</label><select id="fSt" class="sel"><option value="unpaid" ${f.st!=='paid'?'selected':''}>미수</option><option value="paid" ${f.st==='paid'?'selected':''}>입금</option></select></div>
     <div><label class="lab">입금일</label><input id="fPaid" type="date" value="${esc(f.paidAt||'')}"></div></div>
-    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="fInv" ${f.inv?'checked':''}> 세금계산서 발행함</label>
+    <label style="display:flex;gap:8px;align-items:center;justify-content:flex-start;font-size:14px"><input type="checkbox" id="fInv" style="width:auto;margin:0" ${f.inv?'checked':''}> 세금계산서 발행함</label>
     <div><label class="lab">메모</label><input id="fMemo" value="${esc(f.memo||'')}"></div>
     <div style="display:flex;gap:8px">${id?`<button class="btn g" data-a="feeDel" style="color:var(--red)">삭제</button>`:''}<button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">닫기</button><button class="btn" data-a="feeSave" style="flex:1;justify-content:center">저장</button></div>`;
   ui.feeId=id||null;$('#modal').classList.add('on');
