@@ -854,51 +854,55 @@ function vClients(){
 
 /* ---------- 세금계산서 발행 대사 ---------- */
 const paySeg=()=>`<div class="seg" style="display:flex;gap:6px;margin-bottom:12px"><button class="btn ${ui.pv!=='inv'?'':'g'}" data-a="pvM">월별 수금</button><button class="btn ${ui.pv==='inv'?'':'g'}" data-a="pvI">세금계산서 발행 대사</button></div>`;
-function invRows(){
-  const Y=String(curYM()).slice(0,2),cur=curYM(),out=[];
-  for(const c of S.clients){const L=(S.inv&&S.inv[c.id])||[];const p=S.pay[c.id]||{};const fee=c.fee||0;
-    let paid=0,pm=0,unk=0,un=0;const months=[];
+function invRows(Y0){
+  const cur=curYM(),Y=Y0||String(cur).slice(0,2),out=[];
+  for(const c of S.clients){const L=((S.inv&&S.inv[c.id])||[]).filter(x=>String(x[0]).slice(0,2)===Y);const p=S.pay[c.id]||{};const fee=c.fee||0;
+    let paid=0,pm=0,unk=0,un=0,bill=0,bm=0;const months=[];
     for(let m=1;m<=12;m++){const k=Y+pad(m);if(k>cur)break;const v=p[k];if(!v)continue;
-      if(v.a!=null){const sup=fee&&v.a>fee*1.05?Math.round(v.a/1.1):v.a;paid+=sup;pm++;months.push([k,'p',sup]);}
-      else if(v.s==='transfer'||v.s==='cmsx'||v.s==='etc'){unk++;months.push([k,'q']);}
-      else if(v.s==='unpaid'){un++;months.push([k,'u']);}}
+      if(v.a!=null){const sup=fee&&v.a>fee*1.05?Math.round(v.a/1.1):v.a;paid+=sup;pm++;months.push([k,'p',sup]);const bb=v.b||v.a;bill+=fee&&bb>fee*1.05?Math.round(bb/1.1):bb;bm++;}
+      else if(v.s==='transfer'||v.s==='cmsx'||v.s==='etc'){unk++;months.push([k,'q']);bill+=fee;bm++;}
+      else if(v.s==='unpaid'){un++;months.push([k,'u']);bill+=v.b||v.u?Math.round((v.b||v.u)/1.1):fee;bm++;}}
     const FY=(S.fees||[]).filter(f=>f.cid===c.id&&((f.st==='paid'&&f.paidAt?String(f.paidAt).slice(2,4):fyy(f.ym))===Y));
-    const fp=FY.filter(f=>f.st==='paid'),fu=FY.filter(f=>f.st!=='paid');const fpA=fp.filter(isAdj).reduce((a,f)=>a+Math.round(f.amt/1.1),0),fpS=fp.reduce((a,f)=>a+Math.round(f.amt/1.1),0),fuS=fu.reduce((a,f)=>a+Math.round(f.amt/1.1),0);paid+=fpS;
-    const iss=L.reduce((a,x)=>a+x[1],0);if(!iss&&!paid&&!unk&&!un&&!fuS)continue;
+    const sup=f=>Math.round(f.amt/1.1);
+    const fp=FY.filter(f=>f.st==='paid'),fu=FY.filter(f=>f.st!=='paid');const fpA=fp.filter(isAdj).reduce((a,f)=>a+sup(f),0),fpS=fp.reduce((a,f)=>a+sup(f),0),fuS=fu.reduce((a,f)=>a+sup(f),0);
+    const fbA=FY.filter(isAdj).reduce((a,f)=>a+sup(f),0),fbS=FY.reduce((a,f)=>a+sup(f),0);
+    const base=paid,billBase=bill;paid+=fpS;bill+=fbS;
+    const iss=L.reduce((a,x)=>a+x[1],0);if(!iss&&!paid&&!unk&&!un&&!fuS&&!bill)continue;
     const last=L.length?L[L.length-1][0]:'';const unsent=L.filter(x=>x[2]).length;
     const diff=paid-iss,over=-diff;let st,cls;
     if(!paid&&!L.length){if(fuS&&!unk&&!un){st='조정료 미수 · 발행 없음';cls='blu';}else if(unk){st='CMS 입금 확인 · 발행 없음';cls='amb';}else{st='미수 · 발행 없음';cls='blu';}}
     else if(Math.abs(diff)<1000){st='일치';cls='grn';}
-    else if(diff>0){st=L.length?'덜 발행':'발행 없음';cls='red';}
-    else if(unk&&over<=(un+unk)*fee+1000){st='CMS 입금 확인';cls='amb';}
-    else if(over<=un*fee+fuS+1000){st='미수분 발행';cls='blu';}
-    else {st='앱 수금 기록 빠짐?';cls='pur';}
-    out.push({c,fee,paid,pm,unk,un,iss,last,unsent,diff,st,cls,L,fp,fu,fpS,fpA,fuS});}
+    else if(diff>0){st=L.length?'미발행':'발행 없음';cls='red';}
+    else if(unk&&over<=(un+unk)*fee+1000){st='과발행 · CMS 입금 확인';cls='amb';}
+    else if(over<=un*fee+fuS+1000){st='과발행 · 미수분 선발행';cls='blu';}
+    else {st='과발행 · 수납 기록 확인';cls='pur';}
+    out.push({c,fee,paid,base,pm,unk,un,iss,last,unsent,diff,st,cls,L,fp,fu,fpS,fpA,fuS,bill,billBase,bm,fbA,fbS});}
   const rank={red:0,pur:1,amb:2,blu:3,grn:4};return out.sort((a,b)=>rank[a.cls]-rank[b.cls]||Math.abs(b.diff)-Math.abs(a.diff));
 }
 function vInv(){
   if(!S.inv)return `<div class="card" style="padding:24px;color:var(--sub)">세금계산서 발행 내역이 아직 없어요.</div>`;
-  const R=invRows(),cnt=k=>R.filter(r=>r.cls===k).length;
-  const md2=d=>d?`${+d.slice(2,4)}/${+d.slice(4,6)}`:'';
-  return `<div class="stats" style="grid-template-columns:repeat(5,minmax(0,1fr))">
-    <div class="card stat ${cnt('red')?'warn':''}"><b>${cnt('red')}곳</b><span>받았는데 덜 발행</span></div>
-    <div class="card stat"><b>${cnt('pur')}곳</b><span>앱 수금 기록 빠짐?</span></div>
-    <div class="card stat"><b>${cnt('amb')}곳</b><span>CMS 입금 확인 필요</span></div>
-    <div class="card stat"><b>${cnt('blu')}곳</b><span>미수분 발행(정상)</span></div>
-    <div class="card stat"><b>${cnt('grn')}곳</b><span>일치</span></div></div><div class="sec"><h2>${2000+ +String(curYM()).slice(0,2)}년 거래처별 (공급가액 기준)</h2><span class="more">발행 내역 기준일 ${esc(S.invAt||'')} · 수납 = 기장료 + 조정료 + 그 외(신고수수료·결산료·상담료·기타), 부가세 뺀 공급가</span></div>
-  <div class="pscroll">
-  <div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
-  <thead><tr style="text-align:left;color:var(--sub);border-bottom:1px solid var(--line)"><th style="padding:8px" rowspan="2">거래처</th><th style="padding:8px;text-align:right" rowspan="2">월 기장료</th><th style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--line)" colspan="5">수납 (기장료 + 조정료 + 그 외)</th><th style="padding:8px" rowspan="2">수금 상태 불명·미수</th><th style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--line)" colspan="2">세금계산서 발행</th><th style="padding:8px" rowspan="2">발행일</th><th style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--line)" colspan="2">차이 (수납 − 발행)</th><th style="padding:8px" rowspan="2">판정</th></tr>
-  <tr style="color:var(--sub);border-bottom:1px solid var(--line)"><th style="padding:4px 8px;text-align:right">기장료</th><th style="padding:4px 8px;text-align:right">조정료</th><th style="padding:4px 8px;text-align:right">그 외</th><th style="padding:4px 8px;text-align:right">공급가 합계</th><th style="padding:4px 8px;text-align:right">VAT</th><th style="padding:4px 8px;text-align:right">공급가</th><th style="padding:4px 8px;text-align:right">세액</th><th style="padding:4px 8px;text-align:right">공급가</th><th style="padding:4px 8px;text-align:right">VAT</th></tr></thead>
-  <tbody>${R.map(r=>`<tr style="border-bottom:1px solid var(--line)"><td style="padding:8px"><b data-client="${r.c.id}" style="cursor:pointer">${esc(r.c.name)}</b></td>
-    <td style="padding:8px;text-align:right">${r.fee?won(r.fee):'-'}</td>
-    <td style="padding:8px;text-align:right">${won(r.paid-r.fpS)}<div style="color:var(--sub);font-size:11px">${r.pm}개월</div></td><td style="padding:8px;text-align:right">${r.fpA?won(r.fpA):'—'}</td><td style="padding:8px;text-align:right">${r.fpS-r.fpA?won(r.fpS-r.fpA):'—'}${r.fp.filter(f=>!isAdj(f)).length?`<div style="color:var(--sub);font-size:11px">${[...new Set(r.fp.filter(f=>!isAdj(f)).map(f=>esc(f.kind)))].join('·')}</div>`:''}</td><td style="padding:8px;text-align:right;font-weight:600">${won(r.paid)}</td><td style="padding:8px;text-align:right">${won(itax(r.paid,r.c))}</td>
-    <td style="padding:8px;font-size:12px">${r.unk?`<span class="chip amb">확인필요 ${r.unk}개월</span> `:''}${r.un?`<span class="chip red">미수 ${r.un}개월</span> `:''}${r.fu.map(f=>`<span class="chip pur" data-fee="${f.id}" style="cursor:pointer">${esc(f.kind)} 미수 ${won(Math.round(f.amt/1.1))}</span> `).join('')}</td>
-    <td style="padding:8px;text-align:right">${won(r.iss)}<div style="color:var(--sub);font-size:11px">${r.fee?(Math.round(r.iss/r.fee*10)/10)+'개월분':''}</div></td>
-    <td style="padding:8px;text-align:right">${won(itax(r.iss,r.c))}</td><td style="padding:8px;font-size:12px;color:var(--sub)">${r.L.map(x=>md2(x[0])+(x[2]?'(미발송)':'')).join(' · ')}</td>
-    <td style="padding:8px;text-align:right;${Math.abs(r.diff)>=1000?(r.diff>0?'color:var(--red);font-weight:700':'color:var(--blu,#2563eb)'):''}">${Math.abs(r.diff)<1000?'—':(r.diff>0?'+':'−')+won(Math.abs(r.diff))}</td><td style="padding:8px;text-align:right;${Math.abs(r.diff)>=1000?(r.diff>0?'color:var(--red)':'color:var(--blu,#2563eb)'):''}">${Math.abs(r.diff)<1000?'—':(r.diff>0?'+':'−')+won(Math.abs(itax(r.diff,r.c)))}</td>
-    <td style="padding:8px"><span class="chip ${r.cls}">${r.st}</span></td></tr>`).join('')}</tbody></table></div>
-</div>`;
+  const R=invRows(),cnt=k=>R.filter(r=>r.cls===k).length,sum=k=>R.reduce((a,r)=>a+r[k],0);
+  const md2=d=>d?`${+d.slice(2,4)}/${+d.slice(4,6)}`:'';const n=v=>v?won(v):'—';const T='padding:7px 8px;text-align:right';const G='border-left:2px solid var(--line)';
+  const under=R.filter(r=>r.diff>=1000),over=R.filter(r=>r.diff<=-1000);
+  return `<div class="stats" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    <div class="card stat"><b>${won(sum('bill'))}</b><span>① 청구 (공급가) · 요청한 금액</span></div>
+    <div class="card stat"><b>${won(sum('paid'))}</b><span>② 수납 (공급가) · 들어온 금액 · 미수 ${won(Math.max(0,sum('bill')-sum('paid')))}</span></div>
+    <div class="card stat"><b>${won(sum('iss'))}</b><span>③ 세금계산서 발행 (공급가)</span></div>
+    <div class="card stat ${under.length?'warn':''}"><b style="font-size:19px">미발행 ${under.length}곳 · 과발행 ${over.length}곳</b><span>미발행 ${won(under.reduce((a,r)=>a+r.diff,0))} · 과발행 ${won(Math.abs(over.reduce((a,r)=>a+r.diff,0)))} · 일치 ${cnt('grn')}곳</span></div></div>
+  <div class="sec"><h2>${2000+ +String(curYM()).slice(0,2)}년 청구 → 수납 → 세금계산서 검증 (공급가)</h2><span class="more">발행 내역 기준일 ${esc(S.invAt||'')} · 그 외 = 신고수수료·결산료·상담료·기타 · 판정은 수납과 발행 비교</span></div>
+  <div class="pscroll"><div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap">
+  <thead><tr style="color:var(--sub);text-align:center"><th rowspan="2" style="padding:8px;text-align:left">거래처</th><th colspan="4" style="padding:6px;${G}">① 청구</th><th colspan="5" style="padding:6px;${G}">② 수납</th><th rowspan="2" style="padding:6px;${G}">미수<br>(①−②)</th><th colspan="3" style="padding:6px;${G}">③ 세금계산서</th><th colspan="2" style="padding:6px;${G}">차이 (②−③)</th><th rowspan="2" style="padding:6px;${G}">판정</th></tr>
+  <tr style="color:var(--sub);font-size:11px;border-bottom:1px solid var(--line)"><th style="${T};${G}">기장료</th><th style="${T}">조정료</th><th style="${T}">그 외</th><th style="${T}">합계</th><th style="${T};${G}">기장료</th><th style="${T}">조정료</th><th style="${T}">그 외</th><th style="${T}">합계</th><th style="${T}">VAT</th><th style="${T};${G}">공급가</th><th style="${T}">세액</th><th style="padding:7px 8px">발행일</th><th style="${T};${G}">공급가</th><th style="${T}">VAT</th></tr></thead>
+  <tbody>${R.map(r=>{const mis=r.bill-r.paid,d=r.diff,dc=Math.abs(d)<1000?'':d>0?'color:var(--red);font-weight:700':'color:var(--blu,#2563eb);font-weight:700';
+    return `<tr style="border-bottom:1px solid var(--line)"><td style="padding:7px 8px;white-space:normal;min-width:150px"><b data-payd="${r.c.id}" style="cursor:pointer">${esc(r.c.name)}</b>${r.un||r.unk||r.fu.length?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">${r.un?`<span class="chip red" style="font-size:10.5px">미수 ${r.un}개월</span>`:''}${r.unk?`<span class="chip amb" style="font-size:10.5px">수금 상태 불명 ${r.unk}개월</span>`:''}${r.fu.map(f=>`<span class="chip pur" data-fee="${f.id}" style="font-size:10.5px;cursor:pointer">${esc(f.kind)} 미수</span>`).join('')}</div>`:''}</td>
+    <td style="${T};${G}">${n(r.billBase)}<div style="color:var(--sub);font-size:10.5px">${r.bm?r.bm+'개월':''}</div></td><td style="${T}">${n(r.fbA)}</td><td style="${T}">${n(r.fbS-r.fbA)}</td><td style="${T};font-weight:600">${n(r.bill)}</td>
+    <td style="${T};${G}">${n(r.base)}<div style="color:var(--sub);font-size:10.5px">${r.pm?r.pm+'개월':''}</div></td><td style="${T}">${n(r.fpA)}</td><td style="${T}">${n(r.fpS-r.fpA)}</td><td style="${T};font-weight:600">${n(r.paid)}</td><td style="${T};color:var(--sub)">${n(itax(r.paid,r.c))}</td>
+    <td style="${T};${G};${mis>=1000?'color:var(--red)':''}">${mis>=1000?won(mis):'—'}</td>
+    <td style="${T};${G}">${n(r.iss)}${r.unsent?' <span class="chip amb" style="font-size:10px">미발송</span>':''}</td><td style="${T};color:var(--sub)">${n(itax(r.iss,r.c))}</td><td style="padding:7px 8px;color:var(--sub);font-size:11px;white-space:normal;min-width:70px">${r.L.map(x=>md2(x[0])).join(' · ')}</td>
+    <td style="${T};${G};${dc}">${Math.abs(d)<1000?'—':(d>0?'+':'−')+won(Math.abs(d))}</td><td style="${T};${dc}">${Math.abs(d)<1000?'—':(d>0?'+':'−')+won(itax(Math.abs(d),r.c))}</td>
+    <td style="padding:7px 8px;${G}"><span class="chip ${r.cls}">${r.st}</span></td></tr>`;}).join('')}
+  <tr style="font-weight:700;border-top:2px solid var(--line)"><td style="padding:7px 8px">합계</td><td style="${T};${G}">${won(sum('billBase'))}</td><td style="${T}">${won(sum('fbA'))}</td><td style="${T}">${won(sum('fbS')-sum('fbA'))}</td><td style="${T}">${won(sum('bill'))}</td><td style="${T};${G}">${won(sum('base'))}</td><td style="${T}">${won(sum('fpA'))}</td><td style="${T}">${won(sum('fpS')-sum('fpA'))}</td><td style="${T}">${won(sum('paid'))}</td><td style="${T}">${won(Math.round(sum('paid')*0.1))}</td><td style="${T};${G}">${won(Math.max(0,sum('bill')-sum('paid')))}</td><td style="${T};${G}">${won(sum('iss'))}</td><td style="${T}">${won(Math.round(sum('iss')*0.1))}</td><td></td><td style="${T};${G}">${won(sum('diff'))}</td><td style="${T}">${won(Math.round(sum('diff')*0.1))}</td><td style="${G}"></td></tr></tbody></table></div>
+  <p class="note" style="margin-top:8px">① 청구 = 앱에 표시된 달의 청구액(입금·미수·CMS 확인 등) + 조정료·그 외 청구. ② 수납 = 실제 들어온 금액. ③ 세금계산서 = 발행 공급가. 판정: 미발행(들어왔는데 덜 발행) · 과발행(들어온 것보다 더 발행 — 미수분 선발행이면 정상) · 일치.</p></div>`;
 }
 function loadXLSX(){if(window.XLSX)return Promise.resolve(window.XLSX);return new Promise((ok,no)=>{const t=document.createElement('script');t.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';t.onload=()=>ok(window.XLSX);t.onerror=()=>no(new Error('엑셀 읽기 도구를 불러오지 못했어요'));document.head.appendChild(t);});}
 const xnum=v=>{if(typeof v==='number')return v;const n=+String(v||'').replace(/[^\d.-]/g,'');return isNaN(n)?0:n;};
@@ -1065,23 +1069,26 @@ function payRep(){ui.ry=ui.ry||String(curYM()).slice(0,2);const Y=ui.ry;
     <div id="repBody" style="max-height:76vh;overflow:auto;padding-right:4px">${repHTML(Y,repCalc(Y))}</div>`;$('#modal').classList.add('on');}
 function repSplit(R){const S2=(t,c)=>spl(t,c);const rows=R.rows.map(r=>({r,b:S2(r.b,r.c),b0:S2(r.b0,r.c),fbA:S2(r.fbA,r.c),fbE:S2(r.fbE,r.c),a:S2(r.a,r.c),a0:S2(r.a0,r.c),fa:S2(r.fa,r.c),faA:S2(r.faA,r.c),faE:S2(r.faE,r.c),u:S2(r.u,r.c),ua:S2(r.uAll,r.c),i:[r.iss,itax(r.iss,r.c)]}));
   const sum=k=>rows.reduce((t,x)=>[t[0]+x[k][0],t[1]+x[k][1]],[0,0]);return {rows,T:{b:sum('b'),b0:sum('b0'),fbA:sum('fbA'),fbE:sum('fbE'),a:sum('a'),a0:sum('a0'),fa:sum('fa'),faA:sum('faA'),faE:sum('faE'),u:sum('u'),ua:sum('ua'),i:sum('i')}};}
-function repHTML(Y,R){const r_='style="text-align:right"',X=repSplit(R);
-  const sv=(p,cls)=>`<td ${r_}${cls?` class="${cls}"`:''}>${p[0]?won(p[0]):'—'}</td><td ${r_} class="${cls||''} rvat">${p[0]||p[1]?won(p[1]):'—'}</td>`;const si=sv;const h2=(t,a,b)=>`<th colspan="2" style="text-align:center">${t}</th>`;const sub=n=>`<tr class="rsub"><th></th>${n}</tr>`;
-  const tbl=(head,body,empty)=>`<table class="rvt rpt"><thead><tr>${head}</tr></thead><tbody>${body||`<tr><td colspan="9" class="rnone">${empty}</td></tr>`}</tbody></table>`;
-  const sec=(t,sub,inner)=>`<div class="rsec"><div class="rsh"><b>${t}</b>${sub?`<span>${sub}</span>`:''}</div>${inner}</div>`;
-  const mx=Math.max(1,...R.mon.map(m=>m.b));const byId=Object.fromEntries(X.rows.map(x=>[x.r.c.id,x]));
+function repMiss(R){return R.due.slice().map(r=>{const p=S.pay[r.c.id]||{};const base=r.ul.reduce((t,k)=>t+((p[k]||{}).u||(r.c.fee?Math.round(r.c.fee*1.1):0)),0);const fee=r.fo.reduce((t,f)=>t+f.amt,0);const [s0,v0]=spl(base+fee,r.c);return {r,base,fee,sup:s0,vat:v0,tot:base+fee};}).sort((a,b)=>b.tot-a.tot);}
+function repInv(Y){const R=S.inv?invRows(Y):[];return {under:R.filter(r=>r.diff>=1000).sort((a,b)=>b.diff-a.diff),over:R.filter(r=>r.diff<=-1000).sort((a,b)=>a.diff-b.diff)};}
+function repHTML(Y,R){const r_='style="text-align:right"',X=repSplit(R),M=repMiss(R),I=repInv(Y);
+  const sec=(t,sub,inner,tone)=>`<div class="rsec ${tone||''}"><div class="rsh"><b>${t}</b>${sub?`<span>${sub}</span>`:''}</div>${inner}</div>`;
+  const mx=Math.max(1,...R.mon.map(m=>m.b));const MS=M.reduce((t,m)=>[t[0]+m.sup,t[1]+m.vat,t[2]+m.tot],[0,0,0]);
+  const uS=I.under.reduce((t,r)=>t+r.diff,0),oS=Math.abs(I.over.reduce((t,r)=>t+r.diff,0));
   const k=(lab,p,extra,cls,tax)=>`<div class="${cls||''}"><span>${lab}</span><b>${won(p[0])}</b><small class="vx" style="font-size:12px">${tax?'세액':'VAT'} ${won(p[1])} · 합계 ${won(p[0]+p[1])}</small>${extra||''}</div>`;
-  return `<div class="rkpi">${k(`20${Y}년 청구 (공급가)`,X.T.b,`<small class="vx" style="font-size:12px">기장료 ${won(X.T.b0[0])} · 조정료 ${won(X.T.fbA[0])} · 그 외 ${won(X.T.fbE[0])}</small>`)}${k(`20${Y}년 입금 (공급가)`,X.T.a,`<small class="vx" style="font-size:12px">기장료 ${won(X.T.a0[0])} · 조정료 ${won(X.T.faA[0])} · 그 외 ${won(X.T.faE[0])}</small><i class="${R.rate<90?'bad':''}">수금률 ${R.rate}%</i>`)}${k('지금 미수 (공급가)',X.T.ua,`<i class="${R.due.length?'bad':''}">${R.due.length}곳</i>`,R.T.uAll?'warn':'')}${k('세금계산서 발행 (공급가)',X.T.i,'','',1)}</div>
+  const invT=(L,lab)=>`<table class="rvt rpt"><thead><tr><th>거래처</th><th ${r_}>수납 (공급가)</th><th ${r_}>발행 (공급가)</th><th ${r_}>${lab} 공급가</th><th ${r_}>${lab} 세액</th><th>내용</th></tr></thead><tbody>${L.map(r=>{const d=Math.abs(r.diff);return `<tr><td><b>${esc(r.c.name)}</b></td><td ${r_}>${won(r.paid)}</td><td ${r_}>${won(r.iss)}</td><td ${r_} class="${lab==='미발행'?'rred':''}"><b>${won(d)}</b></td><td ${r_} class="rvat">${won(itax(d,r.c))}</td><td style="font-size:12.5px;color:var(--sub)">${lab==='미발행'?(r.L.length?'받은 만큼 덜 발행 → 추가 발행':'받았는데 발행 없음 → 발행'):r.st.replace('과발행 · ','')}</td></tr>`;}).join('')||'<tr><td colspan="6" class="rnone">없어요</td></tr>'}${L.length?`<tr style="font-weight:700"><td>합계</td><td></td><td></td><td ${r_}>${won(L.reduce((t,r)=>t+Math.abs(r.diff),0))}</td><td ${r_}>${won(L.reduce((t,r)=>t+itax(Math.abs(r.diff),r.c),0))}</td><td></td></tr>`:''}</tbody></table>`;
+  return `<div class="rkpi">${k(`20${Y}년 청구 (공급가)`,X.T.b,`<small class="vx" style="font-size:12px">기장료 ${won(X.T.b0[0])} · 조정료 ${won(X.T.fbA[0])} · 그 외 ${won(X.T.fbE[0])}</small>`)}${k(`20${Y}년 입금 (공급가)`,X.T.a,`<i class="${R.rate<90?'bad':''}">수금률 ${R.rate}%</i>`)}${k('지금 미수 (공급가)',[MS[0],MS[1]],`<i class="${M.length?'bad':''}">${M.length}곳</i>`,M.length?'warn':'')}<div class="${I.under.length?'warn':''}"><span>세금계산서 (공급가)</span><b style="font-size:17px">미발행 ${won(uS)}</b><small class="vx" style="font-size:12px">미발행 ${I.under.length}곳 · 과발행 ${I.over.length}곳 ${won(oS)}</small></div></div>
   ${sec('월별 흐름','초록 = 입금, 빨강 = 미수 · 공급가 기준',`<div class="rmon">${R.mon.map((m,i)=>i+1>R.lastM?'':`<div><span>${i+1}월</span><div class="rbar"><i style="width:${Math.round(m.b/mx*100)}%"><em style="width:${m.b?Math.round(m.a/m.b*100):0}%"></em></i></div><b>${m.a?won(spl(m.a)[0]):'—'}</b><small class="${m.u?'rred':''}">${m.u?'미수 '+won(spl(m.u)[0]):m.b?'완납':''}</small></div>`).join('')}</div>`)}
-  ${sec('미수 거래처',`${R.due.length}곳 · 공급가 ${won(X.T.ua[0])} · VAT ${won(X.T.ua[1])}`,`<table class="rvt rpt"><thead><tr><th>거래처</th><th>미수 달</th><th ${r_}>개월</th><th ${r_}>미수 공급가</th><th ${r_}>미수 VAT</th></tr></thead><tbody>${
-    R.due.slice().sort((x,y)=>y.uAll-x.uAll).map(r=>`<tr><td><b>${esc(r.c.name)}</b></td><td>${esc(mrange(r.ul))}${r.fo.length?` · ${r.fo.map(f=>esc(f.kind)).join('·')}`:''}</td><td ${r_}>${r.ul.length||''}</td>${sv(byId[r.c.id].ua,'rred')}</tr>`).join('')||'<tr><td colspan="5" class="rnone">미수 거래처가 없어요</td></tr>'}${R.due.length?`<tr style="font-weight:700"><td>합계</td><td></td><td></td>${sv(X.T.ua,'rred')}</tr>`:''}</tbody></table>`)}
-  ${sec('거래처별',`20${Y}년 · ${R.rows.length}곳`,`<table class="rvt rpt"><thead><tr><th rowspan="2">거래처</th><th ${r_} rowspan="2">월 기장료</th><th colspan="4" style="text-align:center">청구 (공급가)</th><th colspan="4" style="text-align:center">입금 (공급가)</th>${h2('미수')}${h2('세금계산서')}</tr><tr class="rsub"><th ${r_}>기장료</th><th ${r_}>조정료</th><th ${r_}>그 외</th><th ${r_}>VAT</th><th ${r_}>기장료</th><th ${r_}>조정료</th><th ${r_}>그 외</th><th ${r_}>VAT</th><th ${r_}>공급가</th><th ${r_}>VAT</th><th ${r_}>공급가</th><th ${r_}>세액</th></tr></thead><tbody>${
-    X.rows.slice().sort((x,y)=>(x.r.c.order||0)-(y.r.c.order||0)).map(x=>`<tr><td>${esc(x.r.c.name)}</td><td ${r_}>${x.r.c.fee?won(x.r.c.fee):'—'}</td>${[x.b0,x.fbA,x.fbE].map(v=>`<td ${r_}>${v[0]?won(v[0]):'—'}</td>`).join('')}<td ${r_} class="rvat">${x.b[1]?won(x.b[1]):'—'}</td>${[x.a0,x.faA,x.faE].map(v=>`<td ${r_}>${v[0]?won(v[0]):'—'}</td>`).join('')}<td ${r_} class="rvat">${x.a[1]?won(x.a[1]):'—'}</td>${sv(x.u,x.r.u?'rred':'')}${si(x.i)}</tr>`).join('')||'<tr><td colspan="14" class="rnone">자료가 없어요</td></tr>'}<tr style="font-weight:700"><td>합계</td><td></td>${[X.T.b0,X.T.fbA,X.T.fbE].map(v=>`<td ${r_}>${won(v[0])}</td>`).join('')}<td ${r_} class="rvat">${won(X.T.b[1])}</td>${[X.T.a0,X.T.faA,X.T.faE].map(v=>`<td ${r_}>${won(v[0])}</td>`).join('')}<td ${r_} class="rvat">${won(X.T.a[1])}</td>${sv(X.T.u)}${si(X.T.i)}</tr></tbody></table>`)}
-  <p class="note">공급가와 VAT(세금계산서는 세액)를 따로 적었어요. 미수 거래처는 오늘 기준 전체, 거래처별은 20${Y}년 기준이에요.</p>`;}
-async function repXls(){const X0=await loadXLSX().catch(e=>{toast(e.message);return null;});if(!X0)return;const Y=ui.ry,R=repCalc(Y),X=repSplit(R),wb=X0.utils.book_new();const byId=Object.fromEntries(X.rows.map(x=>[x.r.c.id,x]));
-  X0.utils.book_append_sheet(wb,X0.utils.aoa_to_sheet([['거래처','미수 달','개월','미수 공급가','미수 VAT','미수 합계'],...R.due.slice().sort((x,y)=>y.uAll-x.uAll).map(r=>{const u=byId[r.c.id].ua;return [r.c.name,mrange(r.ul),r.ul.length,u[0],u[1],u[0]+u[1]];}),['합계','','',X.T.ua[0],X.T.ua[1],X.T.ua[0]+X.T.ua[1]]]),'미수 거래처');
+  ${sec('미수 업체',`${M.length}곳 · 총 ${won(MS[2])}원 (공급가 ${won(MS[0])} · VAT ${won(MS[1])}) · 오늘 기준`,`<table class="rvt rpt"><thead><tr><th>거래처</th><th>기장료 미수</th><th ${r_}>기장료 금액</th><th>조정료·그 외 미수</th><th ${r_}>총 미수 공급가</th><th ${r_}>VAT</th><th ${r_}>합계</th></tr></thead><tbody>${
+    M.map(m=>`<tr class="${m.r.ul.length>=3?'rlong':''}"><td><b>${esc(m.r.c.name)}</b></td><td>${m.r.ul.length?`${esc(mrange(m.r.ul))} <span style="color:var(--sub)">(${m.r.ul.length}개월)</span>`:'—'}</td><td ${r_}>${m.base?won(m.base):'—'}</td><td>${m.r.fo.length?m.r.fo.map(f=>`${esc(f.kind)} ${won(f.amt)}`).join(', '):'—'}</td><td ${r_}>${won(m.sup)}</td><td ${r_} class="rvat">${won(m.vat)}</td><td ${r_} class="rred"><b>${won(m.tot)}</b></td></tr>`).join('')||'<tr><td colspan="7" class="rnone">미수 업체가 없어요</td></tr>'}${M.length?`<tr style="font-weight:700"><td>합계</td><td></td><td ${r_}>${won(M.reduce((t,m)=>t+m.base,0))}</td><td>${won(M.reduce((t,m)=>t+m.fee,0))}</td><td ${r_}>${won(MS[0])}</td><td ${r_}>${won(MS[1])}</td><td ${r_} class="rred">${won(MS[2])}</td></tr>`:''}</tbody></table>`,M.length?'red':'')}
+  ${sec('세금계산서 발행 현황 · 미발행',`${I.under.length}곳 · 공급가 ${won(uS)} · 들어온 돈보다 덜 발행`,invT(I.under,'미발행'),I.under.length?'red':'')}
+  ${sec('세금계산서 발행 현황 · 과발행',`${I.over.length}곳 · 공급가 ${won(oS)} · 들어온 돈보다 더 발행`,invT(I.over,'과발행'),I.over.length?'amb':'')}
+  <p class="note">기장료·조정료 금액은 부가세 포함, 공급가·VAT는 따로 적었어요. 발행 현황은 20${Y}년 수납(기장료+조정료+그 외)과 발행 공급가를 비교했고 일치한 곳은 뺐어요. 과발행 중 "미수분 선발행"은 아직 안 받은 달을 먼저 발행한 정상 케이스예요.</p>`;}
+async function repXls(){const X0=await loadXLSX().catch(e=>{toast(e.message);return null;});if(!X0)return;const Y=ui.ry,R=repCalc(Y),M=repMiss(R),I=repInv(Y),wb=X0.utils.book_new();
+  X0.utils.book_append_sheet(wb,X0.utils.aoa_to_sheet([['거래처','기장료 미수 달','개월','기장료 금액','조정료·그 외 미수','조정료·그 외 금액','총 미수 공급가','VAT','합계'],...M.map(m=>[m.r.c.name,mrange(m.r.ul),m.r.ul.length,m.base,m.r.fo.map(f=>f.kind).join(', '),m.fee,m.sup,m.vat,m.tot]),['합계','','',M.reduce((t,m)=>t+m.base,0),'',M.reduce((t,m)=>t+m.fee,0),M.reduce((t,m)=>t+m.sup,0),M.reduce((t,m)=>t+m.vat,0),M.reduce((t,m)=>t+m.tot,0)]]),'미수 업체');
+  const iv=(L,lab)=>[['구분','거래처','수납 공급가','발행 공급가',lab+' 공급가',lab+' 세액','내용'],...L.map(r=>{const d=Math.abs(r.diff);return [lab,r.c.name,r.paid,r.iss,d,itax(d,r.c),lab==='미발행'?(r.L.length?'추가 발행':'발행 필요'):r.st.replace('과발행 · ','')];})];
+  X0.utils.book_append_sheet(wb,X0.utils.aoa_to_sheet([...iv(I.under,'미발행'),[],...iv(I.over,'과발행')]),'세금계산서 발행 현황');
   X0.utils.book_append_sheet(wb,X0.utils.aoa_to_sheet([['월','청구 공급가','청구 VAT','입금 공급가','입금 VAT','미수 공급가','미수 VAT','세금계산서 공급가','세금계산서 세액'],...R.mon.map((m,i)=>{const b=spl(m.b),a=spl(m.a),u=spl(m.u);return [`${i+1}월`,b[0],b[1],a[0],a[1],u[0],u[1],m.i,Math.round(m.i*0.1)];})]),'월별');
-  X0.utils.book_append_sheet(wb,X0.utils.aoa_to_sheet([['거래처','사업자번호','월 기장료','청구 기장료','청구 조정료','청구 그 외','청구 VAT','입금 기장료','입금 조정료','입금 그 외','입금 VAT','미수 공급가','미수 VAT','세금계산서 공급가','세금계산서 세액'],...X.rows.slice().sort((x,y)=>(x.r.c.order||0)-(y.r.c.order||0)).map(x=>[x.r.c.name,x.r.c.bizno||'',x.r.c.fee||0,x.b0[0],x.fbA[0],x.fbE[0],x.b[1],x.a0[0],x.faA[0],x.faE[0],x.a[1],x.u[0],x.u[1],x.i[0],x.i[1]]),['합계','','',X.T.b0[0],X.T.fbA[0],X.T.fbE[0],X.T.b[1],X.T.a0[0],X.T.faA[0],X.T.faE[0],X.T.a[1],X.T.u[0],X.T.u[1],X.T.i[0],X.T.i[1]]]),'거래처별');
   X0.writeFile(wb,`수금보고서_20${Y}.xlsx`);}
 function repPrint(){const Y=ui.ry;const w=window.open('','_blank');if(!w)return toast('팝업이 막혔어요');
   const css=[...document.querySelectorAll('style')].map(s=>s.textContent).join('\n');
