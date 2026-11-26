@@ -621,7 +621,7 @@ async function boot(){
         const d=snap.data();
         if((d.updated||0)>(S.updated||0)){try{S=migrate(JSON.parse(d.data));localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} if(!ui.drawer)render();}
         else if((d.updated||0)<(S.updated||0)) push();
-        setSync('☁️ 저장됨');
+        setSync('☁️ 저장됨');payDbAuto();
       },e=>setSync(e&&e.code==='permission-denied'?'권한 없음 — 규칙 확인':'연결 끊김',true));
     });
   }catch(e){gate('연결이 안 됐어요. 인터넷을 확인하고 새로고침해 주세요.','<button class="btn" onclick="location.reload()">새로고침</button>');}
@@ -915,22 +915,24 @@ function xfind(name,biz){const b=String(biz||'').replace(/\D/g,'');if(b.length==
 const IDB=()=>new Promise((ok,no)=>{const r=indexedDB.open('workapp-fs',1);r.onupgradeneeded=()=>r.result.createObjectStore('h');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});
 async function idbGet(k){try{const d=await IDB();return await new Promise(ok=>{const t=d.transaction('h').objectStore('h').get(k);t.onsuccess=()=>ok(t.result||null);t.onerror=()=>ok(null);});}catch(e){return null;}}
 async function idbSet(k,v){try{const d=await IDB();return await new Promise(ok=>{const t=d.transaction('h','readwrite');t.objectStore('h').put(v,k);t.oncomplete=()=>ok(true);t.onerror=()=>ok(false);});}catch(e){return false;}}
-async function payDb(pick){
-  if(!window.showDirectoryPicker)return toast('PC의 크롬·엣지에서만 폴더를 읽을 수 있어요');
+async function payDb(pick,quiet){
+  if(!window.showDirectoryPicker)return quiet?0:toast('PC의 크롬·엣지에서만 폴더를 읽을 수 있어요');
   let h=pick?null:await idbGet('payDb');
+  if(quiet&&(!h||await h.queryPermission({mode:'read'}).catch(()=>'')!=='granted'))return;
   if(!h){toast('수금DB 폴더(업체 자동화 › 수금DB)를 골라 주세요');try{h=await showDirectoryPicker({id:'payDb',mode:'read'});}catch(e){return;}await idbSet('payDb',h);}
   try{if(await h.queryPermission({mode:'read'})!=='granted'&&await h.requestPermission({mode:'read'})!=='granted')return toast('폴더 읽기를 허용해 주세요');}catch(e){return toast('폴더를 다시 골라 주세요 (📂)');}
   const files=[];try{for await(const [name,e] of h.entries()){if(e.kind==='file'&&/\.(xlsx|xls|csv)$/i.test(name)&&!name.startsWith('~$'))files.push(await e.getFile());}}catch(e){return toast('폴더를 읽지 못했어요 — 📂로 다시 골라 주세요');}
-  if(!files.length)return toast(`'${h.name}' 폴더에 엑셀 파일이 없어요`);
+  if(!files.length)return quiet?0:toast(`'${h.name}' 폴더에 엑셀 파일이 없어요`);
   const seen=S.dbSeen||{};const todo=files.filter(f=>seen[f.name]!==f.lastModified).sort((a,b)=>a.lastModified-b.lastModified);
   S.dbAt=new Date().toISOString();S.dbDir=h.name;
-  if(!todo.length){save();render();return toast(`새로 바뀐 파일이 없어요 ('${h.name}' 파일 ${files.length}개 확인)`);}
+  if(!todo.length){if(quiet)return;save();render();return toast(`새로 바뀐 파일이 없어요 ('${h.name}' 파일 ${files.length}개 확인)`);}
   const done=[];let stop=null;
   for(const f of todo){const ok=await payFile(f);if(ok){seen[f.name]=f.lastModified;done.push(f.name);}else{stop=f.name;break;}}
   S.dbSeen=seen;save();render();
   const msg=(done.length?`'${h.name}'에서 ${done.length}개 반영: ${done.join(', ')}`:'')+(stop?`${done.length?' · ':''}'${stop}'은 열을 골라 주세요 (고른 뒤 🔄 다시 누르면 나머지 진행)`:'');
   if(!stop)setTimeout(()=>toast(msg),1600);else if(done.length)toast(msg);}
 window.__payDb=payDb;
+let dbAutoOn=false;function payDbAuto(){if(SALE||TEST||dbAutoOn)return;dbAutoOn=true;setTimeout(()=>payDb(false,true),2500);setInterval(()=>{if(!document.hidden)payDb(false,true);},30*60*1000);}
 function payUp(){const i=document.createElement('input');i.type='file';i.accept='.xls,.xlsx,.csv';i.multiple=true;i.onchange=async()=>{for(const f of i.files)await payFile(f);};i.click();}
 async function payFile(f){let rows;try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array',cellDates:false});rows=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:true});}catch(e){return toast(e.message||'파일을 읽지 못했어요');}
   xApplyMaps(rows);
