@@ -917,12 +917,14 @@ function vPay(){
   let paid=0,pc=0,uc=0,ua=0;
   let cx=0;arr.forEach(c=>{const cell=pcell(c.id,ym),st=pstat(cell);if(st==='paid'){paid+=cell.a||0;pc++;}if(st==='unpaid'){uc++;ua+=cell.u||(c.fee?Math.round(c.fee*1.1):0);}if(st==='cmsx')cx++;});
   const allU=S.clients.map(c=>({c,l:unpaidList(c.id)})).filter(x=>x.l.length);
+  const _fu=(S.fees||[]).filter(f=>f.st!=='paid'),_ul=[...new Set(allU.map(x=>x.c.id).concat(_fu.map(f=>f.cid)))].map(id=>({c:cl(id),l:unpaidList(id),f:feeOpen(id)})).filter(x=>x.c);
+  const _ut=_ul.reduce((a,{c,l,f})=>a+l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0)+f.reduce((t,x)=>t+x.amt,0),0);
   if(ui.pv==='inv')return `<div class="fixframe payframe">`+head('수금',`<button class="btn g" data-a="payUp" title="CMS 수납내역 또는 세금계산서 발행내역(거래전표리스트) 엑셀">📥 엑셀 올리기</button>`)+paySeg()+vInv()+`</div>`;
   return `<div class="fixframe payframe">`+head('수금',`<button class="btn g" data-a="payUp" title="CMS 수납내역 또는 세금계산서 발행내역(거래전표리스트) 엑셀">📥 엑셀 올리기</button>`)+paySeg()+`
   <div class="calhead"><button class="nb" data-a="pmPrev">‹</button><b>${ymLabel(ym)}</b><button class="nb" data-a="pmNext">›</button>${ym!==cur?`<button class="btn g s" data-a="pmCur">이번 달</button>`:''}</div>
   <div class="stats" style="grid-template-columns:repeat(3,1fr)">
     <div class="card stat"><b>${won(paid)}원</b><span>입금 ${pc}곳</span></div>
-    <div class="card stat ${uc?'warn':''}"><b>${uc}곳</b><span>미수${ua?' '+won(ua)+'원':''}</span></div>
+    <div class="card stat ${_ul.length?'warn':''}"><b>${_ul.length}곳</b><span>미수 ${won(_ut)}원 · 이번 달 미수 ${uc}곳${ua?' '+won(ua)+'원':''}</span></div>
     <div class="card stat"><b>${cx}곳</b><span>CMS 확인 필요 · 미표시 ${arr.filter(c=>!pstat(pcell(c.id,ym))).length}곳</span></div>
   </div>
   ${(()=>{const row=c=>{const cell=pcell(c.id,ym),st=pstat(cell),p=PS[st];
@@ -934,7 +936,7 @@ function vPay(){
     const tot=UL.reduce((a,{c,l,f})=>a+l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0)+f.reduce((t,x)=>t+x.amt,0),0);
     const feeP=(S.fees||[]).filter(f=>f.st==='paid'&&String(f.paidAt||'').slice(2,4)+String(f.paidAt||'').slice(5,7)===ym);
     const urow=({c,l,f})=>{const sum=l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0)+f.reduce((t,x)=>t+x.amt,0),m=(pcell(c.id,ym)||{}).m;
-      return `<div class="prow" style="align-items:flex-start"><div class="pn" data-payd="${c.id}"><b>${esc(c.name)}</b>${m&&pstat(pcell(c.id,ym))==='unpaid'?`<span style="display:block;color:var(--red)">${esc(m)}</span>`:''}<span style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${l.map(k=>`<button class="chip ${k===ym?'red':''}" data-paycell="${c.id}|${k}" title="눌러서 상태 변경">${ymLabel(k).slice(5)}월</button>`).join('')}${f.map(x=>`<button class="chip pur" data-fee="${x.id}" title="${esc(x.title||x.kind)}">${esc(x.kind)} ${won(x.amt)}${x.inv?'':' · 미발행'}</button>`).join('')}</span></div><span class="chip red" style="white-space:nowrap">${l.length?l.length+'개월':''}${l.length&&f.length?' + ':''}${f.length?f.map(x=>x.kind).join('·'):''} · ${won(sum)}원</span></div>`};
+      return `<div class="prow" style="align-items:flex-start"><div class="pn" data-payd="${c.id}"><div class="pn1"><b>${esc(c.name)}</b>${m&&pstat(pcell(c.id,ym))==='unpaid'?`<span style="color:var(--red)">${esc(m)}</span>`:'<span></span>'}</div><span style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${l.map(k=>`<button class="chip ${k===ym?'red':''}" data-paycell="${c.id}|${k}" title="눌러서 상태 변경">${ymLabel(k).slice(5)}월</button>`).join('')}${f.map(x=>`<button class="chip pur" data-fee="${x.id}" title="${esc(x.title||x.kind)}">${esc(x.kind)} ${won(x.amt)}${x.inv?'':' · 미발행'}</button>`).join('')}</span></div><span class="chip red" style="white-space:nowrap">${l.length?l.length+'개월':''}${l.length&&f.length?' + ':''}${f.length?f.map(x=>x.kind).join('·'):''} · ${won(sum)}원</span></div>`};
     return `<div class="pcols pfix"><div class="pcol">
       <div class="pbox" style="flex:3"><div class="sec"><h2 style="color:var(--grn)">${ymLabel(ym)} 수금 ${P.length}곳${feeP.length?` + 추가 청구 ${feeP.length}건`:''}</h2><span class="more">${won(paid+feeP.reduce((a,x)=>a+x.amt,0))}원</span></div>
       <div class="card list">${P.map(row).join('')}${feeP.map(x=>`<div class="prow"><div class="pn" data-client="${x.cid}"><b>${esc((cl(x.cid)||{}).name||'')}</b><span>${esc(x.kind)}${x.title?' · '+esc(x.title):''} · ${esc(x.paidAt)} 입금${x.inv?'':' · 세금계산서 미발행'}</span></div><button class="pst chip grn" data-fee="${x.id}">${won(x.amt)}</button></div>`).join('')}${!P.length&&!feeP.length?'<div class="empty">아직 입금 표시가 없어요</div>':''}</div></div>
