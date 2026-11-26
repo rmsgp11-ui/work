@@ -648,6 +648,7 @@ function render(){
   $('#tabs').innerHTML=TABS.map(x=>`<button class="${ui.tab===x.id?'on':''}" data-tab="${x.id}"><span class="ic">${x.ic}</span>${x.sn||x.n}${b[x.id]?`<span class="n">${b[x.id]}</span>`:''}</button>`).join('');
   $('#mtitle').textContent=TABS.find(x=>x.id===ui.tab).n;
   $('#main').innerHTML=({home:vHome,tasks:vTasks,cal:vCal,clients:vClients,pay:vPay,logs:vLogs,jobs:vJobs,prog:vProg,rep:vRep,auto:vAuto})[ui.tab]();
+  if(ui.tab!=='clients'||(ui.vcur&&ui.selClient&&ui.vcur.id!==ui.selClient))cardClose();else setTimeout(cardPos,0);
   if(ui.syncT) setSync(ui.syncT,ui.syncE);
   if(ui.tab==='jobs')fillImgs();
   document.body.classList.toggle('wide',ui.tab==='clients'||ui.tab==='rep'||ui.tab==='prog'||ui.tab==='home'||ui.tab==='pay');
@@ -1786,7 +1787,11 @@ function shrinkCard(file){return new Promise((res,rej)=>{const r=new FileReader(
 function cardView(){const v=ui.vcur&&ui.vcur.v;if(!v||!v.card)return;const c=cl(ui.vcur.id);
   let p=$('#cardpop');if(!p){p=document.createElement('div');p.id='cardpop';document.body.appendChild(p);}
   p.innerHTML=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><b style="font-size:13px">${esc(c?c.name:'')} · 보안카드</b><button class="btn g" data-a="cardUp" style="margin-left:auto;padding:3px 8px;font-size:12px">바꾸기</button><button class="btn g" data-a="cardDel" style="padding:3px 8px;font-size:12px;color:var(--red)">삭제</button><button class="btn g" data-a="cardClose" style="padding:3px 8px;font-size:12px">✕</button></div><img src="${v.card}" style="width:100%;border-radius:8px;border:1px solid var(--line);display:block" alt="보안카드">`;
-  p.style.display='block';}
+  p.style.display='block';cardPos();}
+function cardPos(){const p=$('#cardpop');if(!p||p.style.display!=='block')return;const L=document.querySelector('.cleft'),R=L&&L.getBoundingClientRect();
+  if(R&&R.width>200){const li=L.querySelector('.crow-list'),b=li?li.getBoundingClientRect().bottom:R.top+120;p.style.left=R.left+'px';p.style.width=R.width+'px';p.style.bottom='auto';const h=p.offsetHeight;p.style.top=Math.max(8,Math.min(b+12,innerHeight-h-12))+'px';}
+  else{p.style.left='';p.style.width='';p.style.top='auto';p.style.bottom='';}}
+addEventListener('resize',cardPos);
 function cardUp(){const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=async()=>{const f=i.files[0];if(!f)return;try{const u=await shrinkCard(f);const id=ui.vcur.id;S.sec=S.sec||{};S.sec[id]=Object.assign({},S.sec[id]||{},{card:u});save();ui.vcur.v.card=u;renderVault(id);toast('보안카드를 올렸어요');cardView();}catch(e){toast('사진을 읽지 못했어요');}};i.click();}
 function cardDel(){if(!confirm('보안카드 사진을 지울까요?'))return;const id=ui.vcur.id;if(S.sec[id])delete S.sec[id].card;save();cardClose();renderVault(id);}
 function cardClose(){const p=$('#cardpop');if(p)p.style.display='none';}
