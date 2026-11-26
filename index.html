@@ -259,7 +259,7 @@ body.wide main{max-width:1760px}
 .pgm button.d{background:var(--grnS);color:var(--grn);border-color:transparent}.pgm button.p{background:var(--ambS);color:var(--amb);border-color:transparent}.pgm button.x{background:var(--soft);color:var(--sub);text-decoration:line-through}
 .pgm button.fut{opacity:.45}
 @media(max-width:520px){.pgh,.pgr{grid-template-columns:minmax(0,1fr) repeat(4,46px);gap:4px;padding:8px 10px}.pgc{font-size:11px}}
-.pcols{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}@media(max-width:900px){.pcols{grid-template-columns:1fr}}
+.pcols{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}@media(max-width:900px){.pcols{grid-template-columns:minmax(0,1fr)}}
 .payframe .stats{flex:none}.pn1{display:flex;align-items:baseline;gap:10px}.pn1 b{flex:none;max-width:45%}.pn1 span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pfix{flex:1;min-height:0;align-items:stretch}.pcol{display:flex;flex-direction:column;gap:12px;min-height:0}.pbox{display:flex;flex-direction:column;min-height:0;flex:1}.pbox .sec{flex:none}.pbox>.card.list{flex:1;min-height:0;overflow:auto}
 .pscroll{flex:1;min-height:0;overflow:auto}.pscroll>.card{overflow:visible!important}.payframe thead th{position:sticky;top:0;background:var(--panel);z-index:1}
 @media(max-width:900px){.payframe{height:auto}.pbox>.card.list,.pscroll{overflow:visible;flex:none}}
@@ -372,6 +372,15 @@ body.wide main{max-width:1760px}
   .ltrans{border-right:0;border-bottom:1px solid var(--line)}
   .pstrip{grid-template-columns:repeat(6,1fr)}
   .r3{grid-template-columns:1fr 1fr}
+}
+
+@media(max-width:760px){
+  .tabs{display:flex!important;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}.tabs button{flex:1 0 58px}
+  .payframe .pbox{flex:none!important}.payframe .pcol{min-width:0}
+  .pn1{flex-wrap:wrap;gap:2px 8px}.pn1 b{max-width:100%}.pn1 span{white-space:normal;flex-basis:100%;font-size:12px;line-height:1.45}
+  .payframe .stats{grid-template-columns:1fr 1fr!important}.payframe .stat b{font-size:19px}
+  .repframe .rmain .rscroll{overflow-x:auto}.rmain .xt td.nm{min-width:0;max-width:118px;white-space:normal}.rmain .xt td.nm span{display:none}
+  .rmain .xt th,.rmain .xt td{padding:7px 4px}
 }
 </style>
 </head>
