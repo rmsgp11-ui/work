@@ -308,7 +308,7 @@ body.wide main{max-width:1760px}
 .links a{font-size:13px;padding:6px 11px;border-radius:99px;background:var(--acc2);color:var(--acc);text-decoration:none;font-weight:700}
 .modal{position:fixed;inset:0;z-index:30;display:none;place-items:center;background:rgba(15,18,24,.35);padding:18px}
 .modal.on{display:grid}
-.modal .mb{background:var(--panel);border-radius:16px;padding:18px;width:min(360px,100%);display:flex;flex-direction:column;gap:12px}
+.modal .mb.mbw{width:min(760px,100%)}.modal .mb{background:var(--panel);border-radius:16px;padding:18px;width:min(360px,100%);display:flex;flex-direction:column;gap:12px}
 .modal h3{margin:0;font-size:17px}
 .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .sgrid button{padding:11px!important;border-radius:10px!important;font-size:14px!important;justify-content:center}
@@ -880,7 +880,7 @@ function vPay(){
     <div class="card stat"><b>${cx}곳</b><span>CMS 확인 필요 · 미표시 ${arr.filter(c=>!pstat(pcell(c.id,ym))).length}곳</span></div>
   </div>
   ${(()=>{const row=c=>{const cell=pcell(c.id,ym),st=pstat(cell),p=PS[st];
-      return `<div class="prow" style="padding:8px 14px"><div class="pn pn1" data-client="${c.id}"><b>${esc(c.name)}</b><span>${c.fee?`월 ${won(c.fee)}원`:'기장료 미입력'}${c.payDay?` · ${c.payDay}일 결제`:''}${c.cms==='O'?' · CMS':c.cms==='X'?' · CMS 아님':''}${cell&&cell.m?` · <em style="font-style:normal;color:${st==='unpaid'?'var(--red)':'var(--sub)'}">${esc(cell.m)}</em>`:''}</span></div>
+      return `<div class="prow" style="padding:8px 14px"><div class="pn pn1" data-payd="${c.id}"><b>${esc(c.name)}</b><span>${c.fee?`월 ${won(c.fee)}원`:'기장료 미입력'}${c.payDay?` · ${c.payDay}일 결제`:''}${c.cms==='O'?' · CMS':c.cms==='X'?' · CMS 아님':''}${cell&&cell.m?` · <em style="font-style:normal;color:${st==='unpaid'?'var(--red)':'var(--sub)'}">${esc(cell.m)}</em>`:''}</span></div>
       <button class="pst chip ${p?p.cls:''}" data-paycell="${c.id}|${ym}">${p?(st==='paid'?won(cell.a)||'입금':p.n):'—'}</button></div>`};
     const P=arr.filter(c=>pstat(pcell(c.id,ym))==='paid'),O=arr.filter(c=>{const t=pstat(pcell(c.id,ym));return t!=='paid'&&t!=='unpaid'});
     const feeU=(S.fees||[]).filter(f=>f.st!=='paid');const uids=[...new Set(allU.map(x=>x.c.id).concat(feeU.map(f=>f.cid)))];
@@ -888,7 +888,7 @@ function vPay(){
     const tot=UL.reduce((a,{c,l,f})=>a+l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0)+f.reduce((t,x)=>t+x.amt,0),0);
     const feeP=(S.fees||[]).filter(f=>f.st==='paid'&&String(f.paidAt||'').slice(2,4)+String(f.paidAt||'').slice(5,7)===ym);
     const urow=({c,l,f})=>{const sum=l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0)+f.reduce((t,x)=>t+x.amt,0),m=(pcell(c.id,ym)||{}).m;
-      return `<div class="prow" style="align-items:flex-start"><div class="pn" data-client="${c.id}"><b>${esc(c.name)}</b>${m&&pstat(pcell(c.id,ym))==='unpaid'?`<span style="display:block;color:var(--red)">${esc(m)}</span>`:''}<span style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${l.map(k=>`<button class="chip ${k===ym?'red':''}" data-paycell="${c.id}|${k}" title="눌러서 상태 변경">${ymLabel(k).slice(5)}월</button>`).join('')}${f.map(x=>`<button class="chip pur" data-fee="${x.id}" title="${esc(x.title||x.kind)}">${esc(x.kind)} ${won(x.amt)}${x.inv?'':' · 미발행'}</button>`).join('')}</span></div><span class="chip red" style="white-space:nowrap">${l.length?l.length+'개월':''}${l.length&&f.length?' + ':''}${f.length?f.map(x=>x.kind).join('·'):''} · ${won(sum)}원</span></div>`};
+      return `<div class="prow" style="align-items:flex-start"><div class="pn" data-payd="${c.id}"><b>${esc(c.name)}</b>${m&&pstat(pcell(c.id,ym))==='unpaid'?`<span style="display:block;color:var(--red)">${esc(m)}</span>`:''}<span style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${l.map(k=>`<button class="chip ${k===ym?'red':''}" data-paycell="${c.id}|${k}" title="눌러서 상태 변경">${ymLabel(k).slice(5)}월</button>`).join('')}${f.map(x=>`<button class="chip pur" data-fee="${x.id}" title="${esc(x.title||x.kind)}">${esc(x.kind)} ${won(x.amt)}${x.inv?'':' · 미발행'}</button>`).join('')}</span></div><span class="chip red" style="white-space:nowrap">${l.length?l.length+'개월':''}${l.length&&f.length?' + ':''}${f.length?f.map(x=>x.kind).join('·'):''} · ${won(sum)}원</span></div>`};
     return `<div class="pcols pfix"><div class="pcol">
       <div class="pbox" style="flex:3"><div class="sec"><h2 style="color:var(--grn)">${ymLabel(ym)} 수금 ${P.length}곳${feeP.length?` + 추가 청구 ${feeP.length}건`:''}</h2><span class="more">${won(paid+feeP.reduce((a,x)=>a+x.amt,0))}원</span></div>
       <div class="card list">${P.map(row).join('')}${feeP.map(x=>`<div class="prow"><div class="pn" data-client="${x.cid}"><b>${esc((cl(x.cid)||{}).name||'')}</b><span>${esc(x.kind)}${x.title?' · '+esc(x.title):''} · ${esc(x.paidAt)} 입금${x.inv?'':' · 세금계산서 미발행'}</span></div><button class="pst chip grn" data-fee="${x.id}">${won(x.amt)}</button></div>`).join('')}${!P.length&&!feeP.length?'<div class="empty">아직 입금 표시가 없어요</div>':''}</div></div>
@@ -1581,6 +1581,7 @@ function openClient(id){
 const FK=['조정료','신고수수료','결산료','상담료','기타'];
 const feeOpen=cid=>(S.fees||[]).filter(f=>f.cid===cid&&f.st!=='paid');
 function openFee(id,cid){
+  $('#mbox').classList.remove('mbw');
   const f=(S.fees||[]).find(x=>x.id===id)||{cid:cid||'',kind:'조정료',title:'',amt:'',ym:curYM(),st:'unpaid',inv:false,memo:''};
   const cs=S.clients.slice().sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   $('#mbox').innerHTML=`<h3>${id?'추가 청구 수정':'조정료·추가 청구 넣기'}</h3>
@@ -1601,11 +1602,47 @@ function saveFee(){
   if(!o.cid||!o.amt)return toast('거래처와 금액을 넣어 주세요');
   if(o.st==='paid'&&!o.paidAt)o.paidAt=todayStr();
   S.fees=S.fees||[];if(ui.feeId){Object.assign(S.fees.find(x=>x.id===ui.feeId),o);}else S.fees.push(Object.assign({id:uid(),created:Date.now()},o));
-  save();$('#modal').classList.remove('on');render();
+  save();$('#modal').classList.remove('on');render();if(ui.pdBack){const b=ui.pdBack;ui.pdBack=null;openPayDetail(b,ui.pdY);}
 }
 window.__fees={add:arr=>{S.fees=S.fees||[];arr.forEach(o=>S.fees.push(Object.assign({id:uid(),created:Date.now(),kind:'조정료',st:'unpaid',inv:false,memo:''},o)));save();if(!ui.drawer)render();return arr.length;},list:()=>S.fees||[]};
 
+
+/* ---------- 거래처 1년 수금 상세 (팝업) ---------- */
+function openPayDetail(cid,yy){
+  const c=cl(cid);if(!c)return;const Y=yy||String(curYM()).slice(0,2),p=S.pay[cid]||{},L=(S.inv&&S.inv[cid])||[],cur=curYM();
+  const fees=(S.fees||[]).filter(f=>f.cid===cid);
+  let tA=0,tB=0,tI=0,tU=0;
+  const rows=[];for(let m=1;m<=12;m++){const k=Y+pad(m),v=p[k],st=pstat(v),ps=PS[st];
+    const inv=L.filter(x=>x[0].slice(0,4)===k).reduce((a,x)=>a+x[1],0),unsent=L.some(x=>x[0].slice(0,4)===k&&x[2]);
+    const a=v&&v.a!=null?v.a:0,u=st==='unpaid'?(v.u||(c.fee?Math.round(c.fee*1.1):0)):0,b=v&&v.b?v.b:(a||u||0);
+    tA+=a;tB+=b;tI+=inv;tU+=u;
+    rows.push(`<tr style="border-top:1px solid var(--line)${k>cur?';opacity:.45':''}"><td style="padding:6px 8px">${m}월</td>
+      <td style="padding:6px 8px;text-align:right">${b?won(b):''}</td>
+      <td style="padding:6px 8px;text-align:right;color:var(--grn);font-weight:600">${a?won(a):''}</td>
+      <td style="padding:6px 8px"><button class="chip ${ps?ps.cls:''}" data-paycell="${cid}|${k}">${ps?ps.n:'—'}</button></td>
+      <td style="padding:6px 8px;text-align:right;color:var(--red)">${u?won(u):''}</td>
+      <td style="padding:6px 8px;text-align:right">${inv?won(Math.round(inv*1.1)):''}${unsent?' <span class="chip amb">미발송</span>':''}</td>
+      <td style="padding:6px 8px;color:var(--sub);font-size:11px">${esc(v&&v.m||'')}</td></tr>`);}
+  const fu=fees.filter(f=>f.st!=='paid').reduce((a,f)=>a+f.amt,0),fp=fees.filter(f=>f.st==='paid').reduce((a,f)=>a+f.amt,0);
+  const iT=Math.round(tI*1.1),gap=tA+fp-iT;
+  $('#mbox').classList.add('mbw');ui.pdCid=cid;ui.pdY=Y;
+  $('#mbox').innerHTML=`<div style="display:flex;align-items:center;gap:8px"><h3 style="flex:1">${esc(c.name)} · 20${Y}년 수금</h3><button class="nb" data-payd="${cid}|${pad(+Y-1)}">‹</button><button class="nb" data-payd="${cid}|${pad(+Y+1)}">›</button></div>
+    <div style="font-size:12px;color:var(--sub)">${c.fee?`월 기장료 ${won(c.fee)}원(부가세 별도)`:'기장료 미입력'}${c.cms==='O'?' · CMS':''}${c.payDay?` · ${c.payDay}일 결제`:''} · 금액은 부가세 포함</div>
+    <div class="stats" style="grid-template-columns:repeat(4,1fr);margin:0">
+      <div class="card stat"><b>${won(tA+fp)}원</b><span>입금</span></div>
+      <div class="card stat ${tU+fu?'warn':''}"><b>${won(tU+fu)}원</b><span>미수</span></div>
+      <div class="card stat"><b>${won(iT)}원</b><span>세금계산서 발행</span></div>
+      <div class="card stat ${gap>1000?'warn':''}"><b>${gap>1000?'덜 발행 '+won(gap):gap<-1000?'먼저 발행 '+won(-gap):'일치'}</b><span>입금 − 발행</span></div></div>
+    <div style="overflow:auto;max-height:52vh;border:1px solid var(--line);border-radius:10px"><table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="text-align:left;color:var(--sub)"><th style="padding:6px 8px">월</th><th style="padding:6px 8px;text-align:right">청구</th><th style="padding:6px 8px;text-align:right">입금</th><th style="padding:6px 8px">상태</th><th style="padding:6px 8px;text-align:right">미수</th><th style="padding:6px 8px;text-align:right">세금계산서</th><th style="padding:6px 8px">메모</th></tr></thead>
+      <tbody>${rows.join('')}<tr style="border-top:2px solid var(--line);font-weight:700"><td style="padding:6px 8px">합계</td><td style="padding:6px 8px;text-align:right">${won(tB)}</td><td style="padding:6px 8px;text-align:right;color:var(--grn)">${won(tA)}</td><td></td><td style="padding:6px 8px;text-align:right;color:var(--red)">${won(tU)}</td><td style="padding:6px 8px;text-align:right">${won(iT)}</td><td></td></tr></tbody></table></div>
+    ${fees.length?`<div><div class="lab" style="margin-bottom:4px">조정료·추가 청구</div>${fees.map(f=>`<button class="chip ${f.st==='paid'?'grn':'pur'}" data-fee="${f.id}" style="margin:0 4px 4px 0">${esc(f.kind)} ${won(f.amt)} · ${f.st==='paid'?'입금 '+esc(f.paidAt||''):'미수'}${f.inv?'':' · 미발행'}</button>`).join('')}</div>`:''}
+    <div style="display:flex;gap:8px"><button class="btn g" data-feefor="${cid}">＋ 조정료·추가 청구</button><button class="btn g" data-client="${cid}">거래처 정보</button><button class="btn" data-a="modalClose" style="margin-left:auto">닫기</button></div>`;
+  $('#modal').classList.add('on');
+}
+
 function openPayCell(cid,ym){
+  $('#mbox').classList.remove('mbw');
   const c=cl(cid),cell=pcell(cid,ym),st=pstat(cell);
   $('#mbox').innerHTML=`<h3>${esc(c?c.name:'')} · ${ymLabel(ym)}</h3>
     <div><label class="lab">입금액 (입금으로 표시할 때)</label><input id="payAmt" type="number" inputmode="numeric" value="${cell&&cell.a!=null?cell.a:(c&&c.fee)||''}"></div>
@@ -1617,7 +1654,7 @@ function openPayCell(cid,ym){
 function setPay(k){
   const [cid,ym]=ui.payTarget;S.pay[cid]=S.pay[cid]||{};
   const om=(S.pay[cid][ym]||{}).m;if(!k) delete S.pay[cid][ym]; else if(k==='paid') S.pay[cid][ym]={a:+($('#payAmt').value||0)}; else S.pay[cid][ym]={s:k};if(k&&om)S.pay[cid][ym].m=om;
-  save(); $('#modal').classList.remove('on'); if(ui.drawer==='client') openClient(cid); else render();
+  save(); $('#modal').classList.remove('on'); if(ui.drawer==='client') openClient(cid); else render(); if(ui.pdBack){const b=ui.pdBack;ui.pdBack=null;openPayDetail(b,ui.pdY);}
 }
 
 /* ---------- 톡·통화에서 뽑기 ---------- */
@@ -1860,6 +1897,9 @@ document.addEventListener('submit',e=>{
 });
 document.addEventListener('click',e=>{
   const T=e.target, q=s=>T.closest(s); let el;
+  if($('#modal').classList.contains('on')&&$('#mbox').classList.contains('mbw')&&e.target.closest&&e.target.closest('[data-paycell],[data-fee],[data-feefor]'))ui.pdBack=ui.pdCid;
+  if(e.target.closest&&(e.target.closest('[data-paycell]')||e.target.closest('[data-fee]'))&&e.target.closest('[data-payd]')){}else if((el=q('[data-payd]'))){const [cid,y]=el.dataset.payd.split('|');openPayDetail(cid,y);return;}
+  if((el=q('[data-feefor]'))){openFee(null,el.dataset.feefor);return;}
   if((el=q('[data-fee]'))){openFee(el.dataset.fee);return;}
   if((el=q('[data-arv]'))){const [id,k]=el.dataset.arv.split('|');const r=(S.autos||[]).find(x=>x.id===id);if(r&&r.review[+k]){r.review[+k].done=!r.review[+k].done;save();render();}return;}
   if((el=q('[data-tab]'))){ui.tab=el.dataset.tab;if(ui.drawer)closeDrawer();else render();window.scrollTo(0,0);return;}
@@ -1910,7 +1950,7 @@ document.addEventListener('click',e=>{
   el=q('[data-a]'); if(!el) return; const a=el.dataset.a;
   if(el.tagName==='A') e.preventDefault();
   const acts={
-    close:closeDrawer, modalClose:()=>$('#modal').classList.remove('on'), feeNew:()=>openFee(), feeSave:saveFee, feeDel:()=>{if(!confirm('이 청구를 지울까요?'))return;S.fees=S.fees.filter(x=>x.id!==ui.feeId);save();$('#modal').classList.remove('on');render();},
+    close:closeDrawer, modalClose:()=>{$('#modal').classList.remove('on');$('#mbox').classList.remove('mbw');}, feeNew:()=>openFee(), feeSave:saveFee, feeDel:()=>{if(!confirm('이 청구를 지울까요?'))return;S.fees=S.fees.filter(x=>x.id!==ui.feeId);save();$('#modal').classList.remove('on');render();if(ui.pdBack){const b=ui.pdBack;ui.pdBack=null;openPayDetail(b,ui.pdY);}},
     theme:()=>{S.theme=S.theme==='dark'?'light':'dark';save();render();$('#modal').classList.remove('on');},
     backup:()=>{const b=document.createElement('a');b.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));b.download=`업무-백업-${todayStr()}.json`;b.click();toast('백업 파일을 저장했어요');},
     restore:()=>$('#fileIn').click(),
@@ -1984,7 +2024,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){if($('#modal').classList.contains('on'))$('#modal').classList.remove('on');else if(ui.drawer)closeDrawer();}
 });
 $('#shade').onclick=closeDrawer;
-$('#modal').addEventListener('click',e=>{if(e.target.id==='modal'){$('#modal').classList.remove('on');if(passRes){const r=passRes;passRes=null;r(null);}}});
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal'){$('#modal').classList.remove('on');$('#mbox').classList.remove('mbw');ui.pdBack=null;if(passRes){const r=passRes;passRes=null;r(null);}}});
 $('#toastUndo').onclick=()=>{undoFn&&undoFn();undoFn=null;$('#toast').classList.remove('on');};
 $('#talkIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const J=JSON.parse(await f.text());if(J.kind==='workapp-rpt'){let n=0;J.items.forEach(it=>n+=__rpt.put(it.kind,it.per,it.rows));window.__talkLast={rpt:n};toast(`신고현황 ${n}건 넣었어요`);e.target.value='';return;}const r=importTalk(J);if(r.err)toast(r.err);else{toast(`톡 기록 ${r.add}건 넣었어요${r.dup?` · 중복 ${r.dup}건 건너뜀`:''}${r.miss.length?` · 거래처 못 찾음 ${r.miss.length}곳`:''}`);window.__talkLast=r;}}catch(_){toast('파일을 읽지 못했어요');}e.target.value='';};
 $('#fileIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.tasks))throw 0;if(confirm(`할 일 ${d.tasks.length}개, 거래처 ${(d.clients||[]).length}곳으로 지금 데이터를 바꿀까요?`)){S=migrate(d);save();render();toast('복원했어요');}}catch(_){toast('백업 파일을 읽지 못했어요');}e.target.value='';$('#modal').classList.remove('on');};
