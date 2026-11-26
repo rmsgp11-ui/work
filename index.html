@@ -828,24 +828,25 @@ function invRows(){
       else if(v.s==='unpaid'){un++;months.push([k,'u']);}}
     const iss=L.reduce((a,x)=>a+x[1],0);if(!iss&&!paid&&!unk&&!un)continue;
     const last=L.length?L[L.length-1][0]:'';const unsent=L.filter(x=>x[2]).length;
-    const diff=paid-iss;let st,cls;
-    if(!L.length){st='발행 없음';cls='red';}
-    else if(diff>0&&unk===0){st=`미발행 ${won(diff)}`;cls='red';}
-    else if(diff>0){st=`미발행 ${won(diff)}?`;cls='amb';}
-    else if(diff<0&&-diff<=unk*fee){st=`확인 필요 ${unk}개월`;cls='amb';}
-    else if(diff<0){st=`선발행 ${won(-diff)}`;cls='blu';}
-    else {st='일치';cls='grn';}
+    const diff=paid-iss,over=-diff;let st,cls;
+    if(Math.abs(diff)<1000){st='일치';cls='grn';}
+    else if(diff>0){st=L.length?`덜 발행 ${won(diff)}`:`발행 없음 · ${won(diff)}`;cls='red';}
+    else if(!paid&&!L.length){st='수금·발행 확인';cls='amb';}
+    else if(over<=un*fee+1000){st=`미수분 발행 ${won(over)}`;cls='blu';}
+    else if(over<=(un+unk)*fee+1000){st=`CMS 입금 확인 ${won(over)}`;cls='amb';}
+    else {st=`앱 수금 기록 빠짐? ${won(over)}`;cls='pur';}
     out.push({c,fee,paid,pm,unk,un,iss,last,unsent,diff,st,cls,L});}
-  const rank={red:0,amb:1,blu:2,grn:3};return out.sort((a,b)=>rank[a.cls]-rank[b.cls]||Math.abs(b.diff)-Math.abs(a.diff));
+  const rank={red:0,pur:1,amb:2,blu:3,grn:4};return out.sort((a,b)=>rank[a.cls]-rank[b.cls]||Math.abs(b.diff)-Math.abs(a.diff));
 }
 function vInv(){
   if(!S.inv)return `<div class="card" style="padding:24px;color:var(--sub)">세금계산서 발행 내역이 아직 없어요.</div>`;
   const R=invRows(),cnt=k=>R.filter(r=>r.cls===k).length;
   const md2=d=>d?`${+d.slice(2,4)}/${+d.slice(4,6)}`:'';
-  return `<div class="stats" style="grid-template-columns:repeat(4,1fr)">
+  return `<div class="stats" style="grid-template-columns:repeat(5,1fr)">
     <div class="card stat ${cnt('red')?'warn':''}"><b>${cnt('red')}곳</b><span>받았는데 덜 발행</span></div>
-    <div class="card stat"><b>${cnt('amb')}곳</b><span>수금 상태 확인 필요</span></div>
-    <div class="card stat"><b>${cnt('blu')}곳</b><span>먼저 발행(미수 포함)</span></div>
+    <div class="card stat"><b>${cnt('pur')}곳</b><span>앱 수금 기록 빠짐?</span></div>
+    <div class="card stat"><b>${cnt('amb')}곳</b><span>CMS 입금 확인 필요</span></div>
+    <div class="card stat"><b>${cnt('blu')}곳</b><span>미수분 발행(정상)</span></div>
     <div class="card stat"><b>${cnt('grn')}곳</b><span>일치</span></div></div>
   <div class="sec"><h2>${2000+ +String(curYM()).slice(0,2)}년 거래처별 (공급가액 기준)</h2><span class="more">발행 내역 기준일 ${esc(S.invAt||'')} · 수금은 부가세 뺀 금액으로 환산</span></div>
   <div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
