@@ -887,7 +887,7 @@ window.__checks={
 
 
 /* ---------- 자동화 기록 (Claude 처리 내역) ---------- */
-function pruneAutos(){if(!S.autos||!S.autos.length)return false;const lim=Date.now()-90*864e5,n=S.autos.length;S.autos=S.autos.filter(r=>r.at>lim||(r.review||[]).some(x=>!x.done));return S.autos.length!==n;}
+function pruneAutos(){if(!S.autos||!S.autos.length)return false;const lim=Date.now()-30*864e5,n=S.autos.length;S.autos=S.autos.filter(r=>r.at>lim||(r.review||[]).some(x=>!x.done));return S.autos.length!==n;}
 function vAuto(){if(pruneAutos())save();
   const runs=(S.autos||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0));
   if(!runs.length)return head('자동화')+`<div class="card" style="padding:28px;text-align:center;color:var(--sub)">아직 기록이 없어요. Claude가 처리하면 여기에 쌓여요.</div>`;
