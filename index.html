@@ -1775,6 +1775,9 @@ function renderVault(id){
   const el=$('#vaultBox'); if(!el||ui.openClient!==id) return;
   if(S.vault){el.innerHTML=`<h4>🔒 보안 정보</h4><p class="note" style="margin-bottom:8px">잠금을 없애려면 지금 쓰는 보안 비밀번호를 마지막으로 한 번만 입력해 주세요.</p><button class="btn g s" data-a="vMigrate">한 번 입력하고 잠금 없애기</button>`;return;}
   const v=Object.assign({rrn:'',htId:'',htPw:'',certName:'',certPw:'',card:''},(S.sec||{})[id]||{}); ui.vcur={id,v};
+  if(ui.cedit){const inp=(lab,k,ph='')=>`<div><label>${lab}</label><input data-vf="${k}" value="${esc(v[k]||'')}" placeholder="${ph}" autocomplete="off"></div>`;
+    el.innerHTML=`<div class="vsec"><div class="vh"><span>🔒 보안 정보 수정</span>${v.card?'<button class="chip blu" data-a="cardView">🔢 보안카드</button>':'<button class="chip" data-a="cardUp">＋ 보안카드 올리기</button>'}</div><div style="display:flex;flex-direction:column;gap:10px">
+    ${inp('대표자 주민번호','rrn')}<div class="r2">${inp('홈택스 아이디','htId')}${inp('홈택스 비밀번호','htPw')}</div><div class="r2">${inp('인증서','certName','예: 인근복부동산')}${inp('인증서 비밀번호','certPw')}</div></div></div>`;return;}
   const row=(lab,k)=>`<div><label>${lab}</label><div class="vfield"><b>${esc(v[k])||'—'}</b>${v[k]?`<button class="chip" data-vcopy="${k}">복사</button>`:''}</div></div>`;
   el.innerHTML=`<div class="vsec"><div class="vh"><span>🔒 보안 정보</span><button class="chip" data-a="vEdit">수정</button>${v.htId?'<a class="chip" href="https://hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a>':''}${v.card?'<button class="chip blu" data-a="cardView">🔢 보안카드</button>':'<button class="chip" data-a="cardUp">＋ 보안카드 올리기</button>'}</div>
     ${row('대표자 주민번호','rrn')}<div class="r2">${row('홈택스 아이디','htId')}${row('홈택스 비밀번호','htPw')}</div>${v.certName||v.certPw?`<div class="r2">${row('인증서','certName')}${row('인증서 비밀번호','certPw')}</div>`:''}</div>`;
@@ -2019,6 +2022,7 @@ document.addEventListener('input',e=>{
   if(d.in&&d.in!=='sort'&&d.in!=='lc'&&d.in!=='pgs'){ui[d.in]=el.value;const pos=el.selectionStart;render();const n=$(`[data-in="${d.in}"]`);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(_){}}return;}
   if(ui.drawer==='task'){const x=S.tasks.find(t=>t.id===ui.openTask);if(!x)return;
     if(el.id==='dTitle')x.title=el.value;else if(el.id==='dMemo')x.memo=el.value;else if(d.subt){const s=x.subs.find(s=>s.id===d.subt);if(s)s.t=el.value;}else return;save();return;}
+  if(d.vf&&ui.vcur){const id=ui.vcur.id;S.sec=S.sec||{};S.sec[id]=Object.assign({},S.sec[id]||{},{[d.vf]:el.value.trim()});ui.vcur.v[d.vf]=el.value.trim();save();return;}
   if(ui.drawer==='client'&&d.cf2&&el.tagName!=='SELECT'){const c=cl(ui.openClient);let v=el.value;if(el.type==='number')v=v===''?null:+v;c[d.cf2]=v;save();return;}
   if(d.pt!==undefined)picks[+d.pt].title=el.value;
 });
