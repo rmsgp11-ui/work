@@ -687,7 +687,7 @@ function render(){
   document.body.classList.toggle('wide',ui.tab==='clients'||ui.tab==='rep'||ui.tab==='prog'||ui.tab==='home'||ui.tab==='pay');
   if(ui.tab==='clients'&&paneMode()&&ui.selClient&&cl(ui.selClient))openClient(ui.selClient);
 }
-const head=(title,extra='')=>{const d=new Date();return `<div class="head"><h1>${title}</h1><span class="sub">${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일</span><span class="sync" id="dsync"></span>${extra?`<div class="sp">${extra}</div>`:''}</div>`};
+const head=(title,extra='',after='')=>{const d=new Date();return `<div class="head"><h1>${title}</h1>${after}<span class="sub">${d.getMonth()+1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일</span><span class="sync" id="dsync"></span>${extra?`<div class="sp">${extra}</div>`:''}</div>`};
 
 function dlRow(e){
   const n=e.ids.length,dn=doneCnt(e),late=diffDays(e.date)<0&&dn<n;
@@ -853,7 +853,7 @@ function vClients(){
 }
 
 /* ---------- 세금계산서 발행 대사 ---------- */
-const paySeg=()=>`<div class="seg" style="display:flex;gap:6px;margin-bottom:12px"><button class="btn ${ui.pv!=='inv'?'':'g'}" data-a="pvM">월별 수금</button><button class="btn ${ui.pv==='inv'?'':'g'}" data-a="pvI">세금계산서 발행 대사</button></div>`;
+const paySeg=()=>`<div class="seg" style="display:flex;gap:6px;margin:0 6px 0 4px"><button class="btn ${ui.pv!=='inv'?'':'g'}" data-a="pvM">월별 수금</button><button class="btn ${ui.pv==='inv'?'':'g'}" data-a="pvI">세금계산서 발행 대사</button></div>`;
 function invRows(Y0){
   const cur=curYM(),Y=Y0||String(cur).slice(0,2),out=[];
   for(const c of S.clients){const L=((S.inv&&S.inv[c.id])||[]).filter(x=>String(x[0]).slice(0,2)===Y);const p=S.pay[c.id]||{};const fee=c.fee||0;
@@ -889,7 +889,7 @@ function vInv(){
     <div class="card stat"><b>${won(sum('paid'))}</b><span>② 수납 (공급가) · 들어온 금액 · 미수 ${won(Math.max(0,sum('bill')-sum('paid')))}</span></div>
     <div class="card stat"><b>${won(sum('iss'))}</b><span>③ 세금계산서 발행 (공급가)</span></div>
     <div class="card stat ${under.length?'warn':''}"><b style="font-size:19px">미발행 ${under.length}곳 · 과발행 ${over.length}곳</b><span>미발행 ${won(under.reduce((a,r)=>a+r.diff,0))} · 과발행 ${won(Math.abs(over.reduce((a,r)=>a+r.diff,0)))} · 일치 ${cnt('grn')}곳</span></div></div>
-  <div class="sec"><h2>${2000+ +String(curYM()).slice(0,2)}년 청구 → 수납 → 세금계산서 검증 (공급가)</h2><span class="more">발행 내역 기준일 ${esc(S.invAt||'')} · 그 외 = 신고수수료·결산료·상담료·기타 · 판정은 수납과 발행 비교</span></div>
+  <div class="sec"><h2>${2000+ +String(curYM()).slice(0,2)}년 수금 총괄표 <span style="font-size:12px;font-weight:500;color:var(--sub)">청구 · 수납 · 세금계산서 (공급가)</span></h2><span class="more">발행 내역 기준일 ${esc(S.invAt||'')} · 그 외 = 신고수수료·결산료·상담료·기타 · 판정은 수납과 발행 비교</span></div>
   <div class="pscroll"><div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap">
   <thead><tr style="color:var(--sub);text-align:center"><th rowspan="2" style="padding:8px;text-align:left">거래처</th><th colspan="4" style="padding:6px;${G}">① 청구</th><th colspan="5" style="padding:6px;${G}">② 수납</th><th rowspan="2" style="padding:6px;${G}">미수<br>(①−②)</th><th colspan="3" style="padding:6px;${G}">③ 세금계산서</th><th colspan="2" style="padding:6px;${G}">차이 (②−③)</th><th rowspan="2" style="padding:6px;${G}">판정</th></tr>
   <tr style="color:var(--sub);font-size:11px;border-bottom:1px solid var(--line)"><th style="${T};${G}">기장료</th><th style="${T}">조정료</th><th style="${T}">그 외</th><th style="${T}">합계</th><th style="${T};${G}">기장료</th><th style="${T}">조정료</th><th style="${T}">그 외</th><th style="${T}">합계</th><th style="${T}">VAT</th><th style="${T};${G}">공급가</th><th style="${T}">세액</th><th style="padding:7px 8px">발행일</th><th style="${T};${G}">공급가</th><th style="${T}">VAT</th></tr></thead>
@@ -1104,8 +1104,8 @@ function vPay(){
   const allU=S.clients.map(c=>({c,l:unpaidList(c.id)})).filter(x=>x.l.length);
   const _fu=(S.fees||[]).filter(f=>f.st!=='paid'),_ul=[...new Set(allU.map(x=>x.c.id).concat(_fu.map(f=>f.cid)))].map(id=>({c:cl(id),l:unpaidList(id),f:feeOpen(id)})).filter(x=>x.c);
   const _ut=_ul.reduce((a,{c,l,f})=>a+l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0)+f.reduce((t,x)=>t+x.amt,0),0);
-  if(ui.pv==='inv')return `<div class="fixframe payframe">`+head('수금',`<button class="btn g" data-a="payRep">📊 보고서</button>${SALE?'<button class="btn g" data-a="payTpl">📄 양식 받기</button>':''}<button class="btn g" data-a="payUp" title="CMS 수납내역·세금계산서 발행내역 또는 양식 엑셀">📥 엑셀 올리기</button>`)+paySeg()+vInv()+`</div>`;
-  return `<div class="fixframe payframe">`+head('수금',`<button class="btn g" data-a="payRep">📊 보고서</button>${SALE?'<button class="btn g" data-a="payTpl">📄 양식 받기</button>':''}<button class="btn g" data-a="payUp" title="CMS 수납내역·세금계산서 발행내역 또는 양식 엑셀">📥 엑셀 올리기</button>`)+paySeg()+`
+  if(ui.pv==='inv')return `<div class="fixframe payframe">`+head('수금',`<button class="btn g" data-a="payRep">📊 보고서</button>${SALE?'<button class="btn g" data-a="payTpl">📄 양식 받기</button>':''}<button class="btn g" data-a="payUp" title="CMS 수납내역·세금계산서 발행내역 또는 양식 엑셀">📥 엑셀 올리기</button>`,paySeg())+vInv()+`</div>`;
+  return `<div class="fixframe payframe">`+head('수금',`<button class="btn g" data-a="payRep">📊 보고서</button>${SALE?'<button class="btn g" data-a="payTpl">📄 양식 받기</button>':''}<button class="btn g" data-a="payUp" title="CMS 수납내역·세금계산서 발행내역 또는 양식 엑셀">📥 엑셀 올리기</button>`,paySeg())+`
   <div class="calhead"><button class="nb" data-a="pmPrev">‹</button><b>${ymLabel(ym)}</b><button class="nb" data-a="pmNext">›</button>${ym!==cur?`<button class="btn g s" data-a="pmCur">이번 달</button>`:''}</div>
   <div class="stats" style="grid-template-columns:repeat(3,1fr)">
     <div class="card stat"><b>${won(spl(paid)[0])}원</b><span>입금 ${pc}곳 · 공급가 (VAT ${won(spl(paid)[1])} · 합계 ${won(paid)}) · 기장료만</span></div>
