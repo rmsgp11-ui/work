@@ -458,7 +458,7 @@ const ds=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
 /* ---------- 상태 ---------- */
 function migrate(s){
   s=Object.assign({v:2,tasks:[],clients:[],pay:{},checks:{},logs:[],jobs:[],prog:{},rpt:{wh:{},vat:{}},projects:[],theme:'light',updated:0},s||{});
-  if(!Array.isArray(s.jobs))s.jobs=[];if(!Array.isArray(s.autos))s.autos=[];if(!Array.isArray(s.fees))s.fees=[];if(!Array.isArray(s.routines))s.routines=[];
+  if(!Array.isArray(s.jobs))s.jobs=[];if(!Array.isArray(s.autos))s.autos=[];if(!Array.isArray(s.fees))s.fees=[];delete s.invOther;if(!Array.isArray(s.routines))s.routines=[];
   if(!s.prog||typeof s.prog!=='object')s.prog={};
   if(!s.rpt)s.rpt={wh:{},vat:{}};['wh','vat','pit','cit'].forEach(k=>s.rpt[k]=s.rpt[k]||{});if(!Array.isArray(s.agents))s.agents=[];
   if(Array.isArray(s.calls)){s.calls.forEach(c=>s.logs.push({id:c.id,at:c.at,src:'통화',client:null,title:c.title,summary:c.summary,points:c.points||[],theirs:c.theirs||[],text:c.transcript||'',taskIds:c.taskIds||[]}));delete s.calls;}
@@ -861,9 +861,9 @@ function vInv(){
     <td style="padding:8px;text-align:right">${won(r.iss)}<div style="color:var(--sub);font-size:11px">${r.fee?(Math.round(r.iss/r.fee*10)/10)+'개월분':''}</div></td>
     <td style="padding:8px;font-size:12px;color:var(--sub)">${r.L.map(x=>md2(x[0])+(x[2]?'(미발송)':'')).join(' · ')}</td>
     <td style="padding:8px"><span class="chip ${r.cls}">${r.st}</span></td></tr>`).join('')}</tbody></table></div>
-  ${S.invOther&&S.invOther.length?`<div class="sec"><h2>앱에 없는 발행처 ${S.invOther.length}곳</h2></div><div class="card list">${S.invOther.map(o=>`<div class="prow"><div class="pn"><b>${esc(o.n)}</b><span>${esc(o.b)} · ${o.L.map(x=>md2(x[0])).join(' · ')}</span></div><span class="chip">${won(o.L.reduce((a,x)=>a+x[1],0))}원</span></div>`).join('')}</div>`:''}</div>`;
+</div>`;
 }
-window.__inv={set:(map,other,at)=>{S.inv=map;S.invOther=other||[];S.invAt=at||todayStr();save();if(!ui.drawer)render();return Object.keys(map).length;},clients:()=>S.clients.map(c=>({id:c.id,name:c.name,biz:String(c.biz||c.bizno||c.brn||'').replace(/-/g,'')}))};
+window.__inv={set:(map,other,at)=>{S.inv=map;delete S.invOther;S.invAt=at||todayStr();save();if(!ui.drawer)render();return Object.keys(map).length;},clients:()=>S.clients.map(c=>({id:c.id,name:c.name,biz:String(c.biz||c.bizno||c.brn||'').replace(/-/g,'')}))};
 
 function vPay(){
   const ym=ui.pm, cur=curYM();
