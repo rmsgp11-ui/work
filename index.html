@@ -845,13 +845,13 @@ function vInv(){
   if(!S.inv)return `<div class="card" style="padding:24px;color:var(--sub)">세금계산서 발행 내역이 아직 없어요.</div>`;
   const R=invRows(),cnt=k=>R.filter(r=>r.cls===k).length;
   const md2=d=>d?`${+d.slice(2,4)}/${+d.slice(4,6)}`:'';
-  return `<div class="stats" style="grid-template-columns:repeat(5,1fr)">
+  return `<div class="stats" style="grid-template-columns:repeat(5,minmax(0,1fr))">
     <div class="card stat ${cnt('red')?'warn':''}"><b>${cnt('red')}곳</b><span>받았는데 덜 발행</span></div>
     <div class="card stat"><b>${cnt('pur')}곳</b><span>앱 수금 기록 빠짐?</span></div>
     <div class="card stat"><b>${cnt('amb')}곳</b><span>CMS 입금 확인 필요</span></div>
     <div class="card stat"><b>${cnt('blu')}곳</b><span>미수분 발행(정상)</span></div>
-    <div class="card stat"><b>${cnt('grn')}곳</b><span>일치</span></div></div><div class="pscroll">
-  <div class="sec"><h2>${2000+ +String(curYM()).slice(0,2)}년 거래처별 (공급가액 기준)</h2><span class="more">발행 내역 기준일 ${esc(S.invAt||'')} · 수금은 부가세 뺀 금액으로 환산</span></div>
+    <div class="card stat"><b>${cnt('grn')}곳</b><span>일치</span></div></div><div class="sec"><h2>${2000+ +String(curYM()).slice(0,2)}년 거래처별 (공급가액 기준)</h2><span class="more">발행 내역 기준일 ${esc(S.invAt||'')} · 수금은 부가세 뺀 금액으로 환산</span></div>
+  <div class="pscroll">
   <div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
   <thead><tr style="text-align:left;color:var(--sub);border-bottom:1px solid var(--line)"><th style="padding:8px">거래처</th><th style="padding:8px;text-align:right">월 기장료</th><th style="padding:8px;text-align:right">수금(확인)</th><th style="padding:8px">수금 상태 불명·미수</th><th style="padding:8px;text-align:right">발행</th><th style="padding:8px">발행일</th><th style="padding:8px">판정</th></tr></thead>
   <tbody>${R.map(r=>`<tr style="border-bottom:1px solid var(--line)"><td style="padding:8px"><b data-client="${r.c.id}" style="cursor:pointer">${esc(r.c.name)}</b></td>
