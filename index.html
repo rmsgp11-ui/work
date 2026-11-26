@@ -911,12 +911,32 @@ const isCorp=s=>/\(주\)|㈜|주식회사/.test(String(s||''));
 function xfind(name,biz){const b=String(biz||'').replace(/\D/g,'');if(b.length===10){const c=S.clients.find(c=>String(c.biz||c.bizno||c.brn||'').replace(/\D/g,'')===b);if(c)return c.id;}
   const n=xn(name);if(!n)return null;let h=S.clients.filter(c=>xn(c.name)===n);if(h.length>1){const k=isCorp(name);const h2=h.filter(c=>isCorp(c.name)===k);if(k&&h2.length)h=h2;else{const h3=h.filter(c=>c.fee>0);if(h3.length)h=h3;}}
   return h.length?h[0].id:null;}
+/* ---------- 수금DB 폴더 자동 반영 (PC 크롬·엣지) ---------- */
+const IDB=()=>new Promise((ok,no)=>{const r=indexedDB.open('workapp-fs',1);r.onupgradeneeded=()=>r.result.createObjectStore('h');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});
+async function idbGet(k){try{const d=await IDB();return await new Promise(ok=>{const t=d.transaction('h').objectStore('h').get(k);t.onsuccess=()=>ok(t.result||null);t.onerror=()=>ok(null);});}catch(e){return null;}}
+async function idbSet(k,v){try{const d=await IDB();return await new Promise(ok=>{const t=d.transaction('h','readwrite');t.objectStore('h').put(v,k);t.oncomplete=()=>ok(true);t.onerror=()=>ok(false);});}catch(e){return false;}}
+async function payDb(pick){
+  if(!window.showDirectoryPicker)return toast('PC의 크롬·엣지에서만 폴더를 읽을 수 있어요');
+  let h=pick?null:await idbGet('payDb');
+  if(!h){toast('수금DB 폴더(업체 자동화 › 수금DB)를 골라 주세요');try{h=await showDirectoryPicker({id:'payDb',mode:'read'});}catch(e){return;}await idbSet('payDb',h);}
+  try{if(await h.queryPermission({mode:'read'})!=='granted'&&await h.requestPermission({mode:'read'})!=='granted')return toast('폴더 읽기를 허용해 주세요');}catch(e){return toast('폴더를 다시 골라 주세요 (📂)');}
+  const files=[];try{for await(const [name,e] of h.entries()){if(e.kind==='file'&&/\.(xlsx|xls|csv)$/i.test(name)&&!name.startsWith('~$'))files.push(await e.getFile());}}catch(e){return toast('폴더를 읽지 못했어요 — 📂로 다시 골라 주세요');}
+  if(!files.length)return toast(`'${h.name}' 폴더에 엑셀 파일이 없어요`);
+  const seen=S.dbSeen||{};const todo=files.filter(f=>seen[f.name]!==f.lastModified).sort((a,b)=>a.lastModified-b.lastModified);
+  S.dbAt=new Date().toISOString();S.dbDir=h.name;
+  if(!todo.length){save();render();return toast(`새로 바뀐 파일이 없어요 ('${h.name}' 파일 ${files.length}개 확인)`);}
+  const done=[];let stop=null;
+  for(const f of todo){const ok=await payFile(f);if(ok){seen[f.name]=f.lastModified;done.push(f.name);}else{stop=f.name;break;}}
+  S.dbSeen=seen;save();render();
+  const msg=(done.length?`'${h.name}'에서 ${done.length}개 반영: ${done.join(', ')}`:'')+(stop?`${done.length?' · ':''}'${stop}'은 열을 골라 주세요 (고른 뒤 🔄 다시 누르면 나머지 진행)`:'');
+  if(!stop)setTimeout(()=>toast(msg),1600);else if(done.length)toast(msg);}
+window.__payDb=payDb;
 function payUp(){const i=document.createElement('input');i.type='file';i.accept='.xls,.xlsx,.csv';i.multiple=true;i.onchange=async()=>{for(const f of i.files)await payFile(f);};i.click();}
 async function payFile(f){let rows;try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array',cellDates:false});rows=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:true});}catch(e){return toast(e.message||'파일을 읽지 못했어요');}
   xApplyMaps(rows);
-  if(xDetect(rows,f.name))return;
-  if(xAuto(rows,f.name))return;
-  xMapForm(rows,f.name);}
+  if(xDetect(rows,f.name))return true;
+  if(xAuto(rows,f.name))return true;
+  xMapForm(rows,f.name);return false;}
 const XF={cms:{n:'CMS·자동이체 수납내역',f:[['회원명','거래처(회원)명',1],['청구월','청구월(연월)',1],['청구금액','청구금액',1],['수납금액','수납(입금)금액',1],['미납금액','미납금액',0],['청구타입','청구 구분(정기/추가)',0],['청구완납일자','입금일자',0]]},
   inv:{n:'세금계산서 발행내역',f:[['작성일자','작성일자(또는 전표번호)',1],['거래처명','거래처명',1],['사업자등록증','거래처 사업자번호',0],['공급가액','공급가액',1],['전자세금','전송 상태',0]]}};
 const xbase=v=>String(v).trim().replace(/\s*\(.*\)\s*$/,'');
@@ -1098,7 +1118,7 @@ async function repXls(){const X0=await loadXLSX().catch(e=>{toast(e.message);ret
 function repPrint(){const Y=ui.ry;const b=$('#repBody');const body=b?b.innerHTML:repHTML(Y,repCalc(Y));let at=todayStr();try{const d=JSON.parse(localStorage.getItem(RDK(Y))||'null');if(d)at=d.at;}catch(e){}
   const w=window.open('','_blank');if(!w)return toast('팝업이 막혔어요');
   const css=[...document.querySelectorAll('style')].map(s=>s.textContent).join('\n');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>20${Y}년 수금 보고서 (기준일 ${at})</title><style>${css}</style><style>*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}html,body{background:#fff}body{width:1000px;margin:0 auto;padding:8px 0;font-family:'Pretendard','Malgun Gothic',sans-serif;color:var(--ink,#111)}.rsec{overflow:visible!important;break-inside:avoid}.rsec:has(tbody tr:nth-child(12)){break-inside:auto}.rpt{min-width:0!important}.rkpi{grid-template-columns:repeat(4,minmax(0,1fr))!important}.rmon>div{grid-template-columns:42px 1fr 120px 130px!important}tr{break-inside:avoid}thead{display:table-header-group}.redit{box-shadow:none!important;background:none!important}.rp2{font-size:12.5px}.rp2 th,.rp2 td{padding:6px 8px!important}@page{size:A4 landscape;margin:10mm}@media screen{body{padding:24px 0}}</style></head><body><h2 style="margin:0 0 4px">20${Y}년 수금 보고서 <span style="font-size:14px;font-weight:500;color:#6b7280">(기준일: ${at})</span></h2><div style="height:10px"></div>${body}<script>setTimeout(()=>print(),400)<\/script></body></html>`);w.document.close();}
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>20${Y}년 수금 보고서 (기준일 ${at})</title><style>${css}</style><style>*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}html,body{background:#fff}body{width:auto;margin:0;padding:0;font-family:'Pretendard','Malgun Gothic',sans-serif;color:var(--ink,#111)}.rsec{overflow:visible!important;break-inside:avoid}.rsec:has(tbody tr:nth-child(12)){break-inside:auto}.rpt{min-width:0!important}.rkpi{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}.rkpi>div{padding:10px 12px!important}.rkpi b{font-size:19px!important}.rkpi .vx{font-size:11px!important}.rmon>div{grid-template-columns:34px 1fr 96px 120px!important;font-size:13px!important}tr{break-inside:avoid}thead{display:table-header-group}.redit{box-shadow:none!important;background:none!important}.rpt.rp2{font-size:12.5px}.rpt.rp2 th,.rpt.rp2 td{padding:6px 6px!important}.rpt.rp2 thead th{font-size:11px!important}.rsh b{font-size:14.5px}@page{size:A4 portrait;margin:10mm}@media screen{body{width:718px;margin:0 auto;padding:24px 0}}</style></head><body><h2 style="margin:0 0 4px">20${Y}년 수금 보고서 <span style="font-size:14px;font-weight:500;color:#6b7280">(기준일: ${at})</span></h2><div style="height:10px"></div>${body}<script>setTimeout(()=>{const W=718,w=Math.max(document.body.scrollWidth,...[...document.querySelectorAll('table')].map(t=>t.scrollWidth));if(w>W)document.body.style.zoom=(W/w).toFixed(3);setTimeout(()=>print(),200);},300)<\/script></body></html>`);w.document.close();}
 window.__payDry=(rows)=>xDetect(rows,'',1);
 window.__inv={set:(map,other,at)=>{S.inv=map;delete S.invOther;S.invAt=at||todayStr();save();if(!ui.drawer)render();return Object.keys(map).length;},clients:()=>S.clients.map(c=>({id:c.id,name:c.name,biz:String(c.biz||c.bizno||c.brn||'').replace(/-/g,'')}))};
 
@@ -1110,8 +1130,8 @@ function vPay(){
   const allU=S.clients.map(c=>({c,l:unpaidList(c.id)})).filter(x=>x.l.length);
   const _fu=(S.fees||[]).filter(f=>f.st!=='paid'),_ul=[...new Set(allU.map(x=>x.c.id).concat(_fu.map(f=>f.cid)))].map(id=>({c:cl(id),l:unpaidList(id),f:feeOpen(id)})).filter(x=>x.c);
   const _ut=_ul.reduce((a,{c,l,f})=>a+l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0)+f.reduce((t,x)=>t+x.amt,0),0);
-  if(ui.pv==='inv')return `<div class="fixframe payframe">`+head('수금',`<button class="btn g" data-a="payRep">📊 보고서</button>${SALE?'<button class="btn g" data-a="payTpl">📄 양식 받기</button>':''}<button class="btn g" data-a="payUp" title="CMS 수납내역·세금계산서 발행내역 또는 양식 엑셀">📥 엑셀 올리기</button>`,paySeg())+vInv()+`</div>`;
-  return `<div class="fixframe payframe">`+head('수금',`<button class="btn g" data-a="payRep">📊 보고서</button>${SALE?'<button class="btn g" data-a="payTpl">📄 양식 받기</button>':''}<button class="btn g" data-a="payUp" title="CMS 수납내역·세금계산서 발행내역 또는 양식 엑셀">📥 엑셀 올리기</button>`,paySeg())+`
+  if(ui.pv==='inv')return `<div class="fixframe payframe">`+head('수금',`${SALE?'':`<button class="btn" data-a="payDb" title="수금DB 폴더의 새 엑셀(수금·세금계산서)을 읽어 자동 반영${S.dbAt?' · 마지막 '+new Date(S.dbAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}):''}">🔄 수금DB 업데이트</button><button class="btn g" data-a="payDbPick" title="수금DB 폴더 다시 고르기">📂</button>`}<button class="btn g" data-a="payRep">📊 보고서</button>${SALE?'<button class="btn g" data-a="payTpl">📄 양식 받기</button>':''}<button class="btn g" data-a="payUp" title="CMS 수납내역·세금계산서 발행내역 또는 양식 엑셀">📥 엑셀 올리기</button>`,paySeg())+vInv()+`</div>`;
+  return `<div class="fixframe payframe">`+head('수금',`${SALE?'':`<button class="btn" data-a="payDb" title="수금DB 폴더의 새 엑셀(수금·세금계산서)을 읽어 자동 반영${S.dbAt?' · 마지막 '+new Date(S.dbAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'}):''}">🔄 수금DB 업데이트</button><button class="btn g" data-a="payDbPick" title="수금DB 폴더 다시 고르기">📂</button>`}<button class="btn g" data-a="payRep">📊 보고서</button>${SALE?'<button class="btn g" data-a="payTpl">📄 양식 받기</button>':''}<button class="btn g" data-a="payUp" title="CMS 수납내역·세금계산서 발행내역 또는 양식 엑셀">📥 엑셀 올리기</button>`,paySeg())+`
   <div class="calhead"><button class="nb" data-a="pmPrev">‹</button><b>${ymLabel(ym)}</b><button class="nb" data-a="pmNext">›</button>${ym!==cur?`<button class="btn g s" data-a="pmCur">이번 달</button>`:''}</div>
   <div class="stats" style="grid-template-columns:repeat(3,1fr)">
     <div class="card stat"><b>${won(spl(paid)[0])}원</b><span>입금 ${pc}곳 · 공급가 (VAT ${won(spl(paid)[1])} · 합계 ${won(paid)}) · 기장료만</span></div>
@@ -1192,11 +1212,17 @@ window.__checks={
 
 /* ---------- 자동화 기록 (Claude 처리 내역) ---------- */
 function pruneAutos(){if(!S.autos||!S.autos.length)return false;const lim=Date.now()-30*864e5,n=S.autos.length;S.autos=S.autos.filter(r=>r.at>lim||(r.review||[]).some(x=>!x.done));return S.autos.length!==n;}
+function slip5(){if(S.jobs.some(j=>j.kind==='slip5'&&(j.status==='wait'||j.status==='doing')))return toast('이미 맡겨 둔 요청이 있어요 — 처리되면 여기에 결과가 쌓여요');
+  S.jobs.push({id:uid(),client:null,kind:'slip5',ym:'',text:'',img:'',memo:'위하고 미처리전표가 많은 순서로 5곳, 자동전표 처리 규칙대로 처리 (마감·신고는 하지 않음)',status:'wait',result:'',review:null,prog:null,reviewed:null,created:Date.now(),doneAt:null});
+  save();render();toast('맡겼어요 — 위하고에 로그인된 크롬이 켜져 있으면 Claude가 차례로 처리해요');}
+function autoHead(){const q=S.jobs.filter(j=>j.kind==='slip5'&&j.status!=='done'&&j.status!=='ready').sort((a,b)=>b.created-a.created)[0];
+  const st=q?JS_[q.status]||JS_.wait:null;
+  return head('자동화',`<button class="btn" data-a="slip5" title="위하고에서 미처리전표가 많은 업체 5곳을 골라 자동전표를 처리해요">▶ 미처리전표 5곳 처리</button>`)+(q?`<div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="chip ${st.cls}">${st.n}</span><b>미처리전표 5곳 일괄 처리</b><span style="color:var(--sub);font-size:13px">${new Date(q.created).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} 요청${q.result?' · '+esc(q.result.split('\n')[0]):''}</span>${q.status==='wait'?`<button class="btn g s" data-jobact="hold|${q.id}" style="margin-left:auto">취소</button>`:''}</div>`:'');}
 function vAuto(){if(pruneAutos())save();
   const runs=(S.autos||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0));
-  if(!runs.length)return head('자동화')+`<div class="card" style="padding:28px;text-align:center;color:var(--sub)">아직 기록이 없어요. Claude가 처리하면 여기에 쌓여요.</div>`;
+  if(!runs.length)return autoHead()+`<div class="card" style="padding:28px;text-align:center;color:var(--sub)">아직 기록이 없어요. Claude가 처리하면 여기에 쌓여요.</div>`;
   const n=v=>(+v||0).toLocaleString();
-  return head('자동화')+runs.map(r=>{
+  return autoHead()+runs.map(r=>{
     const T=r.clients.reduce((a,c)=>{c.items.forEach(i=>{a.s+=+i.sent||0;a.f+=+i.fail||0;a.d+=+i.ded||0;a.g+=+i.gen||0});return a},{s:0,f:0,d:0,g:0});
     const open=(r.review||[]).filter(x=>!x.done).length;
     const d=new Date(r.at);
@@ -1221,7 +1247,7 @@ function vAuto(){if(pruneAutos())save();
 window.__autos={add:o=>{S.autos=S.autos||[];const r=Object.assign({id:uid(),at:Date.now()},o);r.review=(r.review||[]).map(x=>Object.assign({done:false},x));S.autos.push(r);save();if(!ui.drawer)render();return r.id;},list:()=>(S.autos||[]).map(r=>({id:r.id,title:r.title,at:r.at})),del:id=>{S.autos=(S.autos||[]).filter(r=>r.id!==id);save();render();}};
 
 /* ---------- 위하고 작업함 ---------- */
-const JK={pay:'급여대장 입력',etc:'이자·사업소득 입력',slip:'자동전표 처리',other:'기타'};
+const JK={pay:'급여대장 입력',etc:'이자·사업소득 입력',slip:'자동전표 처리',slip5:'미처리전표 5곳 일괄 처리',other:'기타'};
 const JS_={ready:{n:'올려둠',cls:''},wait:{n:'수행 대기',cls:'blu'},doing:{n:'진행 중',cls:'amb'},check:{n:'확인 필요',cls:'red'},done:{n:'완료',cls:'grn'},fail:{n:'실패',cls:'red'}};
 /* 사진은 work/{uid}/files/{fid} 문서에 따로 저장 → 검토 완료 시 삭제 */
 const imgCache={};
@@ -1317,7 +1343,7 @@ function trimJobs(){const now=Date.now();S.jobs.filter(j=>j.reviewed&&hasImg(j))
 function jobAct(v){const [a,id]=v.split('|'),j=S.jobs.find(x=>x.id===id);if(!j)return;
   if(a==='del'){if(!confirm('이 작업을 삭제할까요?'))return;dropImg(j);S.jobs=S.jobs.filter(x=>x.id!==id);}
   else if(a==='retry'){j.status='ready';j.reviewed=null;j.result=(j.result?j.result+'\n\n':'')+'— 다시 맡김 '+new Date().toLocaleString('ko-KR');}
-  else if(a==='hold'){if(j.status==='wait')j.status='ready';}
+  else if(a==='hold'){if(j.status==='wait'){if(j.kind==='slip5')S.jobs=S.jobs.filter(x=>x!==j);else j.status='ready';}}
   else if(a==='ok'){j.status='done';j.doneAt=Date.now();}
   else if(a==='rev'){j.reviewed=Date.now();if(j.status==='check'||j.status==='fail'){j.status='done';j.doneAt=Date.now();}if(j.client&&j.ym&&Array.isArray(j.prog))j.prog.forEach(k=>PGN[k]&&pgSet(j.client,k,j.ym,'d'));if(hasImg(j)){dropImg(j);toast('검토 완료 · 사진은 삭제했어요');}}
   else if(a==='unrev'){j.reviewed=null;}
@@ -2255,7 +2281,7 @@ document.addEventListener('click',e=>{
     clientTask:()=>{const t=prompt('할 일 (예: 급여대장 요청 내일)');if(!t)return;const p=parse(t);S.tasks.push({id:uid(),...p,client:ui.openClient,status:'todo',memo:'',subs:[],created:Date.now(),doneAt:null});save();openClient(ui.openClient);toast('할 일을 추가했어요');},
     taskDel:()=>{const x=S.tasks.find(t=>t.id===ui.openTask);const i=S.tasks.indexOf(x);S.tasks.splice(i,1);save();closeDrawer();toast('삭제했어요',()=>{S.tasks.splice(i,0,x);save();render();});},
     payTpl:()=>{$('#mbox').classList.remove('mbw','mbx');$('#mbox').innerHTML=`<h3>엑셀 양식 받기</h3><p class="note">CMS·홈택스 파일이 없으면 양식에 적어서 <b>📥 엑셀 올리기</b>로 올리세요. 자동으로 정리돼요.</p><button class="btn g" data-a="xlTplPay" style="justify-content:center">수금 양식 (청구·입금·미수)</button><button class="btn g" data-a="xlTplInv" style="justify-content:center">세금계산서 발행 양식</button><button class="btn" data-a="modalClose" style="justify-content:center">닫기</button>`;$('#modal').classList.add('on');}, xlTplPay:()=>xlTpl('pay'), xlTplInv:()=>xlTpl('inv'), xlTplCl:()=>xlTpl('client'),
-    repReset, payUp, xmSave, cDelete, xlTpl, xlClientUp, payRep, repXls, repPrint, repY:()=>{},  jobNew:jobForm, jobSave, jobRun:()=>{const r=S.jobs.filter(j=>j.status==='ready');if(!r.length)return;if(!confirm(`올려둔 작업 ${r.length}건을 일괄 수행할까요?`))return;r.forEach(j=>j.status='wait');S.jobReq=Date.now();save();render();toast(`${r.length}건 수행 요청했어요`);},
+    slip5, payDb:()=>payDb(false), payDbPick:()=>payDb(true), repReset, payUp, xmSave, cDelete, xlTpl, xlClientUp, payRep, repXls, repPrint, repY:()=>{},  jobNew:jobForm, jobSave, jobRun:()=>{const r=S.jobs.filter(j=>j.status==='ready');if(!r.length)return;if(!confirm(`올려둔 작업 ${r.length}건을 일괄 수행할까요?`))return;r.forEach(j=>j.status='wait');S.jobReq=Date.now();save();render();toast(`${r.length}건 수행 요청했어요`);},
     live:openLive, logs:()=>{ui.tab='logs';closeDrawer();}
   };
   if(acts[a]) acts[a]();
