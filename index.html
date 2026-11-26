@@ -920,7 +920,7 @@ function payCms(rows,h,fn,dry){const hd=rows[h].map(v=>String(v).trim()),ix=k=>{
     if(dry){out.push([cl(g.cid).name,g.ym,cell]);continue;}
     S.pay[g.cid]=S.pay[g.cid]||{};S.pay[g.cid][g.ym]=cell;n++;cs.add(g.cid);}
   if(dry)return out;
-  S.cmsAt=todayStr();save();render();toast(`CMS 수납내역 반영 · ${cs.size}곳 ${n}개월 (수납 ${pd} · 미납 ${un})${kept?` · 직접 적은 메모가 있는 ${kept}칸은 그대로 뒀어요`:''}`);}
+  S.cmsAt=todayStr();save();render();toast(`수금 내역 반영 · ${cs.size}곳 ${n}개월 (수납 ${pd} · 미납 ${un})${kept?` · 직접 적은 메모가 있는 ${kept}칸은 그대로 뒀어요`:''}`);}
 function payInvFile(rows,h,fn,dry){const hd=rows[h].map(v=>String(v).trim()),ix=k=>{const i=hd.indexOf(k);return i>=0?i:hd.map(xbase).indexOf(k);};
   const I={no:ix('작성일자')>=0?ix('작성일자'):ix('전표번호'),n:ix('거래처명'),b:ix('사업자등록증')>=0?ix('사업자등록증'):ix('사업자번호'),s:ix('공급가액'),e:ix('전자세금')>=0?ix('전자세금'):ix('전송상태')};
   const add={};let lo='999999',hi='000000',cnt=0;
