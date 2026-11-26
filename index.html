@@ -1216,12 +1216,19 @@ window.__checks={
 
 /* ---------- 자동화 기록 (Claude 처리 내역) ---------- */
 function pruneAutos(){if(!S.autos||!S.autos.length)return false;const lim=Date.now()-30*864e5,n=S.autos.length;S.autos=S.autos.filter(r=>r.at>lim||(r.review||[]).some(x=>!x.done));return S.autos.length!==n;}
-function slip5(){if(S.jobs.some(j=>j.kind==='slip5'&&(j.status==='wait'||j.status==='doing')))return toast('이미 맡겨 둔 요청이 있어요 — 처리되면 여기에 결과가 쌓여요');
-  S.jobs.push({id:uid(),client:null,kind:'slip5',ym:'',text:'',img:'',memo:'위하고 미처리전표가 많은 순서로 5곳, 자동전표 처리 규칙대로 처리 (마감·신고는 하지 않음)',status:'wait',result:'',review:null,prog:null,reviewed:null,created:Date.now(),doneAt:null});
-  save();render();toast('맡겼어요 — 위하고에 로그인된 크롬이 켜져 있으면 Claude가 차례로 처리해요');}
-function autoHead(){const q=S.jobs.filter(j=>j.kind==='slip5'&&j.status!=='done'&&j.status!=='ready').sort((a,b)=>b.created-a.created)[0];
-  const st=q?JS_[q.status]||JS_.wait:null;
-  return head('자동화',`<button class="btn" data-a="slip5" title="위하고에서 미처리전표가 많은 업체 5곳을 골라 자동전표를 처리해요">▶ 미처리전표 5곳 처리</button>`)+(q?`<div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="chip ${st.cls}">${st.n}</span><b>미처리전표 5곳 일괄 처리</b><span style="color:var(--sub);font-size:13px">${new Date(q.created).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit'})} 요청${q.result?' · '+esc(q.result.split('\n')[0]):''}</span>${q.status==='wait'?`<button class="btn g s" data-jobact="hold|${q.id}" style="margin-left:auto">취소</button>`:''}</div>`:'');}
+/* 자동화 요청 — 위하고 작업(자료 입력)과 별도. 다음 정기 실행(매일 08:45) 때 Claude가 처리 */
+const AR=()=>(S.autoReq=S.autoReq||[]);
+const nextRun=()=>{const d=new Date();if(d.getHours()*60+d.getMinutes()>=8*60+45)d.setDate(d.getDate()+1);return `${d.getMonth()+1}/${d.getDate()} 오전 8:45`;};
+function slip5(){S.jobs=S.jobs.filter(j=>j.kind!=='slip5');
+  if(AR().some(r=>r.status==='wait'||r.status==='doing'))return toast('이미 요청해 둔 게 있어요');
+  AR().push({id:uid(),kind:'slip5',name:'미처리전표 5곳 처리',status:'wait',result:'',created:Date.now(),doneAt:null});S.autoReq=AR().slice(-20);
+  save();render();toast(`요청했어요 — ${nextRun()}에 처리해요 (급하면 채팅에 "미처리전표 처리")`);}
+function arCancel(id){S.autoReq=AR().filter(r=>!(r.id===id&&r.status==='wait'));save();render();}
+window.__autoReq={list:(st)=>AR().filter(r=>!st||r.status===st).map(r=>({...r,created:new Date(r.created).toISOString()})),
+  update:(id,p)=>{const r=AR().find(x=>x.id===id);if(!r)return false;['status','result'].forEach(k=>{if(p[k]!==undefined)r[k]=p[k]});if(r.status==='done'||r.status==='check')r.doneAt=Date.now();save();render();return true;}};
+function autoHead(){const q=AR().slice().sort((a,b)=>b.created-a.created)[0];const show=q&&(q.status!=='done'||Date.now()-(q.doneAt||0)<3*864e5);
+  const st=show?JS_[q.status]||JS_.wait:null;
+  return head('자동화',`<button class="btn" data-a="slip5" title="위하고에서 미처리전표가 많은 업체 5곳을 골라 자동전표를 처리해요">▶ 미처리전표 5곳 처리</button>`)+(show?`<div class="card" style="padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="chip ${st.cls}">${q.status==='wait'?'요청됨':st.n}</span><b>${esc(q.name)}</b><span style="color:var(--sub);font-size:13px">${q.status==='wait'?`${nextRun()}에 처리 · 급하면 채팅에 "미처리전표 처리"`:esc((q.result||'').split('\n')[0])}</span>${q.status==='wait'?`<button class="btn g s" data-a="arCancel" data-id="${q.id}" style="margin-left:auto">취소</button>`:''}</div>`:'');}
 function vAuto(){if(pruneAutos())save();
   const runs=(S.autos||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0));
   if(!runs.length)return autoHead()+`<div class="card" style="padding:28px;text-align:center;color:var(--sub)">아직 기록이 없어요. Claude가 처리하면 여기에 쌓여요.</div>`;
@@ -1251,7 +1258,8 @@ function vAuto(){if(pruneAutos())save();
 window.__autos={add:o=>{S.autos=S.autos||[];const r=Object.assign({id:uid(),at:Date.now()},o);r.review=(r.review||[]).map(x=>Object.assign({done:false},x));S.autos.push(r);save();if(!ui.drawer)render();return r.id;},list:()=>(S.autos||[]).map(r=>({id:r.id,title:r.title,at:r.at})),del:id=>{S.autos=(S.autos||[]).filter(r=>r.id!==id);save();render();}};
 
 /* ---------- 위하고 작업함 ---------- */
-const JK={pay:'급여대장 입력',etc:'이자·사업소득 입력',slip:'자동전표 처리',slip5:'미처리전표 5곳 일괄 처리',other:'기타'};
+const JK={pay:'급여대장·급여신고서 작성',simp:'간이지급명세서 작성',etc:'이자·사업소득 입력',ye:'연말정산 자료 작성',gl:'일반전표 엑셀 업로드',bank:'통장 엑셀 업로드',slip:'자동전표 처리',other:'기타'};
+const JKL=new Set(['pay','slip']);/* Claude가 처리 방법을 배운 작업 */
 const JS_={ready:{n:'올려둠',cls:''},wait:{n:'수행 대기',cls:'blu'},doing:{n:'진행 중',cls:'amb'},check:{n:'확인 필요',cls:'red'},done:{n:'완료',cls:'grn'},fail:{n:'실패',cls:'red'}};
 /* 사진은 work/{uid}/files/{fid} 문서에 따로 저장 → 검토 완료 시 삭제 */
 const imgCache={};
@@ -1320,10 +1328,10 @@ function jobForm(){
   const d0=new Date(),ym=`${d0.getFullYear()}-${pad(d0.getMonth()+1)}`;ui.jobImg='';
   $('#mbox').innerHTML=`<h3>위하고 작업 맡기기</h3>
     <select id="jC" class="sel" style="width:100%">${copt('')}</select>
-    <div style="display:flex;gap:8px"><select id="jK" class="sel" style="flex:1">${Object.entries(JK).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select>
+    <div style="display:flex;gap:8px"><select id="jK" class="sel" style="flex:1">${Object.entries(JK).map(([k,v])=>`<option value="${k}">${v}${JKL.has(k)||k==='other'?'':' (처리 방법 배우는 중)'}</option>`).join('')}</select>
       <input id="jY" type="month" class="sel" value="${ym}" style="flex:1"></div>
-    <textarea id="jT" style="width:100%;min-height:130px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 11px" placeholder="엑셀 급여대장을 복사해서 붙여넣기 (가장 정확해요)"></textarea>
-    <label class="btn g" style="justify-content:center">📷 사진·캡처 첨부<input id="jImg" type="file" accept="image/*" style="display:none"></label>
+    <textarea id="jT" style="width:100%;min-height:130px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 11px" placeholder="엑셀 내용을 복사해서 붙여넣거나, 아래 📎 엑셀 첨부 (가장 정확해요)"></textarea>
+    <div style="display:flex;gap:8px"><label class="btn g" style="flex:1;justify-content:center">📎 엑셀 첨부<input id="jXl" type="file" accept=".xlsx,.xls,.csv" style="display:none"></label><label class="btn g" style="flex:1;justify-content:center">📷 사진·캡처 첨부<input id="jImg" type="file" accept="image/*" style="display:none"></label></div>
     <div id="jImgP" class="note"></div>
     <input id="jM" class="sel" style="width:100%" placeholder="메모 (예: 김병식 11/2 퇴사, 지급일 25일)">
     <div style="display:flex;gap:8px"><button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">취소</button><button class="btn" data-a="jobSave" style="flex:1;justify-content:center">올리기</button></div>`;
@@ -1347,7 +1355,7 @@ function trimJobs(){const now=Date.now();S.jobs.filter(j=>j.reviewed&&hasImg(j))
 function jobAct(v){const [a,id]=v.split('|'),j=S.jobs.find(x=>x.id===id);if(!j)return;
   if(a==='del'){if(!confirm('이 작업을 삭제할까요?'))return;dropImg(j);S.jobs=S.jobs.filter(x=>x.id!==id);}
   else if(a==='retry'){j.status='ready';j.reviewed=null;j.result=(j.result?j.result+'\n\n':'')+'— 다시 맡김 '+new Date().toLocaleString('ko-KR');}
-  else if(a==='hold'){if(j.status==='wait'){if(j.kind==='slip5')S.jobs=S.jobs.filter(x=>x!==j);else j.status='ready';}}
+  else if(a==='hold'){if(j.status==='wait')j.status='ready';}
   else if(a==='ok'){j.status='done';j.doneAt=Date.now();}
   else if(a==='rev'){j.reviewed=Date.now();if(j.status==='check'||j.status==='fail'){j.status='done';j.doneAt=Date.now();}if(j.client&&j.ym&&Array.isArray(j.prog))j.prog.forEach(k=>PGN[k]&&pgSet(j.client,k,j.ym,'d'));if(hasImg(j)){dropImg(j);toast('검토 완료 · 사진은 삭제했어요');}}
   else if(a==='unrev'){j.reviewed=null;}
@@ -2285,7 +2293,7 @@ document.addEventListener('click',e=>{
     clientTask:()=>{const t=prompt('할 일 (예: 급여대장 요청 내일)');if(!t)return;const p=parse(t);S.tasks.push({id:uid(),...p,client:ui.openClient,status:'todo',memo:'',subs:[],created:Date.now(),doneAt:null});save();openClient(ui.openClient);toast('할 일을 추가했어요');},
     taskDel:()=>{const x=S.tasks.find(t=>t.id===ui.openTask);const i=S.tasks.indexOf(x);S.tasks.splice(i,1);save();closeDrawer();toast('삭제했어요',()=>{S.tasks.splice(i,0,x);save();render();});},
     payTpl:()=>{$('#mbox').classList.remove('mbw','mbx');$('#mbox').innerHTML=`<h3>엑셀 양식 받기</h3><p class="note">CMS·홈택스 파일이 없으면 양식에 적어서 <b>📥 엑셀 올리기</b>로 올리세요. 자동으로 정리돼요.</p><button class="btn g" data-a="xlTplPay" style="justify-content:center">수금 양식 (청구·입금·미수)</button><button class="btn g" data-a="xlTplInv" style="justify-content:center">세금계산서 발행 양식</button><button class="btn" data-a="modalClose" style="justify-content:center">닫기</button>`;$('#modal').classList.add('on');}, xlTplPay:()=>xlTpl('pay'), xlTplInv:()=>xlTpl('inv'), xlTplCl:()=>xlTpl('client'),
-    slip5, payDb:()=>payDb(false), payDbPick:()=>payDb(true), repReset, payUp, xmSave, cDelete, xlTpl, xlClientUp, payRep, repXls, repPrint, repY:()=>{},  jobNew:jobForm, jobSave, jobRun:()=>{const r=S.jobs.filter(j=>j.status==='ready');if(!r.length)return;if(!confirm(`올려둔 작업 ${r.length}건을 일괄 수행할까요?`))return;r.forEach(j=>j.status='wait');S.jobReq=Date.now();save();render();toast(`${r.length}건 수행 요청했어요`);},
+    slip5, arCancel:()=>arCancel(el.dataset.id), payDb:()=>payDb(false), payDbPick:()=>payDb(true), repReset, payUp, xmSave, cDelete, xlTpl, xlClientUp, payRep, repXls, repPrint, repY:()=>{},  jobNew:jobForm, jobSave, jobRun:()=>{const r=S.jobs.filter(j=>j.status==='ready');if(!r.length)return;if(!confirm(`올려둔 작업 ${r.length}건을 일괄 수행할까요?`))return;r.forEach(j=>j.status='wait');S.jobReq=Date.now();save();render();toast(`${r.length}건 수행 요청했어요`);},
     live:openLive, logs:()=>{ui.tab='logs';closeDrawer();}
   };
   if(acts[a]) acts[a]();
@@ -2317,6 +2325,9 @@ document.addEventListener('change',e=>{
   if(d.pk!==undefined){picks[+d.pk].on=el.checked;return;}
   if(d.pc!==undefined){picks[+d.pc].client=el.value||null;return;}
   if(d.pmc){pickMeta.client=el.value||null;picks.forEach(p=>{if(!p.client)p.client=pickMeta.client});return;}
+  if(el.id==='jXl'&&el.files[0]){const f=el.files[0];loadXLSX().then(async X=>{const wb=X.read(await f.arrayBuffer(),{type:'array'});
+      const t=wb.SheetNames.map(n=>{const c=X.utils.sheet_to_csv(wb.Sheets[n],{FS:'\t',blankrows:false}).trim();return c?(wb.SheetNames.length>1?`[${n}]\n`:'')+c:'';}).filter(Boolean).join('\n\n');
+      const ta=$('#jT');ta.value=(ta.value.trim()?ta.value.trim()+'\n\n':'')+`[파일: ${f.name}]\n`+t;toast(`${f.name} 내용을 넣었어요 (${t.split('\n').length}줄)`);}).catch(e=>toast(e.message||'엑셀을 읽지 못했어요'));return;}
   if(el.id==='jImg'&&el.files[0]){$('#jImgP').textContent='사진 줄이는 중…';shrinkImg(el.files[0]).then(u=>{ui.jobImg=u;$('#jImgP').innerHTML=`<img src="${u}" style="max-width:100%;max-height:160px;border-radius:8px"> ${Math.round(u.length/1024)}KB`;}).catch(()=>{$('#jImgP').textContent='사진을 읽지 못했어요 (JPG·PNG로 올려 주세요)';});return;}
   if(d.logclient){const l=S.logs.find(x=>x.id===d.logclient);l.client=el.value||null;save();return;}
   if(d.mine!==undefined&&L&&L.ai){L.picked[L.ai.mine[+d.mine].title]=el.checked;return;}
