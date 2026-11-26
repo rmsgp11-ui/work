@@ -815,13 +815,60 @@ function vClients(){
   <div class="csplit"><div class="cleft"><div class="fbar">${fl.map(([k,n])=>`<button class="fchip ${ui.cf===k?'on':''}" data-cf="${k}">${n}</button>`).join('')}<input class="search" data-in="cq" placeholder="상호·대표·사업자번호 검색" value="${esc(ui.cq)}"></div><div id="sres">${list}</div></div>
   ${paneMode()?`<div class="card cpane" id="cpane"><div class="empty">왼쪽에서 거래처를 고르면 여기에 내용이 나와요</div></div>`:''}</div>`;
 }
+
+/* ---------- 세금계산서 발행 대사 ---------- */
+const paySeg=()=>`<div class="seg" style="display:flex;gap:6px;margin-bottom:12px"><button class="btn ${ui.pv!=='inv'?'':'g'}" data-a="pvM">월별 수금</button><button class="btn ${ui.pv==='inv'?'':'g'}" data-a="pvI">세금계산서 발행 대사</button></div>`;
+function invRows(){
+  const Y=String(curYM()).slice(0,2),cur=curYM(),out=[];
+  for(const c of S.clients){const L=(S.inv&&S.inv[c.id])||[];const p=S.pay[c.id]||{};const fee=c.fee||0;
+    let paid=0,pm=0,unk=0,un=0;const months=[];
+    for(let m=1;m<=12;m++){const k=Y+pad(m);if(k>cur)break;const v=p[k];if(!v)continue;
+      if(v.a!=null){const sup=fee&&v.a>fee*1.05?Math.round(v.a/1.1):v.a;paid+=sup;pm++;months.push([k,'p',sup]);}
+      else if(v.s==='transfer'||v.s==='cmsx'||v.s==='etc'){unk++;months.push([k,'q']);}
+      else if(v.s==='unpaid'){un++;months.push([k,'u']);}}
+    const iss=L.reduce((a,x)=>a+x[1],0);if(!iss&&!paid&&!unk&&!un)continue;
+    const last=L.length?L[L.length-1][0]:'';const unsent=L.filter(x=>x[2]).length;
+    const diff=paid-iss;let st,cls;
+    if(!L.length){st='발행 없음';cls='red';}
+    else if(diff>0&&unk===0){st=`미발행 ${won(diff)}`;cls='red';}
+    else if(diff>0){st=`미발행 ${won(diff)}?`;cls='amb';}
+    else if(diff<0&&-diff<=unk*fee){st=`확인 필요 ${unk}개월`;cls='amb';}
+    else if(diff<0){st=`선발행 ${won(-diff)}`;cls='blu';}
+    else {st='일치';cls='grn';}
+    out.push({c,fee,paid,pm,unk,un,iss,last,unsent,diff,st,cls,L});}
+  const rank={red:0,amb:1,blu:2,grn:3};return out.sort((a,b)=>rank[a.cls]-rank[b.cls]||Math.abs(b.diff)-Math.abs(a.diff));
+}
+function vInv(){
+  if(!S.inv)return `<div class="card" style="padding:24px;color:var(--sub)">세금계산서 발행 내역이 아직 없어요.</div>`;
+  const R=invRows(),cnt=k=>R.filter(r=>r.cls===k).length;
+  const md2=d=>d?`${+d.slice(2,4)}/${+d.slice(4,6)}`:'';
+  return `<div class="stats" style="grid-template-columns:repeat(4,1fr)">
+    <div class="card stat ${cnt('red')?'warn':''}"><b>${cnt('red')}곳</b><span>받았는데 덜 발행</span></div>
+    <div class="card stat"><b>${cnt('amb')}곳</b><span>수금 상태 확인 필요</span></div>
+    <div class="card stat"><b>${cnt('blu')}곳</b><span>먼저 발행(미수 포함)</span></div>
+    <div class="card stat"><b>${cnt('grn')}곳</b><span>일치</span></div></div>
+  <div class="sec"><h2>${2000+ +String(curYM()).slice(0,2)}년 거래처별 (공급가액 기준)</h2><span class="more">발행 내역 기준일 ${esc(S.invAt||'')} · 수금은 부가세 뺀 금액으로 환산</span></div>
+  <div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+  <thead><tr style="text-align:left;color:var(--sub);border-bottom:1px solid var(--line)"><th style="padding:8px">거래처</th><th style="padding:8px;text-align:right">월 기장료</th><th style="padding:8px;text-align:right">수금(확인)</th><th style="padding:8px">수금 상태 불명·미수</th><th style="padding:8px;text-align:right">발행</th><th style="padding:8px">발행일</th><th style="padding:8px">판정</th></tr></thead>
+  <tbody>${R.map(r=>`<tr style="border-bottom:1px solid var(--line)"><td style="padding:8px"><b data-client="${r.c.id}" style="cursor:pointer">${esc(r.c.name)}</b></td>
+    <td style="padding:8px;text-align:right">${r.fee?won(r.fee):'-'}</td>
+    <td style="padding:8px;text-align:right">${won(r.paid)}<div style="color:var(--sub);font-size:11px">${r.pm}개월</div></td>
+    <td style="padding:8px;font-size:12px">${r.unk?`<span class="chip amb">확인필요 ${r.unk}개월</span> `:''}${r.un?`<span class="chip red">미수 ${r.un}개월</span>`:''}</td>
+    <td style="padding:8px;text-align:right">${won(r.iss)}<div style="color:var(--sub);font-size:11px">${r.fee?(Math.round(r.iss/r.fee*10)/10)+'개월분':''}</div></td>
+    <td style="padding:8px;font-size:12px;color:var(--sub)">${r.L.map(x=>md2(x[0])+(x[2]?'(미발송)':'')).join(' · ')}</td>
+    <td style="padding:8px"><span class="chip ${r.cls}">${r.st}</span></td></tr>`).join('')}</tbody></table></div>
+  ${S.invOther&&S.invOther.length?`<div class="sec"><h2>앱에 없는 발행처 ${S.invOther.length}곳</h2></div><div class="card list">${S.invOther.map(o=>`<div class="prow"><div class="pn"><b>${esc(o.n)}</b><span>${esc(o.b)} · ${o.L.map(x=>md2(x[0])).join(' · ')}</span></div><span class="chip">${won(o.L.reduce((a,x)=>a+x[1],0))}원</span></div>`).join('')}</div>`:''}`;
+}
+window.__inv={set:(map,other,at)=>{S.inv=map;S.invOther=other||[];S.invAt=at||todayStr();save();if(!ui.drawer)render();return Object.keys(map).length;},clients:()=>S.clients.map(c=>({id:c.id,name:c.name,biz:String(c.biz||c.bizno||c.brn||'').replace(/-/g,'')}))};
+
 function vPay(){
   const ym=ui.pm, cur=curYM();
   const arr=S.clients.filter(c=>c.status!=='폐업').sort((a,b)=>(a.order||0)-(b.order||0));
   let paid=0,pc=0,uc=0,ua=0;
   let cx=0;arr.forEach(c=>{const cell=pcell(c.id,ym),st=pstat(cell);if(st==='paid'){paid+=cell.a||0;pc++;}if(st==='unpaid'){uc++;ua+=cell.u||(c.fee?Math.round(c.fee*1.1):0);}if(st==='cmsx')cx++;});
   const allU=S.clients.map(c=>({c,l:unpaidList(c.id)})).filter(x=>x.l.length);
-  return head('수금')+`
+  if(ui.pv==='inv')return head('수금')+paySeg()+vInv();
+  return head('수금')+paySeg()+`
   <div class="calhead"><button class="nb" data-a="pmPrev">‹</button><b>${ymLabel(ym)}</b><button class="nb" data-a="pmNext">›</button>${ym!==cur?`<button class="btn g s" data-a="pmCur">이번 달</button>`:''}</div>
   <div class="stats" style="grid-template-columns:repeat(3,1fr)">
     <div class="card stat"><b>${won(paid)}원</b><span>입금 ${pc}곳</span></div>
@@ -1850,7 +1897,7 @@ document.addEventListener('click',e=>{
     paste:async()=>{try{const t=await navigator.clipboard.readText();if(t)$('#inTxt').value=t;}catch(_){$('#inTxt').focus();toast('입력 칸을 길게 눌러 붙여넣기 해 주세요');}},
     calPrev:()=>{let {y,m}=ui.cal;m--;if(m<1){m=12;y--}ui.cal={y,m};render();}, calNext:()=>{let {y,m}=ui.cal;m++;if(m>12){m=1;y++}ui.cal={y,m};render();},
     calToday:()=>{const d=new Date();ui.cal={y:d.getFullYear(),m:d.getMonth()+1};render();},
-    pmPrev:()=>{ui.pm=ymAdd(ui.pm,-1);render();}, pmNext:()=>{ui.pm=ymAdd(ui.pm,1);render();}, pmCur:()=>{ui.pm=curYM();render();},
+    pvM:()=>{ui.pv='m';render();}, pvI:()=>{ui.pv='inv';render();}, pmPrev:()=>{ui.pm=ymAdd(ui.pm,-1);render();}, pmNext:()=>{ui.pm=ymAdd(ui.pm,1);render();}, pmCur:()=>{ui.pm=curYM();render();},
     talkImport:()=>$('#talkIn').click(), rwPrev:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),-1);render();}, rwNext:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),1);render();}, rDet:()=>{ui.rdet=!ui.rdet;render();}, agNew:()=>agentForm(null), agSave:()=>agentSave(), agDel:()=>{const a=agt(ui.agEdit);if(!a||!confirm(`${a.name}을(를) 신고대리 목록에서 삭제할까요?`))return;S.agents=S.agents.filter(x=>x.id!==a.id);['pit','cit'].forEach(k=>Object.values(S.rpt[k]).forEach(D=>delete D[a.id]));save();$('#modal').classList.remove('on');render();}, pgyPrev:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);ui.pgm=(+c.slice(0,4)-1)+'-12';render();}, pgyNext:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);const ny=+c.slice(0,4)+1;const t=pgNow();ui.pgm=(ny+'-01')>t?c:ny+'-'+(ny===+t.slice(0,4)?pgAdd(t,-1).slice(5):'12');render();}, ryPrev:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())-1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, ryNext:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())+1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
     rtAdd:()=>{const v=prompt('매월 반복 할 일 (예: 25 오전 10시 세금계산서 발행)');if(!v)return;const m=v.trim().match(/^(\d{1,2})\s*일?\s*((?:오전|오후)?\s*\d{1,2}\s*시(?:\s*\d{1,2}\s*분)?|\d{1,2}:\d{2})?\s*(.+)$/);if(!m)return toast('날짜(일) 숫자로 시작해 주세요');S.routines.push({id:'rt'+uid(),day:+m[1],time:(m[2]||'').replace(/\s+/g,' ').trim(),title:m[3].trim(),created:Date.now()});ui._rr='';save();render();toast('매월 반복 할 일에 넣었어요');},
     archDir:()=>archDir(), archLogs:()=>archLogs(),
