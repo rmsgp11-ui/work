@@ -874,10 +874,35 @@ function xfind(name,biz){const b=String(biz||'').replace(/\D/g,'');if(b.length==
   return h.length?h[0].id:null;}
 function payUp(){const i=document.createElement('input');i.type='file';i.accept='.xls,.xlsx,.csv';i.multiple=true;i.onchange=async()=>{for(const f of i.files)await payFile(f);};i.click();}
 async function payFile(f){let rows;try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array',cellDates:false});rows=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:true});}catch(e){return toast(e.message||'파일을 읽지 못했어요');}
-  const H=k=>rows.findIndex(r=>k.every(x=>r.map(v=>String(v).trim()).includes(x)));
-  let h=H(['수납금액','청구월','회원명']);if(h>=0)return payCms(rows,h,f.name);
-  h=H(['전표번호','공급가액','거래처명']);if(h>=0)return payInvFile(rows,h,f.name);
-  toast(`${f.name}: CMS 수납내역이나 세금계산서 발행내역이 아니에요`);}
+  xApplyMaps(rows);
+  if(xDetect(rows,f.name))return;
+  xMapForm(rows,f.name);}
+const XF={cms:{n:'CMS·자동이체 수납내역',f:[['회원명','거래처(회원)명',1],['청구월','청구월(연월)',1],['청구금액','청구금액',1],['수납금액','수납(입금)금액',1],['미납금액','미납금액',0],['청구타입','청구 구분(정기/추가)',0],['청구완납일자','입금일자',0]]},
+  inv:{n:'세금계산서 발행내역',f:[['작성일자','작성일자(또는 전표번호)',1],['거래처명','거래처명',1],['사업자등록증','거래처 사업자번호',0],['공급가액','공급가액',1],['전자세금','전송 상태',0]]}};
+function xDetect(rows,fn,dry){const H=k=>rows.findIndex(r=>k.every(x=>r.map(v=>String(v).trim()).includes(x)));
+  let h=H(['수납금액','청구월','회원명']);if(h>=0)return payCms(rows,h,fn,dry)||true;
+  h=H(['공급가액','거래처명']);if(h>=0&&(rows[h].map(v=>String(v).trim()).includes('전표번호')||rows[h].map(v=>String(v).trim()).includes('작성일자'))){return payInvFile(rows,h,fn,dry)||true;}
+  return false;}
+function xApplyMaps(rows){const M=S.xmap||{};for(const t of Object.keys(M)){const m=M[t];const cols=Object.values(m);
+  const h=rows.findIndex(r=>cols.every(c=>r.map(v=>String(v).trim()).includes(c)));if(h<0)continue;
+  rows[h]=rows[h].map(v=>{const k=Object.keys(m).find(f=>m[f]===String(v).trim());return k||v;});return;}}
+function xMapForm(rows,fn){const h=rows.findIndex(r=>r.filter(v=>String(v).trim()).length>=4);if(h<0)return toast(fn+': 표를 찾지 못했어요');
+  const hd=rows[h].map(v=>String(v).trim()).filter(Boolean);ui.xm={rows,fn,h};
+  const opt=sel=>`<option value="">— 없음 —</option>`+hd.map(c=>`<option ${c===sel?'selected':''}>${esc(c)}</option>`).join('');
+  const guess=(f,lab)=>hd.find(c=>c===f)||hd.find(c=>c.includes(f.slice(0,2)))||'';
+  $('#mbox').classList.add('mbw');
+  $('#mbox').innerHTML=`<h3>처음 보는 엑셀 양식이에요</h3><p class="note">${esc(fn)} — 어떤 자료인지와 각 항목이 어느 열인지 한 번만 골라 주세요. 다음부터는 같은 양식을 자동으로 알아봐요.</p>
+    <div class="seg" style="display:flex;gap:6px">${Object.entries(XF).map(([k,v])=>`<button class="btn ${ui.xmt===k||(!ui.xmt&&k==='cms')?'':'g'} s" data-xmt="${k}">${v.n}</button>`).join('')}</div>
+    ${Object.entries(XF).map(([k,v])=>`<div data-xmbox="${k}" style="display:${(ui.xmt||'cms')===k?'grid':'none'};grid-template-columns:1fr 1fr;gap:8px 12px">${v.f.map(([f,lab,req])=>`<div><label>${lab}${req?' *':''}</label><select class="sel" data-xmf="${k}|${f}" style="width:100%">${opt(guess(f,lab))}</select></div>`).join('')}</div>`).join('')}
+    <div style="display:flex;gap:8px"><button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">취소</button><button class="btn" data-a="xmSave" style="flex:1;justify-content:center">이대로 정리하기</button></div>`;
+  $('#modal').classList.add('on');}
+function xmSave(){const t=ui.xmt||'cms',m={};let miss='';
+  document.querySelectorAll(`[data-xmf^="${t}|"]`).forEach(s=>{const f=s.dataset.xmf.split('|')[1];if(s.value)m[f]=s.value;});
+  XF[t].f.forEach(([f,lab,req])=>{if(req&&!m[f])miss=miss||lab;});if(miss)return toast(miss+' 열을 골라 주세요');
+  S.xmap=S.xmap||{};S.xmap[t]=m;save();$('#modal').classList.remove('on');$('#mbox').classList.remove('mbw');
+  const {rows,fn}=ui.xm;xApplyMaps(rows);if(!xDetect(rows,fn))toast('그 열로는 정리하지 못했어요. 다시 골라 주세요');}
+const xdate=v=>{if(typeof v==='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return String(d.getUTCFullYear()).slice(2)+pad(d.getUTCMonth()+1)+pad(d.getUTCDate());}
+  const s=String(v||'').trim();let m=s.match(/^(\d{2})-(\d{4})-/);if(m)return m[1]+m[2];m=s.match(/(20\d{2})\D?(\d{1,2})\D?(\d{1,2})/);return m?m[1].slice(2)+pad(+m[2])+pad(+m[3]):'';};
 function payCms(rows,h,fn,dry){const hd=rows[h].map(v=>String(v).trim()),ix=k=>hd.indexOf(k);
   const I={n:ix('회원명'),ym:ix('청구월'),b:ix('청구금액'),a:ix('수납금액'),u:ix('미납금액'),t:ix('청구타입'),d:ix('청구완납일자'),d2:ix('결제일(납부기간)')};
   const G={};for(const r of rows.slice(h+1)){const nm=String(r[I.n]||'').trim(),ymr=String(r[I.ym]||'').replace(/\D/g,'');if(!nm||ymr.length<6)continue;
@@ -895,12 +920,11 @@ function payCms(rows,h,fn,dry){const hd=rows[h].map(v=>String(v).trim()),ix=k=>h
   if(dry)return out;
   S.cmsAt=todayStr();save();render();toast(`CMS 수납내역 반영 · ${cs.size}곳 ${n}개월 (수납 ${pd} · 미납 ${un})${kept?` · 직접 적은 메모가 있는 ${kept}칸은 그대로 뒀어요`:''}`);}
 function payInvFile(rows,h,fn,dry){const hd=rows[h].map(v=>String(v).trim()),ix=k=>hd.indexOf(k);
-  const I={no:ix('전표번호'),n:ix('거래처명'),b:ix('사업자등록증'),s:ix('공급가액'),e:ix('전자세금')};
+  const I={no:ix('작성일자')>=0?ix('작성일자'):ix('전표번호'),n:ix('거래처명'),b:ix('사업자등록증'),s:ix('공급가액'),e:ix('전자세금')};
   const add={};let lo='999999',hi='000000',cnt=0;
-  for(const r of rows.slice(h+1)){const no=String(r[I.no]||'').trim();if(!/^\d\d-\d{4}-/.test(no))continue;
-    const d=no.slice(0,2)+no.slice(3,7);if(d<lo)lo=d;if(d>hi)hi=d;
+  for(const r of rows.slice(h+1)){const d=xdate(r[I.no]);if(!/^\d{6}$/.test(d)||!String(r[I.n]||'').trim())continue;if(d<lo)lo=d;if(d>hi)hi=d;
     const cid=xfind(String(r[I.n]||'').trim(),r[I.b]);if(!cid)continue;
-    const it=[d,xnum(r[I.s])];if(I.e>=0&&String(r[I.e]).trim()!=='신고완료')it.push(1);(add[cid]=add[cid]||[]).push(it);cnt++;}
+    const it=[d,xnum(r[I.s])];if(I.e>=0&&String(r[I.e]).trim()&&!/완료|전송|발급/.test(String(r[I.e])))it.push(1);(add[cid]=add[cid]||[]).push(it);cnt++;}
   if(hi==='000000')return toast('발행 내역 줄을 찾지 못했어요');
   if(dry)return {lo,hi,add:Object.fromEntries(Object.entries(add).map(([k,v])=>[cl(k).name,v]))};
   const inv=Object.assign({},S.inv||{});
@@ -908,7 +932,7 @@ function payInvFile(rows,h,fn,dry){const hd=rows[h].map(v=>String(v).trim()),ix=
   for(const [k,L] of Object.entries(add))inv[k]=(inv[k]||[]).concat(L).sort((a,b)=>a[0]<b[0]?-1:1);
   S.inv=inv;delete S.invOther;S.invAt=todayStr();ui.pv='inv';save();render();
   toast(`세금계산서 발행내역 반영 · ${Object.keys(add).length}곳 ${cnt}건 (${lo.slice(2,4)}/${lo.slice(4)}~${hi.slice(2,4)}/${hi.slice(4)})`);}
-window.__payDry=(rows)=>{const H=k=>rows.findIndex(r=>k.every(x=>r.map(v=>String(v).trim()).includes(x)));let h=H(['수납금액','청구월','회원명']);if(h>=0)return payCms(rows,h,'',1);h=H(['전표번호','공급가액','거래처명']);return h>=0?payInvFile(rows,h,'',1):null;};
+window.__payDry=(rows)=>xDetect(rows,'',1);
 window.__inv={set:(map,other,at)=>{S.inv=map;delete S.invOther;S.invAt=at||todayStr();save();if(!ui.drawer)render();return Object.keys(map).length;},clients:()=>S.clients.map(c=>({id:c.id,name:c.name,biz:String(c.biz||c.bizno||c.brn||'').replace(/-/g,'')}))};
 
 function vPay(){
@@ -2019,6 +2043,7 @@ document.addEventListener('click',e=>{
   if((el=q('.lg'))&&!q('select')&&!q('button')&&!q('img')){el.classList.toggle('open');return;}
   if((el=q('[data-vreveal]'))){const k=el.dataset.vreveal,b=$(`[data-vshow="${k}"]`);if(!ui.vcur||!b)return;b.textContent=ui.vcur.v[k];vTimer();setTimeout(()=>{if(b.isConnected)b.textContent=k==='rrn'?rrnMask(ui.vcur.v[k]):'••••••••'},10000);return;}
   if((el=q('[data-vcopy]'))){const v=ui.vcur&&ui.vcur.v[el.dataset.vcopy];if(!v)return;navigator.clipboard.writeText(v).then(()=>toast('복사했어요'),()=>toast('복사하지 못했어요'));vTimer();return;}
+  if((el=q('[data-xmt]'))){ui.xmt=el.dataset.xmt;document.querySelectorAll('[data-xmt]').forEach(b=>b.classList.toggle('g',b!==el));document.querySelectorAll('[data-xmbox]').forEach(b=>b.style.display=b.dataset.xmbox===ui.xmt?'grid':'none');return;}
   el=q('[data-a]'); if(!el) return; const a=el.dataset.a;
   if(el.tagName==='A') e.preventDefault();
   const acts={
@@ -2055,7 +2080,7 @@ document.addEventListener('click',e=>{
     clientDel:()=>{const c=cl(ui.openClient);if(!c||!confirm(`${c.name}을(를) 삭제할까요? (할 일·기록은 남아요)`))return;S.clients=S.clients.filter(x=>x.id!==c.id);delete S.pay[c.id];S.tasks.forEach(t=>{if(t.client===c.id)t.client=null});save();closeDrawer();},
     clientTask:()=>{const t=prompt('할 일 (예: 급여대장 요청 내일)');if(!t)return;const p=parse(t);S.tasks.push({id:uid(),...p,client:ui.openClient,status:'todo',memo:'',subs:[],created:Date.now(),doneAt:null});save();openClient(ui.openClient);toast('할 일을 추가했어요');},
     taskDel:()=>{const x=S.tasks.find(t=>t.id===ui.openTask);const i=S.tasks.indexOf(x);S.tasks.splice(i,1);save();closeDrawer();toast('삭제했어요',()=>{S.tasks.splice(i,0,x);save();render();});},
-    payUp, jobNew:jobForm, jobSave, jobRun:()=>{const r=S.jobs.filter(j=>j.status==='ready');if(!r.length)return;if(!confirm(`올려둔 작업 ${r.length}건을 일괄 수행할까요?`))return;r.forEach(j=>j.status='wait');S.jobReq=Date.now();save();render();toast(`${r.length}건 수행 요청했어요`);},
+    payUp, xmSave, jobNew:jobForm, jobSave, jobRun:()=>{const r=S.jobs.filter(j=>j.status==='ready');if(!r.length)return;if(!confirm(`올려둔 작업 ${r.length}건을 일괄 수행할까요?`))return;r.forEach(j=>j.status='wait');S.jobReq=Date.now();save();render();toast(`${r.length}건 수행 요청했어요`);},
     live:openLive, logs:()=>{ui.tab='logs';closeDrawer();}
   };
   if(acts[a]) acts[a]();
