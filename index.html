@@ -455,7 +455,7 @@ const ds=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
 /* ---------- 상태 ---------- */
 function migrate(s){
   s=Object.assign({v:2,tasks:[],clients:[],pay:{},checks:{},logs:[],jobs:[],prog:{},rpt:{wh:{},vat:{}},projects:[],theme:'light',updated:0},s||{});
-  if(!Array.isArray(s.jobs))s.jobs=[];if(!Array.isArray(s.autos))s.autos=[];if(!Array.isArray(s.routines))s.routines=[];
+  if(!Array.isArray(s.jobs))s.jobs=[];if(!Array.isArray(s.autos))s.autos=[];if(!Array.isArray(s.fees))s.fees=[];if(!Array.isArray(s.routines))s.routines=[];
   if(!s.prog||typeof s.prog!=='object')s.prog={};
   if(!s.rpt)s.rpt={wh:{},vat:{}};['wh','vat','pit','cit'].forEach(k=>s.rpt[k]=s.rpt[k]||{});if(!Array.isArray(s.agents))s.agents=[];
   if(Array.isArray(s.calls)){s.calls.forEach(c=>s.logs.push({id:c.id,at:c.at,src:'통화',client:null,title:c.title,summary:c.summary,points:c.points||[],theirs:c.theirs||[],text:c.transcript||'',taskIds:c.taskIds||[]}));delete s.calls;}
@@ -880,16 +880,20 @@ function vPay(){
       return `<div class="prow"><div class="pn" data-client="${c.id}"><b>${esc(c.name)}</b><span>${c.fee?`월 ${won(c.fee)}원`:'기장료 미입력'}${c.payDay?` · ${c.payDay}일 결제`:''}${c.cms==='O'?' · CMS':c.cms==='X'?' · CMS 아님':''}</span>${cell&&cell.m?`<span style="display:block;color:${st==='unpaid'?'var(--red)':'var(--sub)'}">${esc(cell.m)}</span>`:''}</div>
       <button class="pst chip ${p?p.cls:''}" data-paycell="${c.id}|${ym}">${p?(st==='paid'?won(cell.a)||'입금':p.n):'—'}</button></div>`};
     const P=arr.filter(c=>pstat(pcell(c.id,ym))==='paid'),O=arr.filter(c=>{const t=pstat(pcell(c.id,ym));return t!=='paid'&&t!=='unpaid'});
-    const tot=allU.reduce((a,{c,l})=>a+l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0),0);
-    const urow=({c,l})=>{const sum=l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0),m=(pcell(c.id,ym)||{}).m;
-      return `<div class="prow" style="align-items:flex-start"><div class="pn" data-client="${c.id}"><b>${esc(c.name)}</b>${m&&pstat(pcell(c.id,ym))==='unpaid'?`<span style="display:block;color:var(--red)">${esc(m)}</span>`:''}<span style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${l.map(k=>`<button class="chip ${k===ym?'red':''}" data-paycell="${c.id}|${k}" title="눌러서 상태 변경">${ymLabel(k).slice(5)}월</button>`).join('')}</span></div><span class="chip red" style="white-space:nowrap">${l.length}개월 · ${won(sum)}원</span></div>`};
+    const feeU=(S.fees||[]).filter(f=>f.st!=='paid');const uids=[...new Set(allU.map(x=>x.c.id).concat(feeU.map(f=>f.cid)))];
+    const UL=uids.map(id=>({c:cl(id),l:unpaidList(id),f:feeOpen(id)})).filter(x=>x.c);
+    const tot=UL.reduce((a,{c,l,f})=>a+l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0)+f.reduce((t,x)=>t+x.amt,0),0);
+    const feeP=(S.fees||[]).filter(f=>f.st==='paid'&&String(f.paidAt||'').slice(2,4)+String(f.paidAt||'').slice(5,7)===ym);
+    const urow=({c,l,f})=>{const sum=l.reduce((t,k)=>t+((S.pay[c.id][k]||{}).u||(c.fee?Math.round(c.fee*1.1):0)),0)+f.reduce((t,x)=>t+x.amt,0),m=(pcell(c.id,ym)||{}).m;
+      return `<div class="prow" style="align-items:flex-start"><div class="pn" data-client="${c.id}"><b>${esc(c.name)}</b>${m&&pstat(pcell(c.id,ym))==='unpaid'?`<span style="display:block;color:var(--red)">${esc(m)}</span>`:''}<span style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${l.map(k=>`<button class="chip ${k===ym?'red':''}" data-paycell="${c.id}|${k}" title="눌러서 상태 변경">${ymLabel(k).slice(5)}월</button>`).join('')}${f.map(x=>`<button class="chip pur" data-fee="${x.id}" title="${esc(x.title||x.kind)}">${esc(x.kind)} ${won(x.amt)}${x.inv?'':' · 미발행'}</button>`).join('')}</span></div><span class="chip red" style="white-space:nowrap">${l.length?l.length+'개월':''}${l.length&&f.length?' + ':''}${f.length?f.map(x=>x.kind).join('·'):''} · ${won(sum)}원</span></div>`};
     return `<div class="pcols"><div>
       <div class="sec"><h2 style="color:var(--grn)">${ymLabel(ym)} 수금 ${P.length}곳</h2><span class="more">${won(paid)}원</span></div>
       <div class="card list">${P.map(row).join('')||'<div class="empty">아직 입금 표시가 없어요</div>'}</div>
+      ${feeP.length?`<div class="sec"><h2 style="color:var(--grn)">조정료·추가 청구 입금 ${feeP.length}건</h2><span class="more">${won(feeP.reduce((a,x)=>a+x.amt,0))}원</span></div><div class="card list">${feeP.map(x=>`<div class="prow"><div class="pn" data-client="${x.cid}"><b>${esc((cl(x.cid)||{}).name||'')}</b><span>${esc(x.kind)}${x.title?' · '+esc(x.title):''} · ${esc(x.paidAt)} 입금${x.inv?'':' · 세금계산서 미발행'}</span></div><button class="pst chip grn" data-fee="${x.id}">${won(x.amt)}</button></div>`).join('')}</div>`:''}
       ${O.length?`<div class="sec"><h2>그 외 ${O.length}곳</h2><span class="more">CMS 확인·통장이체·해당없음·미표시</span></div><div class="card list">${O.map(row).join('')}</div>`:''}
     </div><div>
-      <div class="sec"><h2 style="color:var(--red)">미수 ${allU.length}곳</h2><span class="more">${won(tot)}원 · 월 칩을 누르면 상태 변경</span></div>
-      <div class="card list">${allU.map(urow).join('')||'<div class="empty">밀린 미수가 없어요</div>'}</div>
+      <div class="sec"><h2 style="color:var(--red)">미수 ${UL.length}곳</h2><button class="btn g s" data-a="feeNew">＋ 조정료·추가 청구</button><span class="more">${won(tot)}원 · 월 칩을 누르면 상태 변경</span></div>
+      <div class="card list">${UL.map(urow).join('')||'<div class="empty">밀린 미수가 없어요</div>'}</div>
     </div></div>`})()}`;
 }
 function logCard(l){
@@ -1570,6 +1574,35 @@ function openClient(id){
   renderVault(id);
 }
 
+
+/* ---------- 조정료 등 추가 청구 ---------- */
+const FK=['조정료','신고수수료','결산료','상담료','기타'];
+const feeOpen=cid=>(S.fees||[]).filter(f=>f.cid===cid&&f.st!=='paid');
+function openFee(id,cid){
+  const f=(S.fees||[]).find(x=>x.id===id)||{cid:cid||'',kind:'조정료',title:'',amt:'',ym:curYM(),st:'unpaid',inv:false,memo:''};
+  const cs=S.clients.slice().sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  $('#mbox').innerHTML=`<h3>${id?'추가 청구 수정':'조정료·추가 청구 넣기'}</h3>
+    <div><label class="lab">거래처</label><select id="fCid" class="sel">${cs.map(c=>`<option value="${c.id}" ${c.id===f.cid?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div class="r2"><div><label class="lab">종류</label><select id="fKind" class="sel">${FK.map(k=>`<option ${k===f.kind?'selected':''}>${k}</option>`).join('')}</select></div>
+    <div><label class="lab">청구 월</label><input id="fYm" type="month" value="${20+String(f.ym).slice(0,2)}-${String(f.ym).slice(2)}"></div></div>
+    <div><label class="lab">내용 (예: 2025 종소세 조정료)</label><input id="fTitle" value="${esc(f.title)}"></div>
+    <div><label class="lab">청구 금액 (부가세 포함)</label><input id="fAmt" type="number" inputmode="numeric" value="${f.amt}"></div>
+    <div class="r2"><div><label class="lab">상태</label><select id="fSt" class="sel"><option value="unpaid" ${f.st!=='paid'?'selected':''}>미수</option><option value="paid" ${f.st==='paid'?'selected':''}>입금</option></select></div>
+    <div><label class="lab">입금일</label><input id="fPaid" type="date" value="${esc(f.paidAt||'')}"></div></div>
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="fInv" ${f.inv?'checked':''}> 세금계산서 발행함</label>
+    <div><label class="lab">메모</label><input id="fMemo" value="${esc(f.memo||'')}"></div>
+    <div style="display:flex;gap:8px">${id?`<button class="btn g" data-a="feeDel" style="color:var(--red)">삭제</button>`:''}<button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">닫기</button><button class="btn" data-a="feeSave" style="flex:1;justify-content:center">저장</button></div>`;
+  ui.feeId=id||null;$('#modal').classList.add('on');
+}
+function saveFee(){
+  const v=$('#fYm').value||'';const o={cid:$('#fCid').value,kind:$('#fKind').value,ym:v?v.slice(2,4)+v.slice(5,7):curYM(),title:$('#fTitle').value.trim(),amt:+($('#fAmt').value||0),st:$('#fSt').value,paidAt:$('#fPaid').value||'',inv:$('#fInv').checked,memo:$('#fMemo').value.trim()};
+  if(!o.cid||!o.amt)return toast('거래처와 금액을 넣어 주세요');
+  if(o.st==='paid'&&!o.paidAt)o.paidAt=todayStr();
+  S.fees=S.fees||[];if(ui.feeId){Object.assign(S.fees.find(x=>x.id===ui.feeId),o);}else S.fees.push(Object.assign({id:uid(),created:Date.now()},o));
+  save();$('#modal').classList.remove('on');render();
+}
+window.__fees={add:arr=>{S.fees=S.fees||[];arr.forEach(o=>S.fees.push(Object.assign({id:uid(),created:Date.now(),kind:'조정료',st:'unpaid',inv:false,memo:''},o)));save();if(!ui.drawer)render();return arr.length;},list:()=>S.fees||[]};
+
 function openPayCell(cid,ym){
   const c=cl(cid),cell=pcell(cid,ym),st=pstat(cell);
   $('#mbox').innerHTML=`<h3>${esc(c?c.name:'')} · ${ymLabel(ym)}</h3>
@@ -1581,7 +1614,7 @@ function openPayCell(cid,ym){
 }
 function setPay(k){
   const [cid,ym]=ui.payTarget;S.pay[cid]=S.pay[cid]||{};
-  if(!k) delete S.pay[cid][ym]; else if(k==='paid') S.pay[cid][ym]={a:+($('#payAmt').value||0)}; else S.pay[cid][ym]={s:k};
+  const om=(S.pay[cid][ym]||{}).m;if(!k) delete S.pay[cid][ym]; else if(k==='paid') S.pay[cid][ym]={a:+($('#payAmt').value||0)}; else S.pay[cid][ym]={s:k};if(k&&om)S.pay[cid][ym].m=om;
   save(); $('#modal').classList.remove('on'); if(ui.drawer==='client') openClient(cid); else render();
 }
 
@@ -1825,6 +1858,7 @@ document.addEventListener('submit',e=>{
 });
 document.addEventListener('click',e=>{
   const T=e.target, q=s=>T.closest(s); let el;
+  if((el=q('[data-fee]'))){openFee(el.dataset.fee);return;}
   if((el=q('[data-arv]'))){const [id,k]=el.dataset.arv.split('|');const r=(S.autos||[]).find(x=>x.id===id);if(r&&r.review[+k]){r.review[+k].done=!r.review[+k].done;save();render();}return;}
   if((el=q('[data-tab]'))){ui.tab=el.dataset.tab;if(ui.drawer)closeDrawer();else render();window.scrollTo(0,0);return;}
   if((el=q('[data-chk]'))){e.stopPropagation();const x=S.tasks.find(t=>t.id===el.dataset.chk);const prev=x.status;setStatus(x,x.status==='done'?'todo':'done');save();
@@ -1874,7 +1908,7 @@ document.addEventListener('click',e=>{
   el=q('[data-a]'); if(!el) return; const a=el.dataset.a;
   if(el.tagName==='A') e.preventDefault();
   const acts={
-    close:closeDrawer, modalClose:()=>$('#modal').classList.remove('on'),
+    close:closeDrawer, modalClose:()=>$('#modal').classList.remove('on'), feeNew:()=>openFee(), feeSave:saveFee, feeDel:()=>{if(!confirm('이 청구를 지울까요?'))return;S.fees=S.fees.filter(x=>x.id!==ui.feeId);save();$('#modal').classList.remove('on');render();},
     theme:()=>{S.theme=S.theme==='dark'?'light':'dark';save();render();$('#modal').classList.remove('on');},
     backup:()=>{const b=document.createElement('a');b.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));b.download=`업무-백업-${todayStr()}.json`;b.click();toast('백업 파일을 저장했어요');},
     restore:()=>$('#fileIn').click(),
