@@ -1532,7 +1532,7 @@ function openDay(d){
       <form data-form="dayadd" style="display:flex;gap:6px;margin-top:8px"><input name="q" placeholder="이 날 할 일 추가"><button class="btn s">추가</button></form></div></div>`,'day');
 }
 
-function openClient(id){
+function openClient(id){cardClose();
   const c=cl(id); if(!c) return; if(ui.openClient!==id)ui.cedit=false; ui.openClient=id; ui.selClient=id;
   const t=todayStr(), evs=events(addDays(t,-31),addDays(t,90)).filter(e=>e.ids.includes(id));
   const tasks=S.tasks.filter(x=>x.client===id).sort((a,b)=>(openT(a)?0:1)-(openT(b)?0:1)||((a.due||'9999')<(b.due||'9999')?-1:1));
