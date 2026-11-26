@@ -1771,22 +1771,37 @@ async function migrateVault(){
 function renderVault(id){
   const el=$('#vaultBox'); if(!el||ui.openClient!==id) return;
   if(S.vault){el.innerHTML=`<h4>🔒 보안 정보</h4><p class="note" style="margin-bottom:8px">잠금을 없애려면 지금 쓰는 보안 비밀번호를 마지막으로 한 번만 입력해 주세요.</p><button class="btn g s" data-a="vMigrate">한 번 입력하고 잠금 없애기</button>`;return;}
-  const v=Object.assign({rrn:'',htId:'',htPw:''},(S.sec||{})[id]||{}); ui.vcur={id,v};
+  const v=Object.assign({rrn:'',htId:'',htPw:'',certName:'',certPw:'',card:''},(S.sec||{})[id]||{}); ui.vcur={id,v};
   const row=(lab,k)=>`<div><label>${lab}</label><div class="vfield"><b>${esc(v[k])||'—'}</b>${v[k]?`<button class="chip" data-vcopy="${k}">복사</button>`:''}</div></div>`;
-  el.innerHTML=`<div class="vsec"><div class="vh"><span>🔒 보안 정보</span><button class="chip" data-a="vEdit">수정</button>${v.htId?'<a class="chip" href="https://hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a>':''}</div>
-    ${row('대표자 주민번호','rrn')}<div class="r2">${row('홈택스 아이디','htId')}${row('홈택스 비밀번호','htPw')}</div></div>`;
+  el.innerHTML=`<div class="vsec"><div class="vh"><span>🔒 보안 정보</span><button class="chip" data-a="vEdit">수정</button>${v.htId?'<a class="chip" href="https://hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a>':''}${v.card?'<button class="chip blu" data-a="cardView">🔢 보안카드</button>':'<button class="chip" data-a="cardUp">＋ 보안카드 올리기</button>'}</div>
+    ${row('대표자 주민번호','rrn')}<div class="r2">${row('홈택스 아이디','htId')}${row('홈택스 비밀번호','htPw')}</div>${v.certName||v.certPw?`<div class="r2">${row('인증서','certName')}${row('인증서 비밀번호','certPw')}</div>`:''}</div>`;
 }
+
+/* 보안카드 사진 */
+function shrinkCard(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{
+  const go=(w,q)=>{const sc=Math.min(1,w/im.width),cv=document.createElement('canvas');cv.width=Math.round(im.width*sc);cv.height=Math.round(im.height*sc);const x=cv.getContext('2d');x.filter='grayscale(1) contrast(1.15)';x.drawImage(im,0,0,cv.width,cv.height);return cv.toDataURL('image/jpeg',q);};
+  let u=go(900,.7);if(u.length>110000)u=go(800,.6);if(u.length>110000)u=go(700,.5);res(u);};im.onerror=rej;im.src=r.result;};r.onerror=rej;r.readAsDataURL(file);});}
+function cardView(){const v=ui.vcur&&ui.vcur.v;if(!v||!v.card)return;const c=cl(ui.vcur.id);
+  $('#mbox').classList.add('mbw');
+  $('#mbox').innerHTML=`<h3>${esc(c?c.name:'')} · 홈택스 보안카드</h3><img src="${v.card}" style="width:100%;border-radius:10px;border:1px solid var(--line)" alt="보안카드">
+    <div style="display:flex;gap:8px"><button class="btn g" data-a="cardUp">바꾸기</button><button class="btn g" data-a="cardDel" style="color:var(--red)">삭제</button><button class="btn" data-a="modalClose" style="margin-left:auto">닫기</button></div>`;
+  $('#modal').classList.add('on');}
+function cardUp(){const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=async()=>{const f=i.files[0];if(!f)return;try{const u=await shrinkCard(f);const id=ui.vcur.id;S.sec=S.sec||{};S.sec[id]=Object.assign({},S.sec[id]||{},{card:u});save();ui.vcur.v.card=u;renderVault(id);toast('보안카드를 올렸어요');cardView();}catch(e){toast('사진을 읽지 못했어요');}};i.click();}
+function cardDel(){if(!confirm('보안카드 사진을 지울까요?'))return;const id=ui.vcur.id;if(S.sec[id])delete S.sec[id].card;save();$('#modal').classList.remove('on');$('#mbox').classList.remove('mbw');renderVault(id);}
+window.__sec={setCard:(name,u)=>{const id=matchClient(name);if(!id)return 'no client';S.sec=S.sec||{};S.sec[id]=Object.assign({},S.sec[id]||{},{card:u});save();return cl(id).name;},setCert:(name,cn,cp)=>{const id=matchClient(name);if(!id)return 'no client';S.sec=S.sec||{};S.sec[id]=Object.assign({},S.sec[id]||{},{certName:cn,certPw:cp||''});save();return cl(id).name;}};
 function vEdit(){
+  $('#mbox').classList.remove('mbw');
   const v=ui.vcur.v;
   $('#mbox').innerHTML=`<h3>보안 정보 수정</h3><div><label class="lab">대표자 주민번호</label><input id="vRrn" value="${esc(v.rrn)}" placeholder="000000-0000000" autocomplete="off"></div>
     <div><label class="lab">홈택스 아이디</label><input id="vId" value="${esc(v.htId)}" autocomplete="off"></div>
     <div><label class="lab">홈택스 비밀번호</label><input id="vPw" type="text" value="${esc(v.htPw)}" autocomplete="off"></div>
+    <div class="r2"><div><label class="lab">인증서 (예: 인근복부동산)</label><input id="vCn" value="${esc(v.certName||'')}" autocomplete="off"></div><div><label class="lab">인증서 비밀번호</label><input id="vCp" type="text" value="${esc(v.certPw||'')}" autocomplete="off"></div></div>
     <div style="display:flex;gap:8px"><button class="btn g" data-a="modalClose" style="flex:1;justify-content:center">취소</button><button class="btn" data-a="vSave" style="flex:1;justify-content:center">저장</button></div>`;
   $('#modal').classList.add('on');
 }
 function vSave(){
   const id=ui.vcur.id; S.sec=S.sec||{};
-  S.sec[id]={rrn:$('#vRrn').value.trim(),htId:$('#vId').value.trim(),htPw:$('#vPw').value};
+  S.sec[id]=Object.assign({},S.sec[id]||{},{rrn:$('#vRrn').value.trim(),htId:$('#vId').value.trim(),htPw:$('#vPw').value,certName:$('#vCn').value.trim(),certPw:$('#vCp').value});
   save(); $('#modal').classList.remove('on'); renderVault(id); toast('저장했어요');
 }
 async function importSecrets(file){
@@ -1950,7 +1965,7 @@ document.addEventListener('click',e=>{
   el=q('[data-a]'); if(!el) return; const a=el.dataset.a;
   if(el.tagName==='A') e.preventDefault();
   const acts={
-    close:closeDrawer, modalClose:()=>{$('#modal').classList.remove('on');$('#mbox').classList.remove('mbw');}, feeNew:()=>openFee(), feeSave:saveFee, feeDel:()=>{if(!confirm('이 청구를 지울까요?'))return;S.fees=S.fees.filter(x=>x.id!==ui.feeId);save();$('#modal').classList.remove('on');render();if(ui.pdBack){const b=ui.pdBack;ui.pdBack=null;openPayDetail(b,ui.pdY);}},
+    close:closeDrawer, modalClose:()=>{$('#modal').classList.remove('on');$('#mbox').classList.remove('mbw');}, cardView, cardUp, cardDel, feeNew:()=>openFee(), feeSave:saveFee, feeDel:()=>{if(!confirm('이 청구를 지울까요?'))return;S.fees=S.fees.filter(x=>x.id!==ui.feeId);save();$('#modal').classList.remove('on');render();if(ui.pdBack){const b=ui.pdBack;ui.pdBack=null;openPayDetail(b,ui.pdY);}},
     theme:()=>{S.theme=S.theme==='dark'?'light':'dark';save();render();$('#modal').classList.remove('on');},
     backup:()=>{const b=document.createElement('a');b.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));b.download=`업무-백업-${todayStr()}.json`;b.click();toast('백업 파일을 저장했어요');},
     restore:()=>$('#fileIn').click(),
