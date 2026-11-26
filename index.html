@@ -887,7 +887,8 @@ window.__checks={
 
 
 /* ---------- 자동화 기록 (Claude 처리 내역) ---------- */
-function vAuto(){
+function pruneAutos(){if(!S.autos||!S.autos.length)return false;const lim=Date.now()-90*864e5,n=S.autos.length;S.autos=S.autos.filter(r=>r.at>lim||(r.review||[]).some(x=>!x.done));return S.autos.length!==n;}
+function vAuto(){if(pruneAutos())save();
   const runs=(S.autos||[]).slice().sort((a,b)=>(b.at||0)-(a.at||0));
   if(!runs.length)return head('자동화')+`<div class="card" style="padding:28px;text-align:center;color:var(--sub)">아직 기록이 없어요. Claude가 처리하면 여기에 쌓여요.</div>`;
   const n=v=>(+v||0).toLocaleString();
@@ -910,8 +911,7 @@ function vAuto(){
           <td style="padding:6px 8px;text-align:right;${+i.fail?'color:var(--red);font-weight:600':'color:var(--sub)'}">${n(i.fail)}</td>
           <td style="padding:6px 8px;white-space:nowrap">${i.ded!=null||i.gen!=null?`공제 ${n(i.ded)} · 일반 ${n(i.gen)}`:''}</td>
           <td style="padding:6px 8px;color:var(--sub)">${esc(i.reason||'')}</td></tr>`).join('')).join('')}</tbody></table></div>
-      ${(r.review||[]).length?`<div class="sec" style="margin-top:14px"><h2>검토 중점사항</h2></div><div class="card list">${r.review.map((x,k)=>`<div class="row" data-arv="${r.id}|${k}" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--line)${x.done?';opacity:.5':''}">
-        <span style="font-size:16px">${x.done?'☑':'☐'}</span><div style="flex:1"><b>${esc(x.client||'')}</b>${x.client?' · ':''}<span style="${x.done?'text-decoration:line-through':''}">${esc(x.text)}</span></div></div>`).join('')}</div>`:''}
+      ${(r.review||[]).length?`<div class="sec" style="margin-top:14px"><h2>검토 중점사항</h2></div>${(()=>{const g={};r.review.forEach((x,k)=>{(x.client||'공통').split(' · ').forEach(c=>{(g[c]=g[c]||[]).push(k)})});const ord=r.clients.map(c=>c.name).filter(n=>g[n]).concat(Object.keys(g).filter(n=>!r.clients.some(c=>c.name===n)));return ord.map(c=>{const ks=g[c],left=ks.filter(k=>!r.review[k].done).length;return `<div class="card list" style="margin-bottom:10px"><div style="padding:8px 12px;font-weight:700;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center">${esc(c)}<span class="chip ${left?'amb':'grn'}">${left?'남음 '+left:'완료'}</span></div>${ks.map(k=>{const x=r.review[k];return `<div class="row" data-arv="${r.id}|${k}" style="display:flex;gap:10px;align-items:flex-start;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--line)${x.done?';opacity:.5':''}"><span style="font-size:16px">${x.done?'☑':'☐'}</span><div style="flex:1;${x.done?'text-decoration:line-through':''}">${esc(x.text)}</div></div>`}).join('')}</div>`}).join('')})()}`:''}
     </div>`}).join('');
 }
 window.__autos={add:o=>{S.autos=S.autos||[];const r=Object.assign({id:uid(),at:Date.now()},o);r.review=(r.review||[]).map(x=>Object.assign({done:false},x));S.autos.push(r);save();if(!ui.drawer)render();return r.id;},list:()=>(S.autos||[]).map(r=>({id:r.id,title:r.title,at:r.at})),del:id=>{S.autos=(S.autos||[]).filter(r=>r.id!==id);save();render();}};
