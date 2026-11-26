@@ -867,7 +867,11 @@ function vInv(){
 }
 function loadXLSX(){if(window.XLSX)return Promise.resolve(window.XLSX);return new Promise((ok,no)=>{const t=document.createElement('script');t.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';t.onload=()=>ok(window.XLSX);t.onerror=()=>no(new Error('엑셀 읽기 도구를 불러오지 못했어요'));document.head.appendChild(t);});}
 const xnum=v=>{if(typeof v==='number')return v;const n=+String(v||'').replace(/[^\d.-]/g,'');return isNaN(n)?0:n;};
-function xfind(name,biz){const b=String(biz||'').replace(/\D/g,'');if(b.length===10){const c=S.clients.find(c=>String(c.biz||c.bizno||c.brn||'').replace(/\D/g,'')===b);if(c)return c.id;}return matchClient(name);}
+const xn=s=>norm(s).replace(/[,.()\-·]/g,'').replace(/앤/g,'엔').replace(/내셔/g,'네셔').replace(/쥬/g,'주');
+const isCorp=s=>/\(주\)|㈜|주식회사/.test(String(s||''));
+function xfind(name,biz){const b=String(biz||'').replace(/\D/g,'');if(b.length===10){const c=S.clients.find(c=>String(c.biz||c.bizno||c.brn||'').replace(/\D/g,'')===b);if(c)return c.id;}
+  const n=xn(name);if(!n)return null;let h=S.clients.filter(c=>xn(c.name)===n);if(h.length>1){const k=isCorp(name);const h2=h.filter(c=>isCorp(c.name)===k);if(k&&h2.length)h=h2;else{const h3=h.filter(c=>c.fee>0);if(h3.length)h=h3;}}
+  return h.length?h[0].id:null;}
 function payUp(){const i=document.createElement('input');i.type='file';i.accept='.xls,.xlsx,.csv';i.multiple=true;i.onchange=async()=>{for(const f of i.files)await payFile(f);};i.click();}
 async function payFile(f){let rows;try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{type:'array',cellDates:false});rows=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:true});}catch(e){return toast(e.message||'파일을 읽지 못했어요');}
   const H=k=>rows.findIndex(r=>k.every(x=>r.map(v=>String(v).trim()).includes(x)));
@@ -880,15 +884,16 @@ function payCms(rows,h,fn,dry){const hd=rows[h].map(v=>String(v).trim()),ix=k=>h
     const cid=xfind(nm);if(!cid)continue;const ym=ymr.slice(2,6),k=cid+'|'+ym,g=G[k]=G[k]||{cid,ym,a:0,b:0,u:0,add:0,d:''};
     const b=xnum(r[I.b]),a=xnum(r[I.a]),u=xnum(r[I.u]);g.b+=b;g.a+=a;g.u+=u;if(String(r[I.t]).includes('추가'))g.add+=b;
     const d=String((I.d>=0&&r[I.d])||(I.d2>=0&&r[I.d2])||'').replace(/\D/g,'');if(a&&d.length>=8&&d>g.d)g.d=d;}
-  let n=0,pd=0,un=0;const cs=new Set(),out=[];
+  let n=0,pd=0,un=0,kept=0;const cs=new Set(),out=[];
   for(const g of Object.values(G)){let cell;
     if(g.u>0){cell={s:'unpaid',u:g.u,b:g.b,m:`CMS 미납 ${g.u.toLocaleString()}원`+(g.a?` (수납 ${g.a.toLocaleString()}원)`:'')};un++;}
     else if(g.a>0){cell={a:g.a,b:g.b,m:`CMS ${g.d?g.d.slice(4,6)+'/'+g.d.slice(6,8)+' ':''}수납`+(g.add?` (추가청구 ${g.add.toLocaleString()} 포함)`:'')};pd++;}
     else continue;
+    const old=(S.pay[g.cid]||{})[g.ym];if(old&&old.m&&!/^CMS/.test(old.m)&&!(old.s==='unpaid'&&cell.a)){if(!dry){kept++;continue;}}
     if(dry){out.push([cl(g.cid).name,g.ym,cell]);continue;}
     S.pay[g.cid]=S.pay[g.cid]||{};S.pay[g.cid][g.ym]=cell;n++;cs.add(g.cid);}
   if(dry)return out;
-  S.cmsAt=todayStr();save();render();toast(`CMS 수납내역 반영 · ${cs.size}곳 ${n}개월 (수납 ${pd} · 미납 ${un})`);}
+  S.cmsAt=todayStr();save();render();toast(`CMS 수납내역 반영 · ${cs.size}곳 ${n}개월 (수납 ${pd} · 미납 ${un})${kept?` · 직접 적은 메모가 있는 ${kept}칸은 그대로 뒀어요`:''}`);}
 function payInvFile(rows,h,fn,dry){const hd=rows[h].map(v=>String(v).trim()),ix=k=>hd.indexOf(k);
   const I={no:ix('전표번호'),n:ix('거래처명'),b:ix('사업자등록증'),s:ix('공급가액'),e:ix('전자세금')};
   const add={};let lo='999999',hi='000000',cnt=0;
