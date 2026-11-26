@@ -829,11 +829,11 @@ function invRows(){
     const iss=L.reduce((a,x)=>a+x[1],0);if(!iss&&!paid&&!unk&&!un)continue;
     const last=L.length?L[L.length-1][0]:'';const unsent=L.filter(x=>x[2]).length;
     const diff=paid-iss,over=-diff;let st,cls;
-    if(Math.abs(diff)<1000){st='일치';cls='grn';}
+    if(!paid&&!L.length){if(unk){st='CMS 입금 확인 · 발행 없음';cls='amb';}else{st='미수 · 발행 없음';cls='blu';}}
+    else if(Math.abs(diff)<1000){st='일치';cls='grn';}
     else if(diff>0){st=L.length?`덜 발행 ${won(diff)}`:`발행 없음 · ${won(diff)}`;cls='red';}
-    else if(!paid&&!L.length){st='수금·발행 확인';cls='amb';}
+    else if(unk&&over<=(un+unk)*fee+1000){st=`CMS 입금 확인 ${won(over)}`;cls='amb';}
     else if(over<=un*fee+1000){st=`미수분 발행 ${won(over)}`;cls='blu';}
-    else if(over<=(un+unk)*fee+1000){st=`CMS 입금 확인 ${won(over)}`;cls='amb';}
     else {st=`앱 수금 기록 빠짐? ${won(over)}`;cls='pur';}
     out.push({c,fee,paid,pm,unk,un,iss,last,unsent,diff,st,cls,L});}
   const rank={red:0,pur:1,amb:2,blu:3,grn:4};return out.sort((a,b)=>rank[a.cls]-rank[b.cls]||Math.abs(b.diff)-Math.abs(a.diff));
