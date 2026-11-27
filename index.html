@@ -214,6 +214,33 @@ body.wide main{max-width:1760px}
 .whbar .btn[disabled]{opacity:.45;cursor:default}
 .whck{width:15px;height:15px;margin:0 8px 0 0;vertical-align:-2px;accent-color:var(--acc);cursor:pointer}
 .whpd{display:inline-block;font-size:11px;color:var(--sub);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-right:6px;line-height:16px}
+/* 원천세 신고현황 (whv) */
+.whv{display:flex;flex-direction:column;flex:1;min-height:0}
+.whv .rpsum{height:34px;box-sizing:border-box;padding:0 14px;margin:0 0 10px;gap:14px;box-shadow:none;border-radius:9px;flex-wrap:nowrap}
+.whv .rpn b{font-size:15px;font-variant-numeric:tabular-nums}.whv .rpn span{font-size:12.5px}
+.whv .rpbar{height:4px;min-width:80px}
+.whv .rpx .chip{background:transparent;padding:0;font-size:12.5px}
+.whv .whbar{height:36px;margin:0 0 10px;flex-wrap:nowrap}
+.whv .whq{height:34px;box-sizing:border-box}
+.whv .whbar .btn{height:34px;box-sizing:border-box}
+.whv .rtab{box-shadow:none}
+.whv .rscroll{overflow-x:auto!important}
+.whv .xt thead th{font-size:11.5px;font-weight:600;color:var(--sub);padding:9px 8px;border-bottom:1px solid var(--line)}
+.whv .xt td{padding:7px 8px}
+.whv .xt tr.grp td{background:var(--panel);color:var(--ink);font-size:12px;font-weight:700;text-align:left;padding:14px 10px 6px}
+.whv .xt tr.grp+tr td{border-top:0}
+.whv .rt tbody tr:not(.grp):hover td{background:var(--soft)}
+.whv .kinds{white-space:nowrap;min-width:0}
+.whv .kp{border:1px solid transparent;background:transparent;color:var(--mute);padding:2px 6px;margin-right:1px;font-size:11.5px;font-weight:600}
+.whv .kp:hover{border-color:var(--line);color:var(--ink)}
+.whv .kp.on{background:var(--acc2);color:var(--acc);border-color:transparent}
+.whv .st{min-width:58px;padding:3px 9px;font-size:11.5px}
+.whv .ox{width:24px;height:22px;border-radius:5px}
+.whv .ri.dt{height:26px;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+.whv .ri.dt.off{border-color:transparent;background:transparent}
+.whv .ri.dt.off::placeholder{color:var(--line);opacity:1}
+.whv td.memo .ri{border-color:transparent}.whv td.memo .ri:hover,.whv td.memo .ri:focus{border-color:var(--line)}
+@media(max-width:760px){.whv .whbar{height:auto;flex-wrap:wrap}.whv .whq{width:100%}.whv .rpsum{height:auto;padding:8px 12px}}
 .pay{color:var(--red)}.refund{color:var(--blu);font-weight:700}.sub{color:var(--sub)}
 .xt .ri{color:inherit}.xt .ri::placeholder{color:var(--line)}
 .ox{width:30px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--acc);font-weight:700;cursor:pointer}.ox.on{background:var(--acc2);border-color:var(--acc)}
@@ -1468,15 +1495,15 @@ function vRepWh(){
   const wq=(ui.wq||'').replace(/\s/g,'').toLowerCase(),vis=cs.filter(x=>!wq||x.c.name.replace(/\s/g,'').toLowerCase().includes(wq));
   if(ui.whYm!==ym){ui.whYm=ym;ui.whS=new Set();}
   const todo=vis.filter(x=>x.r.st!=='완료'),dn=vis.filter(x=>x.r.st==='완료'),nc=y>=2027?9:8,nSel=whSel().size;
-  return `<div class="whbar"><input class="whq" data-in="wq" value="${esc(ui.wq||'')}" placeholder="거래처 검색" aria-label="거래처 검색">
+  return `<div class="whv">${rpProg(done,cs.length)}
+  <div class="whbar"><input class="whq" data-in="wq" value="${esc(ui.wq||'')}" placeholder="거래처 검색" aria-label="거래처 검색">
     <span class="whn">${nSel?`${nSel}곳 선택`:'작성할 거래처를 체크하세요'}</span>
     <button class="btn s" data-a="whRun" ${nSel?'':'disabled'}>신고서 작성${nSel?` ${nSel}곳`:''}</button>
     <button class="btn g s" data-a="whSend" title="준비 중이에요">신고서 전송</button></div>
-  ${rpProg(done,cs.length)}
   <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm"><input type="checkbox" class="whck" data-whall="1" ${todo.length&&todo.filter(x=>!whPend(x.c.id,ym)).every(x=>whSel().has(x.c.id))?'checked':''} aria-label="할 것 전체 선택" title="할 것 전체 선택">거래처</th><th>진행</th><th>전달</th><th>소득 종류</th>${y>=2027?'<th>간이 (근로)</th>':''}<th>간이 (일용)</th><th>간이 (사업·기타)</th><th>근로내용확인신고</th><th class="memo">참고사항</th></tr></thead><tbody>
   ${todo.length?`<tr class="grp"><td colspan="${nc}">할 것 ${todo.length}</td></tr>${todo.map(row).join('')}`:''}
   ${dn.length?`<tr class="grp"><td colspan="${nc}">완료 ${dn.length}</td></tr>${dn.map(row).join('')}`:''}
-  ${cs.length?(vis.length?'':`<tr><td colspan="${nc}" class="empty">'${esc(ui.wq)}'에 맞는 거래처가 없어요</td></tr>`):`<tr><td colspan="${nc}" class="empty">이 달 원천세 대상이 없어요</td></tr>`}</tbody></table></div></div>`;
+  ${cs.length?(vis.length?'':`<tr><td colspan="${nc}" class="empty">'${esc(ui.wq)}'에 맞는 거래처가 없어요</td></tr>`):`<tr><td colspan="${nc}" class="empty">이 달 원천세 대상이 없어요</td></tr>`}</tbody></table></div></div></div>`;
 }
 const whSel=()=>(ui.whS=ui.whS||new Set());
 const whPend=(cid,ym)=>AR().find(x=>x.kind==='pay'&&x.cid===cid&&x.ym===ym&&(x.status==='wait'||x.status==='doing'));
