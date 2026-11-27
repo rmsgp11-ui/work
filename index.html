@@ -1468,8 +1468,7 @@ function vRepWh(){
   const wq=(ui.wq||'').replace(/\s/g,'').toLowerCase(),vis=cs.filter(x=>!wq||x.c.name.replace(/\s/g,'').toLowerCase().includes(wq));
   if(ui.whYm!==ym){ui.whYm=ym;ui.whS=new Set();}
   const todo=vis.filter(x=>x.r.st!=='완료'),dn=vis.filter(x=>x.r.st==='완료'),nc=y>=2027?9:8,nSel=whSel().size;
-  return `<div class="rtitle"><b>${y}년 ${m}월 귀속</b><span class="note">신고기한 <b style="color:${past&&todo.length?'var(--red)':'inherit'}">${md(due)}</b></span></div>
-  <div class="whbar"><input class="whq" data-in="wq" value="${esc(ui.wq||'')}" placeholder="거래처 검색" aria-label="거래처 검색">
+  return `<div class="whbar"><input class="whq" data-in="wq" value="${esc(ui.wq||'')}" placeholder="거래처 검색" aria-label="거래처 검색">
     <span class="whn">${nSel?`${nSel}곳 선택`:'작성할 거래처를 체크하세요'}</span>
     <button class="btn s" data-a="whRun" ${nSel?'':'disabled'}>신고서 작성${nSel?` ${nSel}곳`:''}</button>
     <button class="btn g s" data-a="whSend" title="준비 중이에요">신고서 전송</button></div>
