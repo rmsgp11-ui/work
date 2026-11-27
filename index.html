@@ -207,7 +207,13 @@ body.wide main{max-width:1760px}
 .kinds{white-space:nowrap}.kp{padding:3px 8px;margin-right:3px;border-radius:99px;border:1px dashed var(--line);background:transparent;color:color-mix(in srgb,var(--sub) 45%,transparent);font-size:11.5px;font-weight:600;cursor:pointer}
 .kp.on{border:1px solid transparent;background:var(--acc2);color:var(--acc)}.kp.step.on{background:var(--grnS);color:var(--grn)}
 .kp:hover{border-color:var(--acc)}
-.kp.clw{margin:0 5px 0 0;padding:0 4px;font-size:9.5px;line-height:15px;border:1px solid var(--acc);color:var(--acc);vertical-align:middle}.kp.clw:hover{background:var(--acc2)}
+.whbar{display:flex;align-items:center;gap:8px;margin:0 0 10px;flex-wrap:wrap}
+.whq{width:210px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font-size:13px}
+.whq:focus{outline:2px solid var(--acc);outline-offset:-1px;border-color:transparent}
+.whn{color:var(--sub);font-size:13px;margin-right:auto}
+.whbar .btn[disabled]{opacity:.45;cursor:default}
+.whck{width:15px;height:15px;margin:0 8px 0 0;vertical-align:-2px;accent-color:var(--acc);cursor:pointer}
+.whpd{display:inline-block;font-size:11px;color:var(--sub);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-right:6px;line-height:16px}
 .pay{color:var(--red)}.refund{color:var(--blu);font-weight:700}.sub{color:var(--sub)}
 .xt .ri{color:inherit}.xt .ri::placeholder{color:var(--line)}
 .ox{width:30px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--acc);font-weight:700;cursor:pointer}.ox.on{background:var(--acc2);border-color:var(--acc)}
@@ -1450,7 +1456,7 @@ function vRepWh(){
   const def=pgAdd(pgNow(),-1),ym0=ui.rwm||def,y=+ym0.slice(0,4),m=+ym0.slice(5,7);
   const {ym,due,past,cs}=whList(y,m);
   const done=cs.filter(x=>x.r.st==='완료').length;
-  const row=({c,r})=>{const k=`wh|${ym}|${c.id}`,ok=r.st==='완료';return `<tr class="${ok?'ok':''}"><td class="nm" data-client="${c.id}"><button class="kp clw" data-claude="${ym}|${c.id}" title="PC의 Claude에게 이 업체 급여신고 요청 (명령어도 복사돼요)">${AR().some(x=>x.kind==='pay'&&x.cid===c.id&&x.ym===ym&&(x.status==='wait'||x.status==='doing'))?'요청됨':'신고'}</button><b>${esc(c.name)}</b></td>
+  const row=({c,r})=>{const k=`wh|${ym}|${c.id}`,ok=r.st==='완료';return `<tr class="${ok?'ok':''}"><td class="nm" data-client="${c.id}">${(()=>{const pr=whPend(c.id,ym);return pr?`<span class="whpd" title="PC에서 ${pr.status==='doing'?'작성 중':'차례를 기다리는 중'}">${pr.status==='doing'?'작성 중':'대기'}</span>`:`<input type="checkbox" class="whck" data-whck="${c.id}" ${whSel().has(c.id)?'checked':''} aria-label="${esc(c.name)} 선택">`})()}<b>${esc(c.name)}</b></td>
     <td><button class="st ${ok?'d':past?'l':''}" data-rpt="${k}|st">${ok?'✓ 완료':past?'미완료':'진행 전'}</button></td>
     <td><button class="ox ${r.전달?'on':''}" data-rpt="${k}|전달" title="납부서·신고서 전달">${r.전달?'○':''}</button></td>
     <td class="kinds">${WF.map(([f,n])=>`<button class="kp ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
@@ -1459,14 +1465,25 @@ function vRepWh(){
     <td><input class="ri dt ${r.사업||r.기타?'':'off'}" data-rpi="${k}|ganS" value="${esc(r.ganS||'')}" placeholder="${r.사업||r.기타?'제출일':'·'}"></td>
     <td class="kd"><input class="ri dt ${r.일용?'':'off'}" data-rpi="${k}|kdDate" value="${esc(r.kdDate||'')}" placeholder="${r.일용?'전송일':'·'}"><span class="seg2">${['공단','FAX'].map(w=>`<button class="kp ${r.kdWay===w?'on':''}" data-rkw="${k}|${w}">${w}</button>`).join('')}</span></td>
     <td class="memo"><input class="ri wide" data-rpi="${k}|memo" value="${esc(r.memo||'')}" placeholder="메모"></td></tr>`};
-  const todo=cs.filter(x=>x.r.st!=='완료'),dn=cs.filter(x=>x.r.st==='완료'),nc=y>=2027?9:8;
+  const wq=(ui.wq||'').replace(/\s/g,'').toLowerCase(),vis=cs.filter(x=>!wq||x.c.name.replace(/\s/g,'').toLowerCase().includes(wq));
+  if(ui.whYm!==ym){ui.whYm=ym;ui.whS=new Set();}
+  const todo=vis.filter(x=>x.r.st!=='완료'),dn=vis.filter(x=>x.r.st==='완료'),nc=y>=2027?9:8,nSel=whSel().size;
   return `<div class="rtitle"><b>${y}년 ${m}월 귀속</b><span class="note">신고기한 <b style="color:${past&&todo.length?'var(--red)':'inherit'}">${md(due)}</b></span></div>
+  <div class="whbar"><input class="whq" data-in="wq" value="${esc(ui.wq||'')}" placeholder="거래처 검색" aria-label="거래처 검색">
+    <span class="whn">${nSel?`${nSel}곳 선택`:'작성할 거래처를 체크하세요'}</span>
+    <button class="btn s" data-a="whRun" ${nSel?'':'disabled'}>신고서 작성${nSel?` ${nSel}곳`:''}</button>
+    <button class="btn g s" data-a="whSend" title="준비 중이에요">신고서 전송</button></div>
   ${rpProg(done,cs.length)}
-  <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm">거래처</th><th>진행</th><th>전달</th><th>소득 종류</th>${y>=2027?'<th>간이 (근로)</th>':''}<th>간이 (일용)</th><th>간이 (사업·기타)</th><th>근로내용확인신고</th><th class="memo">참고사항</th></tr></thead><tbody>
+  <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm"><input type="checkbox" class="whck" data-whall="1" ${todo.length&&todo.filter(x=>!whPend(x.c.id,ym)).every(x=>whSel().has(x.c.id))?'checked':''} aria-label="할 것 전체 선택" title="할 것 전체 선택">거래처</th><th>진행</th><th>전달</th><th>소득 종류</th>${y>=2027?'<th>간이 (근로)</th>':''}<th>간이 (일용)</th><th>간이 (사업·기타)</th><th>근로내용확인신고</th><th class="memo">참고사항</th></tr></thead><tbody>
   ${todo.length?`<tr class="grp"><td colspan="${nc}">할 것 ${todo.length}</td></tr>${todo.map(row).join('')}`:''}
   ${dn.length?`<tr class="grp"><td colspan="${nc}">완료 ${dn.length}</td></tr>${dn.map(row).join('')}`:''}
-  ${cs.length?'':`<tr><td colspan="${nc}" class="empty">이 달 원천세 대상이 없어요</td></tr>`}</tbody></table></div></div>`;
+  ${cs.length?(vis.length?'':`<tr><td colspan="${nc}" class="empty">'${esc(ui.wq)}'에 맞는 거래처가 없어요</td></tr>`):`<tr><td colspan="${nc}" class="empty">이 달 원천세 대상이 없어요</td></tr>`}</tbody></table></div></div>`;
 }
+const whSel=()=>(ui.whS=ui.whS||new Set());
+const whPend=(cid,ym)=>AR().find(x=>x.kind==='pay'&&x.cid===cid&&x.ym===ym&&(x.status==='wait'||x.status==='doing'));
+function whRun(){const ym=ui.whYm,ids=[...whSel()].filter(id=>!whPend(id,ym));if(!ids.length)return;
+  ids.forEach(id=>{const c=S.clients.find(x=>x.id===id);if(!c)return;AR().push({id:uid(),kind:'pay',name:`${ym.slice(0,4)}.${ym.slice(5,7)} ${c.name} 급여신고 진행`,ym,cid:id,client:c.name,status:'wait',result:'PC 차례를 기다리는 중',created:Date.now(),doneAt:null});});
+  S.autoReq=AR().slice(-30);whSel().clear();save();render();toast(`${ids.length}곳 신고서 작성을 요청했어요. PC에서 한 곳씩 차례로 진행해요`);arDispatch();}
 
 function ganList(y,m){const L=whList(y,m),ym=L.ym,due=nextBiz(`${m===12?y+1:y}-${pad(m===12?1:m+1)}-${lastDay(m===12?y+1:y,m===12?1:m+1)}`),past=due<todayStr();
   const need=(c,r)=>{const st=!!(r.일용||r.사업||r.기타||(y>=2027&&r.급여));const n={D:!!r.일용,S:!!(r.사업||r.기타),G:y>=2027&&!!r.급여};if(!st&&!(S.rpt.wh[ym]||{})[c.id]&&c.wh==='사업소득')n.S=true;return n;};
@@ -2226,11 +2243,8 @@ document.addEventListener('click',e=>{
   if((el=q('[data-paycell]'))){const [c,ym]=el.dataset.paycell.split('|');openPayCell(c,ym);return;}
   if((el=q('[data-pset]'))){setPay(el.dataset.pset);return;}
   if((el=q('[data-allck]'))){const ev=ui.dayEvents[+el.dataset.allck],all=doneCnt(ev)===ev.ids.length;ev.ids.forEach(id=>{const k=ev.key+'|'+id;if(all)delete S.checks[k];else S.checks[k]=Date.now();});save();openDay(ui.openDay);return;}
-  if((el=q('[data-claude]'))){const [ym,cid]=el.dataset.claude.split('|'),c=S.clients.find(x=>x.id===cid);if(c){const cmd=`${ym.slice(0,4)}.${ym.slice(5,7)} ${c.name} 급여신고 진행`;
-    if(navigator.clipboard)navigator.clipboard.writeText(cmd).catch(()=>{});
-    if(AR().some(x=>x.kind==='pay'&&x.cid===cid&&x.ym===ym&&(x.status==='wait'||x.status==='doing')))return toast('이미 요청돼 있어요 — 자동화 탭에서 확인하세요');
-    AR().push({id:uid(),kind:'pay',name:cmd,ym,cid,client:c.name,status:'wait',result:'PC로 보내는 중…',created:Date.now(),doneAt:null});S.autoReq=AR().slice(-20);
-    save();render();toast('요청했어요: '+cmd+' (명령어도 복사됨)');arDispatch();}return;}
+  if((el=q('[data-whall]'))){const ym=ui.whYm,{cs}=whList(+ym.slice(0,4),+ym.slice(5,7)),wq=(ui.wq||'').replace(/\s/g,'').toLowerCase();const t=cs.filter(x=>x.r.st!=='완료'&&!whPend(x.c.id,ym)&&(!wq||x.c.name.replace(/\s/g,'').toLowerCase().includes(wq)));const all=t.length&&t.every(x=>whSel().has(x.c.id));t.forEach(x=>all?whSel().delete(x.c.id):whSel().add(x.c.id));render();return;}
+  if((el=q('[data-whck]'))){const id=el.dataset.whck;whSel().has(id)?whSel().delete(id):whSel().add(id);render();return;}
   if((el=q('[data-client]'))){openClient(el.dataset.client);return;}
   if((el=q('[data-ck]'))){const k=el.dataset.ck;if(S.checks[k])delete S.checks[k];else S.checks[k]=Date.now();save();refreshDrawer();return;}
   if((el=q('[data-day]'))){openDay(el.dataset.day);return;}
@@ -2301,7 +2315,7 @@ document.addEventListener('click',e=>{
     calPrev:()=>{let {y,m}=ui.cal;m--;if(m<1){m=12;y--}ui.cal={y,m};render();}, calNext:()=>{let {y,m}=ui.cal;m++;if(m>12){m=1;y++}ui.cal={y,m};render();},
     calToday:()=>{const d=new Date();ui.cal={y:d.getFullYear(),m:d.getMonth()+1};render();},
     pvM:()=>{ui.pv='m';render();}, pvI:()=>{ui.pv='inv';render();}, pmPrev:()=>{ui.pm=ymAdd(ui.pm,-1);render();}, pmNext:()=>{ui.pm=ymAdd(ui.pm,1);render();}, pmCur:()=>{ui.pm=curYM();render();},
-    talkImport:()=>$('#talkIn').click(), rwPrev:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),-1);render();}, rwNext:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),1);render();}, rDet:()=>{ui.rdet=!ui.rdet;render();}, agNew:()=>agentForm(null), agSave:()=>agentSave(), agDel:()=>{const a=agt(ui.agEdit);if(!a||!confirm(`${a.name}을(를) 신고대리 목록에서 삭제할까요?`))return;S.agents=S.agents.filter(x=>x.id!==a.id);['pit','cit'].forEach(k=>Object.values(S.rpt[k]).forEach(D=>delete D[a.id]));save();$('#modal').classList.remove('on');render();}, pgyPrev:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);ui.pgm=(+c.slice(0,4)-1)+'-12';render();}, pgyNext:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);const ny=+c.slice(0,4)+1;const t=pgNow();ui.pgm=(ny+'-01')>t?c:ny+'-'+(ny===+t.slice(0,4)?pgAdd(t,-1).slice(5):'12');render();}, ryPrev:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())-1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, ryNext:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())+1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
+    talkImport:()=>$('#talkIn').click(), whRun, whSend:()=>toast('신고서 전송은 준비 중이에요. 홈택스에서 직접 전송해 주세요'), rwPrev:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),-1);render();}, rwNext:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),1);render();}, rDet:()=>{ui.rdet=!ui.rdet;render();}, agNew:()=>agentForm(null), agSave:()=>agentSave(), agDel:()=>{const a=agt(ui.agEdit);if(!a||!confirm(`${a.name}을(를) 신고대리 목록에서 삭제할까요?`))return;S.agents=S.agents.filter(x=>x.id!==a.id);['pit','cit'].forEach(k=>Object.values(S.rpt[k]).forEach(D=>delete D[a.id]));save();$('#modal').classList.remove('on');render();}, pgyPrev:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);ui.pgm=(+c.slice(0,4)-1)+'-12';render();}, pgyNext:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);const ny=+c.slice(0,4)+1;const t=pgNow();ui.pgm=(ny+'-01')>t?c:ny+'-'+(ny===+t.slice(0,4)?pgAdd(t,-1).slice(5):'12');render();}, ryPrev:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())-1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, ryNext:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())+1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
     rtAdd:()=>{const v=prompt('매월 반복 할 일 (예: 25 오전 10시 세금계산서 발행)');if(!v)return;const m=v.trim().match(/^(\d{1,2})\s*일?\s*((?:오전|오후)?\s*\d{1,2}\s*시(?:\s*\d{1,2}\s*분)?|\d{1,2}:\d{2})?\s*(.+)$/);if(!m)return toast('날짜(일) 숫자로 시작해 주세요');S.routines.push({id:'rt'+uid(),day:+m[1],time:(m[2]||'').replace(/\s+/g,' ').trim(),title:m[3].trim(),created:Date.now()});ui._rr='';save();render();toast('매월 반복 할 일에 넣었어요');},
     archDir:()=>archDir(), archLogs:()=>archLogs(),
     pgPrev:()=>{ui.pg=pgAdd(ui.pg,-1);render();}, pgNext:()=>{ui.pg=pgAdd(ui.pg,1);render();}, pgCur:()=>{ui.pg=pgAdd(pgNow(),-1);render();},
