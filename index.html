@@ -1309,6 +1309,11 @@ function whDocsReq(){const ym=ui.whYm,y=+ym.slice(0,4),m=+ym.slice(5,7),{cs,hf,d
   $('#modal').classList.add('on');}
 function whDocsScan(){const ym=ui.whYm;if(AR().some(x=>x.kind==='docs'&&x.ym===ym&&(x.status==='wait'||x.status==='doing')))return toast('이미 자료 확인을 요청했어요');
   AR().push({id:uid(),kind:'docs',name:`${ym.slice(0,4)}.${ym.slice(5,7)} 급여자료 확인`,ym,status:'wait',result:'PC 차례를 기다리는 중',created:Date.now(),doneAt:null});S.autoReq=AR().slice(-30);save();render();toast('PC에서 업체자료 폴더를 확인해요');arDispatch();}
+/* 업체 요청(카톡)·신고서 전송 표시 — PC Claude가 기록 */
+window.__whMark={set:(ym,name,o)=>{const k=nmKey(name),c=S.clients.find(x=>nmKey(x.name)===k)||S.clients.find(x=>{const a=nmKey(x.name);return a&&(a.includes(k)||k.includes(a));});if(!c)return false;
+    S.rpt.wh[ym]=S.rpt.wh[ym]||{};const r=S.rpt.wh[ym][c.id]=S.rpt.wh[ym][c.id]||{};
+    if(o&&o.ask)r.ask=typeof o.ask==='string'?o.ask:md(todayStr()).replace(/\(.*/,'');if(o&&o.made)r.made=Date.now();if(o&&o.sent)r.sent=Date.now();if(o&&o.askNo)r.askNo=String(o.askNo).slice(0,60);
+    save();if(!ui.drawer)render();return c.name;}};
 window.__autoReq={list:(st)=>AR().filter(r=>!st||r.status===st).map(r=>({...r,created:new Date(r.created).toISOString()})),
   update:(id,p)=>{const r=AR().find(x=>x.id===id);if(!r)return false;['status','result'].forEach(k=>{if(p[k]!==undefined)r[k]=p[k]});if(r.status==='done'||r.status==='check')r.doneAt=Date.now();save();render();return true;}};
 function autoHead(){const q=AR().slice().sort((a,b)=>b.created-a.created)[0];const show=q&&(q.status==='doing'||q.status==='wait'||Date.now()-(q.doneAt||0)<3*864e5);
@@ -1524,7 +1529,7 @@ function vRepWh(){
   const def=pgAdd(pgNow(),-1),ym0=ui.rwm||def,y=+ym0.slice(0,4),m=+ym0.slice(5,7);
   const {ym,due,past,cs,hf}=whList(y,m);
   const done=cs.filter(x=>x.r.st==='완료').length;
-  const row=({c,r,h})=>{const k=`wh|${ym}|${c.id}`,ok=r.st==='완료';return `<tr class="${ok?'ok':''}"><td class="nm" data-whytd="${c.id}" title="눌러서 소득 누계 보기">${(()=>{const pr=whPend(c.id,ym);return pr?`<span class="whpd" title="PC에서 ${pr.status==='doing'?'작성 중':'차례를 기다리는 중'}">${pr.status==='doing'?'작성 중':'대기'}</span>`:`<input type="checkbox" class="whck" data-whck="${c.id}" ${whSel().has(c.id)?'checked':''} aria-label="${esc(c.name)} 선택">`})()}<b>${esc(c.name)}</b>${r.doc&&r.doc.st==='없음'&&!ok?'<span class="whdc" title="업체자료 폴더에 이번 달 급여자료가 없어요">자료 없음</span>':''}${whVf(r)}</td>
+  const row=({c,r,h})=>{const k=`wh|${ym}|${c.id}`,ok=r.st==='완료';return `<tr class="${ok?'ok':''}"><td class="nm" data-whytd="${c.id}" title="눌러서 소득 누계 보기">${(()=>{const pr=whPend(c.id,ym);return pr?`<span class="whpd" title="PC에서 ${pr.status==='doing'?'작성 중':'차례를 기다리는 중'}">${pr.status==='doing'?'작성 중':'대기'}</span>`:`<input type="checkbox" class="whck" data-whck="${c.id}" ${whSel().has(c.id)?'checked':''} aria-label="${esc(c.name)} 선택">`})()}<b>${esc(c.name)}</b>${r.doc&&r.doc.st==='없음'&&!ok?'<span class="whdc" title="업체자료 폴더에 이번 달 급여자료가 없어요">자료 없음</span>':''}${r.ask?`<span class="whdc" title="카톡으로 급여자료를 요청한 날">요청 ${esc(r.ask)}</span>`:''}${r.askNo?`<span class="whdc" title="${esc(r.askNo)}">요청 못함</span>`:''}${whVf(r)}</td>
     ${h?`<td class="hy" colspan="2" title="반기 신고 업체 — 진행·전달은 6월·12월 귀속에 표시돼요">반기</td>`:`<td><button class="st ${ok?'d':past?'l':''}" data-rpt="${k}|st">${ok?'✓ 완료':past?'미완료':'진행 전'}</button></td>
     <td><button class="ox ${r.전달?'on':''}" data-rpt="${k}|전달" title="납부서·신고서 전달">${r.전달?'○':''}</button></td>`}
     <td class="kinds">${WF.map(([f,n])=>`<button class="kp ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
@@ -1541,7 +1546,7 @@ function vRepWh(){
     <span class="whn">${nSel?`${nSel}곳 선택`:'작성할 거래처를 체크하세요'}</span>
     <button class="btn g s" data-a="whAsk" ${nSel?'':'disabled'} title="체크한 업체에 급여자료를 카톡으로 요청해요">업체 요청</button>
     <button class="btn s" data-a="whRun" ${nSel?'':'disabled'}>신고서 작성${nSel?` ${nSel}곳`:''}</button>
-    <button class="btn g s" data-a="whSend" title="준비 중이에요">신고서 전송</button></div>
+    <button class="btn g s" data-a="whSend" ${nSel?'':'disabled'} title="작성(마감)이 끝난 업체를 홈택스로 전송해요">신고서 전송</button></div>
   <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm"><input type="checkbox" class="whck" data-whall="1" ${todo.concat(hv).filter(x=>!whPend(x.c.id,ym)).length&&todo.concat(hv).filter(x=>!whPend(x.c.id,ym)).every(x=>whSel().has(x.c.id))?'checked':''} aria-label="할 것 전체 선택" title="할 것 전체 선택">거래처</th><th>진행</th><th>전달</th><th>소득 종류</th>${y>=2027?'<th>간이 (근로)</th>':''}<th>간이 (일용)</th><th>간이 (사업·기타)</th><th>근로내용확인신고</th><th class="memo">참고사항</th></tr></thead><tbody>
   ${todo.length?`<tr class="grp"><td colspan="${nc}">할 것 ${todo.length}</td></tr>${todo.map(row).join('')}`:''}
   ${hv.length?`<tr class="grp"><td colspan="${nc}">반기 신고 업체 ${hv.length} <span class="grs">이번 달은 급여대장·소득만 작성</span></td></tr>${hv.map(row).join('')}`:''}
@@ -1551,6 +1556,19 @@ function vRepWh(){
 const whVf=r=>{const v=r.vf;if(!v)return '';const w=v.items.filter(i=>i.lvl==='warn'),tip=v.items.map(i=>(i.lvl==='warn'?'확인: ':'참고: ')+i.t).join('\n')||'검증 결과 이상 없음';return `<span class="whvf ${w.length?'w':''}" title="${esc(tip)}">${w.length?'확인 '+w.length:'검증'}</span>`;};
 const whSel=()=>(ui.whS=ui.whS||new Set());
 const whPend=(cid,ym)=>AR().find(x=>x.kind==='pay'&&x.cid===cid&&x.ym===ym&&(x.status==='wait'||x.status==='doing'));
+const whMade=(cid,ym,r)=>!!(r&&(r.made||r.vf))||AR().some(x=>x.kind==='pay'&&x.cid===cid&&x.ym===ym&&(x.status==='done'||x.status==='check'));
+function whAsk(){const ym=ui.whYm,ids=[...whSel()];if(!ids.length)return;if(AR().some(x=>x.kind==='ask'&&x.ym===ym&&(x.status==='wait'||x.status==='doing')))return toast('이미 보낸 업체 요청이 PC에서 진행 중이에요');
+  const D=S.rpt.wh[ym]||{},cs=ids.map(id=>S.clients.find(x=>x.id===id)).filter(Boolean),again=cs.filter(c=>D[c.id]&&D[c.id].ask);
+  if(again.length&&!confirm(`${again.map(c=>c.name).join(', ')}에는 이번 달 이미 요청했어요. 다시 보낼까요?`))return;
+  AR().push({id:uid(),kind:'ask',name:`${ym.slice(0,4)}.${ym.slice(5,7)} 급여자료 업체 요청 ${cs.length}곳`,ym,cids:cs.map(c=>c.id),clients:cs.map(c=>c.name),status:'wait',result:'PC 차례를 기다리는 중',created:Date.now(),doneAt:null});
+  S.autoReq=AR().slice(-30);whSel().clear();save();render();toast(`${cs.length}곳에 카톡 요청을 맡겼어요`);arDispatch();}
+function whSend(){const ym=ui.whYm,y=+ym.slice(0,4),m=+ym.slice(5,7),{cs}=whList(y,m),ids=[...whSel()];if(!ids.length)return;
+  if(AR().some(x=>x.kind==='send'&&(x.status==='wait'||x.status==='doing')))return toast('신고서 전송이 이미 PC에서 진행 중이에요');
+  const ok=[],no=[];ids.forEach(id=>{const x=cs.find(z=>z.c.id===id),c=S.clients.find(z=>z.id===id);if(!c)return;if(x&&x.r.st!=='완료'&&!x.r.sent&&whMade(id,ym,x.r))ok.push(c);else no.push(c);});
+  if(!ok.length)return toast(`보낼 수 있는 업체가 없어요. 신고서 작성(마감)을 먼저 해 주세요${no.length?' · '+no.map(c=>c.name).join(', '):''}`);
+  if(!confirm(`${ok.length}곳(${ok.map(c=>c.name).join(', ')})을 홈택스로 전송할까요?${no.length?`\n작성 전이거나 이미 끝난 ${no.map(c=>c.name).join(', ')}은 빼요.`:''}`))return;
+  AR().push({id:uid(),kind:'send',name:`${ym.slice(0,4)}.${ym.slice(5,7)} 원천세 신고서 전송 ${ok.length}곳`,ym,cids:ok.map(c=>c.id),clients:ok.map(c=>c.name),status:'wait',result:'PC 차례를 기다리는 중',created:Date.now(),doneAt:null});
+  S.autoReq=AR().slice(-30);whSel().clear();save();render();toast(`${ok.length}곳 신고서 전송을 맡겼어요`);arDispatch();}
 function whRun(){const ym=ui.whYm,ids=[...whSel()].filter(id=>!whPend(id,ym));if(!ids.length)return;
   ids.forEach(id=>{const c=S.clients.find(x=>x.id===id);if(!c)return;AR().push({id:uid(),kind:'pay',name:`${ym.slice(0,4)}.${ym.slice(5,7)} ${c.name} 급여신고 진행`,ym,cid:id,client:c.name,status:'wait',result:'PC 차례를 기다리는 중',created:Date.now(),doneAt:null});});
   S.autoReq=AR().slice(-30);whSel().clear();save();render();toast(`${ids.length}곳 신고서 작성을 요청했어요. PC에서 한 곳씩 차례로 진행해요`);arDispatch();}
@@ -2387,7 +2405,7 @@ document.addEventListener('click',e=>{
     calPrev:()=>{let {y,m}=ui.cal;m--;if(m<1){m=12;y--}ui.cal={y,m};render();}, calNext:()=>{let {y,m}=ui.cal;m++;if(m>12){m=1;y++}ui.cal={y,m};render();},
     calToday:()=>{const d=new Date();ui.cal={y:d.getFullYear(),m:d.getMonth()+1};render();},
     pvM:()=>{ui.pv='m';render();}, pvI:()=>{ui.pv='inv';render();}, pmPrev:()=>{ui.pm=ymAdd(ui.pm,-1);render();}, pmNext:()=>{ui.pm=ymAdd(ui.pm,1);render();}, pmCur:()=>{ui.pm=curYM();render();},
-    talkImport:()=>$('#talkIn').click(), whRun, whDocsReq, whDocsScan, whAsk:()=>toast('업체 요청(카톡 발송)은 준비 중이에요'), whSend:()=>toast('신고서 전송은 준비 중이에요. 홈택스에서 직접 전송해 주세요'), rwPrev:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),-1);render();}, rwNext:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),1);render();}, rDet:()=>{ui.rdet=!ui.rdet;render();}, agNew:()=>agentForm(null), agSave:()=>agentSave(), agDel:()=>{const a=agt(ui.agEdit);if(!a||!confirm(`${a.name}을(를) 신고대리 목록에서 삭제할까요?`))return;S.agents=S.agents.filter(x=>x.id!==a.id);['pit','cit'].forEach(k=>Object.values(S.rpt[k]).forEach(D=>delete D[a.id]));save();$('#modal').classList.remove('on');render();}, pgyPrev:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);ui.pgm=(+c.slice(0,4)-1)+'-12';render();}, pgyNext:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);const ny=+c.slice(0,4)+1;const t=pgNow();ui.pgm=(ny+'-01')>t?c:ny+'-'+(ny===+t.slice(0,4)?pgAdd(t,-1).slice(5):'12');render();}, ryPrev:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())-1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, ryNext:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())+1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
+    talkImport:()=>$('#talkIn').click(), whRun, whDocsReq, whDocsScan, whAsk, whSend, whSendOld:()=>toast('신고서 전송은 준비 중이에요. 홈택스에서 직접 전송해 주세요'), rwPrev:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),-1);render();}, rwNext:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),1);render();}, rDet:()=>{ui.rdet=!ui.rdet;render();}, agNew:()=>agentForm(null), agSave:()=>agentSave(), agDel:()=>{const a=agt(ui.agEdit);if(!a||!confirm(`${a.name}을(를) 신고대리 목록에서 삭제할까요?`))return;S.agents=S.agents.filter(x=>x.id!==a.id);['pit','cit'].forEach(k=>Object.values(S.rpt[k]).forEach(D=>delete D[a.id]));save();$('#modal').classList.remove('on');render();}, pgyPrev:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);ui.pgm=(+c.slice(0,4)-1)+'-12';render();}, pgyNext:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);const ny=+c.slice(0,4)+1;const t=pgNow();ui.pgm=(ny+'-01')>t?c:ny+'-'+(ny===+t.slice(0,4)?pgAdd(t,-1).slice(5):'12');render();}, ryPrev:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())-1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, ryNext:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())+1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
     rtAdd:()=>{const v=prompt('매월 반복 할 일 (예: 25 오전 10시 세금계산서 발행)');if(!v)return;const m=v.trim().match(/^(\d{1,2})\s*일?\s*((?:오전|오후)?\s*\d{1,2}\s*시(?:\s*\d{1,2}\s*분)?|\d{1,2}:\d{2})?\s*(.+)$/);if(!m)return toast('날짜(일) 숫자로 시작해 주세요');S.routines.push({id:'rt'+uid(),day:+m[1],time:(m[2]||'').replace(/\s+/g,' ').trim(),title:m[3].trim(),created:Date.now()});ui._rr='';save();render();toast('매월 반복 할 일에 넣었어요');},
     archDir:()=>archDir(), archLogs:()=>archLogs(),
     pgPrev:()=>{ui.pg=pgAdd(ui.pg,-1);render();}, pgNext:()=>{ui.pg=pgAdd(ui.pg,1);render();}, pgCur:()=>{ui.pg=pgAdd(pgNow(),-1);render();},
