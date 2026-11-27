@@ -214,6 +214,9 @@ body.wide main{max-width:1760px}
 .whbar .btn[disabled]{opacity:.45;cursor:default}
 .whck{width:15px;height:15px;margin:0 8px 0 0;vertical-align:-2px;accent-color:var(--acc);cursor:pointer}
 .whv td.hy{color:var(--mute);font-size:11.5px;text-align:center}.whv .grs{font-weight:400;color:var(--sub);margin-left:6px}
+.whvf{display:inline-block;font-size:10.5px;line-height:15px;padding:0 5px;border-radius:4px;margin-left:2px;color:var(--grn);background:var(--grnS);cursor:help}.whvf.w{color:var(--amb);background:var(--ambS)}
+.ytd h4.ytk{display:flex;gap:6px;align-items:baseline;font-size:14px;margin:14px 0 4px}.ytd h4.ytk span{font-size:12px;color:var(--sub);font-weight:500}.whv td.nm[data-whytd]{cursor:pointer}.whv td.nm[data-whytd]:hover b{text-decoration:underline}.ytw{overflow-x:auto}.ytd table{width:100%;border-collapse:collapse;font-size:12.5px}.ytd th,.ytd td{white-space:nowrap}.ytd th{font-size:11.5px;color:var(--sub);font-weight:600;text-align:left;padding:6px 5px;border-bottom:1px solid var(--line)}.ytd td{padding:6px 5px;border-bottom:1px solid var(--line)}.ytd .r{text-align:right;font-variant-numeric:tabular-nums}.ytd tr.tot td{font-weight:700;border-bottom:0}.ytn{display:inline-block;margin-left:6px;font-size:11px;color:var(--amb);background:var(--ambS);border-radius:4px;padding:0 5px}
+.whdc{display:inline-block;font-size:10.5px;line-height:15px;padding:0 5px;border-radius:4px;margin-left:2px;color:var(--amb);background:var(--ambS)}.dqr{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)}
 .whpd{display:inline-block;font-size:11px;color:var(--sub);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-right:6px;line-height:16px}
 /* 원천세 신고현황 (whv) */
 .whv{display:flex;flex-direction:column;flex:1;min-height:0}
@@ -1270,6 +1273,42 @@ function slip5(){S.jobs=S.jobs.filter(j=>j.kind!=='slip5');
   AR().push({id:uid(),kind:'slip5',name:'미처리전표 5곳 처리',status:'wait',result:'PC로 보내는 중…',created:Date.now(),doneAt:null});S.autoReq=AR().slice(-20);
   save();render();toast('요청했어요 — PC에서 바로 시작해요');arDispatch();}
 function arCancel(id){S.autoReq=AR().filter(r=>r.id!==id);save();render();}
+/* 신고 전 검증 결과 — Claude가 원천세 신고 직전에 기록, 원천세 표 거래처 옆에 표시 */
+const nmKey=n=>(n||'').replace(/\(주\)|㈜|주식회사|\s/g,'').toLowerCase();
+window.__whVerify={set:(ym,name,o)=>{const k=nmKey(name),c=S.clients.find(x=>nmKey(x.name)===k)||S.clients.find(x=>{const a=nmKey(x.name);return a&&(a.includes(k)||k.includes(a));});if(!c)return false;
+    S.rpt.wh[ym]=S.rpt.wh[ym]||{};const r=S.rpt.wh[ym][c.id]=S.rpt.wh[ym][c.id]||{};r.vf={at:Date.now(),items:(o&&o.items||[]).map(i=>({lvl:i.lvl==='warn'?'warn':'info',t:String(i.t||'').slice(0,200)}))};save();if(!ui.drawer)render();return c.name;},
+  get:(ym,name)=>{const k=nmKey(name),c=S.clients.find(x=>nmKey(x.name)===k);return c&&S.rpt.wh[ym]&&S.rpt.wh[ym][c.id]?S.rpt.wh[ym][c.id].vf||null:null;}};
+/* 연말정산 미리 준비 — 급여신고 때 Claude가 사원별 지급·세액을 월별로 쌓아 둠 (거래처 상세에 연간 누계로 표시) */
+window.__ytd={set:(year,name,month,rows)=>{const k=nmKey(name),c=S.clients.find(x=>nmKey(x.name)===k)||S.clients.find(x=>{const a=nmKey(x.name);return a&&(a.includes(k)||k.includes(a));});if(!c)return false;
+    S.ytd=S.ytd||{};const Y=S.ytd[year]=S.ytd[year]||{},C=Y[c.id]=Y[c.id]||{};C[String(+month)]=(rows||[]).map(r=>({k:String(r.kind||'근로').replace(/소득$/,'').replace('·',''),n:String(r.name||'').slice(0,30),pay:+r.pay||0,tax:+r.tax||0,ltax:+r.ltax||0,note:String(r.note||'').slice(0,80)}));save();return c.name;},
+  get:(year,name)=>{const k=nmKey(name),c=S.clients.find(x=>nmKey(x.name)===k);return c&&S.ytd&&S.ytd[year]?S.ytd[year][c.id]||null:null;}};
+const YK=['근로','사업','이자배당','일용','기타'];
+function whYtd(cid){const c=cl(cid);if(!c)return;const ym=ui.whYm||curYM(),y=+ym.slice(0,4),C=(S.ytd&&S.ytd[y]&&S.ytd[y][cid])||{},ms=Object.keys(C).map(Number).sort((a,b)=>a-b),n=v=>v.toLocaleString();
+  const G={};ms.forEach(m=>C[m].forEach(r=>{const k=YK.includes(r.k)?r.k:'근로',g=G[k]=G[k]||{},p=g[r.n]=g[r.n]||{n:r.n,pay:0,tax:0,ltax:0,ms:[],notes:[]};p.pay+=r.pay;p.tax+=r.tax;p.ltax+=r.ltax;if(!p.ms.includes(m))p.ms.push(m);if(r.note&&!p.notes.includes(r.note))p.notes.push(r.note);}));
+  const sec=k=>{const L=Object.values(G[k]),T=L.reduce((a,p)=>(a.pay+=p.pay,a.tax+=p.tax,a.ltax+=p.ltax,a),{pay:0,tax:0,ltax:0});
+    return `<h4 class="ytk">${k}소득 <span>${L.length}명</span></h4><div class="ytw"><table><thead><tr><th>소득자</th><th>반영 월</th><th class="r">총지급</th><th class="r">소득세</th><th class="r">지방소득세</th></tr></thead><tbody>
+    ${L.map(p=>`<tr><td><b>${esc(p.n)}</b>${p.notes.map(t=>`<span class="ytn">${esc(t)}</span>`).join('')}</td><td>${p.ms.sort((a,b)=>a-b).join('·')}월</td><td class="r">${n(p.pay)}</td><td class="r">${n(p.tax)}</td><td class="r">${n(p.ltax)}</td></tr>`).join('')}
+    <tr class="tot"><td>합계</td><td></td><td class="r">${n(T.pay)}</td><td class="r">${n(T.tax)}</td><td class="r">${n(T.ltax)}</td></tr></tbody></table></div>`;};
+  $('#mbox').classList.add('mbw');
+  $('#mbox').innerHTML=`<div class="ytd"><h3 style="margin:0 0 2px">${esc(c.name)} · ${y}년 소득 누계</h3><p class="note" style="margin:0 0 4px">${ms.length?`${ms[0]}~${ms[ms.length-1]}월 귀속까지 반영 · 연말정산·지급명세서 준비용`:'아직 쌓인 자료가 없어요. 다음 급여신고부터 소득별로 달마다 쌓여요.'}</p>
+    ${YK.filter(k=>G[k]).map(sec).join('')}
+    <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn s" data-a="modalClose">닫기</button></div></div>`;
+  $('#modal').classList.add('on');}
+/* 업체 급여자료 수신 여부 — PC의 Claude가 업체자료 폴더를 보고 기록 (자료확인) */
+window.__whDocs={list:ym=>{const y=+ym.slice(0,4),m=+ym.slice(5,7),{cs,hf}=whList(y,m);return cs.concat(hf).map(x=>({name:x.c.name,done:x.r.st==='완료',doc:x.r.doc?x.r.doc.st:''}));},set:(ym,name,o)=>{const k=nmKey(name),c=S.clients.find(x=>nmKey(x.name)===k)||S.clients.find(x=>{const a=nmKey(x.name);return a&&(a.includes(k)||k.includes(a));});if(!c)return false;
+    S.rpt.wh[ym]=S.rpt.wh[ym]||{};const r=S.rpt.wh[ym][c.id]=S.rpt.wh[ym][c.id]||{};const st=['있음','없음','불필요'].includes(o&&o.st)?o.st:'없음';r.doc={st,f:String(o&&o.f||'').slice(0,120),at:Date.now()};save();if(!ui.drawer)render();return c.name;}};
+const DOC_TPL='안녕하세요, {회사} 담당 세무사무소입니다.\n{월}월 급여 신고를 위해 {월}월 급여자료(급여대장 또는 직원별 지급 내역)를 보내 주세요.\n신고 기한이 {기한}이라 {요청일}까지 받으면 여유 있게 진행할 수 있어요.\n감사합니다.';
+function whDocsReq(){const ym=ui.whYm,y=+ym.slice(0,4),m=+ym.slice(5,7),{cs,hf,due}=whList(y,m);
+  const L=cs.concat(hf).filter(x=>x.r.doc&&x.r.doc.st==='없음'&&x.r.st!=='완료');const tpl=S.docTpl||DOC_TPL;
+  const fill=c=>tpl.replace(/\{회사\}/g,c.name).replace(/\{월\}/g,m).replace(/\{기한\}/g,md(due)).replace(/\{요청일\}/g,md(addDays(due,-4)));
+  ui.docFill=fill;
+  $('#mbox').innerHTML=`<h3>${m}월 급여자료 요청</h3><p class="note" style="margin:0 0 10px">${L.length?`자료가 아직 안 온 ${L.length}곳이에요. 업체별 [문구 복사]를 눌러 카톡에 붙여넣으세요.`:'자료가 안 온 업체가 없어요. 표 위 [자료 확인]을 먼저 눌러 주세요.'}</p>
+    ${L.map(({c})=>`<div class="dqr"><b>${esc(c.name)}</b><button class="btn g s" data-dcopy="${c.id}">문구 복사</button></div>`).join('')}
+    <details style="margin-top:12px"><summary class="note" style="cursor:pointer">요청 문구 고치기</summary><textarea id="docTpl" style="width:100%;min-height:110px;margin-top:6px">${esc(tpl)}</textarea><p class="note">{회사} {월} {기한} {요청일}은 자동으로 바뀌어요. 고친 문구는 저장돼요.</p></details>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn g s" data-a="modalClose">닫기</button></div>`;
+  $('#modal').classList.add('on');}
+function whDocsScan(){const ym=ui.whYm;if(AR().some(x=>x.kind==='docs'&&x.ym===ym&&(x.status==='wait'||x.status==='doing')))return toast('이미 자료 확인을 요청했어요');
+  AR().push({id:uid(),kind:'docs',name:`${ym.slice(0,4)}.${ym.slice(5,7)} 급여자료 확인`,ym,status:'wait',result:'PC 차례를 기다리는 중',created:Date.now(),doneAt:null});S.autoReq=AR().slice(-30);save();render();toast('PC에서 업체자료 폴더를 확인해요');arDispatch();}
 window.__autoReq={list:(st)=>AR().filter(r=>!st||r.status===st).map(r=>({...r,created:new Date(r.created).toISOString()})),
   update:(id,p)=>{const r=AR().find(x=>x.id===id);if(!r)return false;['status','result'].forEach(k=>{if(p[k]!==undefined)r[k]=p[k]});if(r.status==='done'||r.status==='check')r.doneAt=Date.now();save();render();return true;}};
 function autoHead(){const q=AR().slice().sort((a,b)=>b.created-a.created)[0];const show=q&&(q.status==='doing'||q.status==='wait'||Date.now()-(q.doneAt||0)<3*864e5);
@@ -1485,7 +1524,7 @@ function vRepWh(){
   const def=pgAdd(pgNow(),-1),ym0=ui.rwm||def,y=+ym0.slice(0,4),m=+ym0.slice(5,7);
   const {ym,due,past,cs,hf}=whList(y,m);
   const done=cs.filter(x=>x.r.st==='완료').length;
-  const row=({c,r,h})=>{const k=`wh|${ym}|${c.id}`,ok=r.st==='완료';return `<tr class="${ok?'ok':''}"><td class="nm" data-client="${c.id}">${(()=>{const pr=whPend(c.id,ym);return pr?`<span class="whpd" title="PC에서 ${pr.status==='doing'?'작성 중':'차례를 기다리는 중'}">${pr.status==='doing'?'작성 중':'대기'}</span>`:`<input type="checkbox" class="whck" data-whck="${c.id}" ${whSel().has(c.id)?'checked':''} aria-label="${esc(c.name)} 선택">`})()}<b>${esc(c.name)}</b></td>
+  const row=({c,r,h})=>{const k=`wh|${ym}|${c.id}`,ok=r.st==='완료';return `<tr class="${ok?'ok':''}"><td class="nm" data-whytd="${c.id}" title="눌러서 소득 누계 보기">${(()=>{const pr=whPend(c.id,ym);return pr?`<span class="whpd" title="PC에서 ${pr.status==='doing'?'작성 중':'차례를 기다리는 중'}">${pr.status==='doing'?'작성 중':'대기'}</span>`:`<input type="checkbox" class="whck" data-whck="${c.id}" ${whSel().has(c.id)?'checked':''} aria-label="${esc(c.name)} 선택">`})()}<b>${esc(c.name)}</b>${r.doc&&r.doc.st==='없음'&&!ok?'<span class="whdc" title="업체자료 폴더에 이번 달 급여자료가 없어요">자료 없음</span>':''}${whVf(r)}</td>
     ${h?`<td class="hy" colspan="2" title="반기 신고 업체 — 진행·전달은 6월·12월 귀속에 표시돼요">반기</td>`:`<td><button class="st ${ok?'d':past?'l':''}" data-rpt="${k}|st">${ok?'✓ 완료':past?'미완료':'진행 전'}</button></td>
     <td><button class="ox ${r.전달?'on':''}" data-rpt="${k}|전달" title="납부서·신고서 전달">${r.전달?'○':''}</button></td>`}
     <td class="kinds">${WF.map(([f,n])=>`<button class="kp ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
@@ -1500,6 +1539,7 @@ function vRepWh(){
   return `<div class="whv">${rpProg(done,cs.length)}
   <div class="whbar"><input class="whq" data-in="wq" value="${esc(ui.wq||'')}" placeholder="거래처 검색" aria-label="거래처 검색">
     <span class="whn">${nSel?`${nSel}곳 선택`:'작성할 거래처를 체크하세요'}</span>
+    <button class="btn g s" data-a="whAsk" ${nSel?'':'disabled'} title="체크한 업체에 급여자료를 카톡으로 요청해요">업체 요청</button>
     <button class="btn s" data-a="whRun" ${nSel?'':'disabled'}>신고서 작성${nSel?` ${nSel}곳`:''}</button>
     <button class="btn g s" data-a="whSend" title="준비 중이에요">신고서 전송</button></div>
   <div class="card rtab"><div class="rscroll"><table class="rt xt"><thead><tr><th class="nm"><input type="checkbox" class="whck" data-whall="1" ${todo.concat(hv).filter(x=>!whPend(x.c.id,ym)).length&&todo.concat(hv).filter(x=>!whPend(x.c.id,ym)).every(x=>whSel().has(x.c.id))?'checked':''} aria-label="할 것 전체 선택" title="할 것 전체 선택">거래처</th><th>진행</th><th>전달</th><th>소득 종류</th>${y>=2027?'<th>간이 (근로)</th>':''}<th>간이 (일용)</th><th>간이 (사업·기타)</th><th>근로내용확인신고</th><th class="memo">참고사항</th></tr></thead><tbody>
@@ -1508,6 +1548,7 @@ function vRepWh(){
   ${dn.length?`<tr class="grp"><td colspan="${nc}">완료 ${dn.length}</td></tr>${dn.map(row).join('')}`:''}
   ${cs.length||hf.length?(vis.length||hv.length?'':`<tr><td colspan="${nc}" class="empty">'${esc(ui.wq)}'에 맞는 거래처가 없어요</td></tr>`):`<tr><td colspan="${nc}" class="empty">이 달 원천세 대상이 없어요</td></tr>`}</tbody></table></div></div></div>`;
 }
+const whVf=r=>{const v=r.vf;if(!v)return '';const w=v.items.filter(i=>i.lvl==='warn'),tip=v.items.map(i=>(i.lvl==='warn'?'확인: ':'참고: ')+i.t).join('\n')||'검증 결과 이상 없음';return `<span class="whvf ${w.length?'w':''}" title="${esc(tip)}">${w.length?'확인 '+w.length:'검증'}</span>`;};
 const whSel=()=>(ui.whS=ui.whS||new Set());
 const whPend=(cid,ym)=>AR().find(x=>x.kind==='pay'&&x.cid===cid&&x.ym===ym&&(x.status==='wait'||x.status==='doing'));
 function whRun(){const ym=ui.whYm,ids=[...whSel()].filter(id=>!whPend(id,ym));if(!ids.length)return;
@@ -2272,7 +2313,9 @@ document.addEventListener('click',e=>{
   if((el=q('[data-paycell]'))){const [c,ym]=el.dataset.paycell.split('|');openPayCell(c,ym);return;}
   if((el=q('[data-pset]'))){setPay(el.dataset.pset);return;}
   if((el=q('[data-allck]'))){const ev=ui.dayEvents[+el.dataset.allck],all=doneCnt(ev)===ev.ids.length;ev.ids.forEach(id=>{const k=ev.key+'|'+id;if(all)delete S.checks[k];else S.checks[k]=Date.now();});save();openDay(ui.openDay);return;}
+  if((el=q('[data-dcopy]'))){const c=S.clients.find(x=>x.id===el.dataset.dcopy);if(c&&ui.docFill){const t=ui.docFill(c);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{el.textContent='복사됨';toast(c.name+' 요청 문구를 복사했어요');},()=>prompt('복사해서 쓰세요',t));}return;}
   if((el=q('[data-whall]'))){const ym=ui.whYm,{cs,hf}=whList(+ym.slice(0,4),+ym.slice(5,7)),wq=(ui.wq||'').replace(/\s/g,'').toLowerCase();const t=cs.filter(x=>x.r.st!=='완료').concat(hf).filter(x=>!whPend(x.c.id,ym)&&(!wq||x.c.name.replace(/\s/g,'').toLowerCase().includes(wq)));const all=t.length&&t.every(x=>whSel().has(x.c.id));t.forEach(x=>all?whSel().delete(x.c.id):whSel().add(x.c.id));render();return;}
+  if((el=q('[data-whytd]'))&&!q('[data-whck]')&&!q('.whck')){whYtd(el.dataset.whytd);return;}
   if((el=q('[data-whck]'))){const id=el.dataset.whck;whSel().has(id)?whSel().delete(id):whSel().add(id);render();return;}
   if((el=q('[data-client]'))){openClient(el.dataset.client);return;}
   if((el=q('[data-ck]'))){const k=el.dataset.ck;if(S.checks[k])delete S.checks[k];else S.checks[k]=Date.now();save();refreshDrawer();return;}
@@ -2344,7 +2387,7 @@ document.addEventListener('click',e=>{
     calPrev:()=>{let {y,m}=ui.cal;m--;if(m<1){m=12;y--}ui.cal={y,m};render();}, calNext:()=>{let {y,m}=ui.cal;m++;if(m>12){m=1;y++}ui.cal={y,m};render();},
     calToday:()=>{const d=new Date();ui.cal={y:d.getFullYear(),m:d.getMonth()+1};render();},
     pvM:()=>{ui.pv='m';render();}, pvI:()=>{ui.pv='inv';render();}, pmPrev:()=>{ui.pm=ymAdd(ui.pm,-1);render();}, pmNext:()=>{ui.pm=ymAdd(ui.pm,1);render();}, pmCur:()=>{ui.pm=curYM();render();},
-    talkImport:()=>$('#talkIn').click(), whRun, whSend:()=>toast('신고서 전송은 준비 중이에요. 홈택스에서 직접 전송해 주세요'), rwPrev:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),-1);render();}, rwNext:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),1);render();}, rDet:()=>{ui.rdet=!ui.rdet;render();}, agNew:()=>agentForm(null), agSave:()=>agentSave(), agDel:()=>{const a=agt(ui.agEdit);if(!a||!confirm(`${a.name}을(를) 신고대리 목록에서 삭제할까요?`))return;S.agents=S.agents.filter(x=>x.id!==a.id);['pit','cit'].forEach(k=>Object.values(S.rpt[k]).forEach(D=>delete D[a.id]));save();$('#modal').classList.remove('on');render();}, pgyPrev:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);ui.pgm=(+c.slice(0,4)-1)+'-12';render();}, pgyNext:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);const ny=+c.slice(0,4)+1;const t=pgNow();ui.pgm=(ny+'-01')>t?c:ny+'-'+(ny===+t.slice(0,4)?pgAdd(t,-1).slice(5):'12');render();}, ryPrev:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())-1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, ryNext:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())+1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
+    talkImport:()=>$('#talkIn').click(), whRun, whDocsReq, whDocsScan, whAsk:()=>toast('업체 요청(카톡 발송)은 준비 중이에요'), whSend:()=>toast('신고서 전송은 준비 중이에요. 홈택스에서 직접 전송해 주세요'), rwPrev:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),-1);render();}, rwNext:()=>{ui.rwm=pgAdd(ui.rwm||pgAdd(pgNow(),-1),1);render();}, rDet:()=>{ui.rdet=!ui.rdet;render();}, agNew:()=>agentForm(null), agSave:()=>agentSave(), agDel:()=>{const a=agt(ui.agEdit);if(!a||!confirm(`${a.name}을(를) 신고대리 목록에서 삭제할까요?`))return;S.agents=S.agents.filter(x=>x.id!==a.id);['pit','cit'].forEach(k=>Object.values(S.rpt[k]).forEach(D=>delete D[a.id]));save();$('#modal').classList.remove('on');render();}, pgyPrev:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);ui.pgm=(+c.slice(0,4)-1)+'-12';render();}, pgyNext:()=>{const c=ui.pgm||pgAdd(pgNow(),-1);const ny=+c.slice(0,4)+1;const t=pgNow();ui.pgm=(ny+'-01')>t?c:ny+'-'+(ny===+t.slice(0,4)?pgAdd(t,-1).slice(5):'12');render();}, ryPrev:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())-1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, ryNext:()=>{ui.rtp=null;ui.ry=(ui.ry||new Date().getFullYear())+1;ui.rwm=ui.ry+(ui.rwm||pgAdd(pgNow(),-1)).slice(4);render();}, rLate:()=>{ui.rlate=!ui.rlate;render();}, pgReset:()=>{ui.pgk='';ui.pgt='';ui.pgf='all';render();}, cEdit:()=>{ui.cedit=!ui.cedit;openClient(ui.openClient);}, logMore:()=>{ui.llim=(ui.llim||60)+100;render();},
     rtAdd:()=>{const v=prompt('매월 반복 할 일 (예: 25 오전 10시 세금계산서 발행)');if(!v)return;const m=v.trim().match(/^(\d{1,2})\s*일?\s*((?:오전|오후)?\s*\d{1,2}\s*시(?:\s*\d{1,2}\s*분)?|\d{1,2}:\d{2})?\s*(.+)$/);if(!m)return toast('날짜(일) 숫자로 시작해 주세요');S.routines.push({id:'rt'+uid(),day:+m[1],time:(m[2]||'').replace(/\s+/g,' ').trim(),title:m[3].trim(),created:Date.now()});ui._rr='';save();render();toast('매월 반복 할 일에 넣었어요');},
     archDir:()=>archDir(), archLogs:()=>archLogs(),
     pgPrev:()=>{ui.pg=pgAdd(ui.pg,-1);render();}, pgNext:()=>{ui.pg=pgAdd(ui.pg,1);render();}, pgCur:()=>{ui.pg=pgAdd(pgNow(),-1);render();},
@@ -2360,6 +2403,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('input',e=>{
   const el=e.target,d=el.dataset;
+  if(el.id==='docTpl'){S.docTpl=el.value;clearTimeout(ui._dt);ui._dt=setTimeout(save,500);return;}
   if(d.in==='wq'){ui.wq=el.value;clearTimeout(ui._st);ui._st=setTimeout(()=>{if(ui.tab!=='rep')return;const tmp=document.createElement('div');tmp.innerHTML=vRep();const r=$('.whv .rtab'),nr=tmp.querySelector('.whv .rtab');if(r&&nr)r.replaceWith(nr);},200);return;}
   if(d.in==='rq'){ui.rq=el.value;clearTimeout(ui._st);ui._st=setTimeout(()=>{if(ui.tab!=='rep')return;const tmp=document.createElement('div');tmp.innerHTML=vRep();const r=$('.rtab'),nr=tmp.querySelector('.rtab');if(r&&nr)r.replaceWith(nr);},150);return;}
   if(d.in==='pq'){ui.pq=el.value;clearTimeout(ui._st);ui._st=setTimeout(()=>{if(ui.tab!=='prog')return;const tmp=document.createElement('div');tmp.innerHTML=vProg();const r=$('#sres'),nr=tmp.querySelector('#sres');if(r&&nr)r.replaceWith(nr);},150);return;}
