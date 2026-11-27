@@ -207,6 +207,7 @@ body.wide main{max-width:1760px}
 .kinds{white-space:nowrap}.kp{padding:3px 8px;margin-right:3px;border-radius:99px;border:1px dashed var(--line);background:transparent;color:color-mix(in srgb,var(--sub) 45%,transparent);font-size:11.5px;font-weight:600;cursor:pointer}
 .kp.on{border:1px solid transparent;background:var(--acc2);color:var(--acc)}.kp.step.on{background:var(--grnS);color:var(--grn)}
 .kp:hover{border-color:var(--acc)}
+.kp.clw{margin:0 5px 0 0;padding:0 4px;font-size:9.5px;line-height:15px;border:1px solid var(--acc);color:var(--acc);vertical-align:middle}.kp.clw:hover{background:var(--acc2)}
 .pay{color:var(--red)}.refund{color:var(--blu);font-weight:700}.sub{color:var(--sub)}
 .xt .ri{color:inherit}.xt .ri::placeholder{color:var(--line)}
 .ox{width:30px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--acc);font-weight:700;cursor:pointer}.ox.on{background:var(--acc2);border-color:var(--acc)}
@@ -1449,7 +1450,7 @@ function vRepWh(){
   const def=pgAdd(pgNow(),-1),ym0=ui.rwm||def,y=+ym0.slice(0,4),m=+ym0.slice(5,7);
   const {ym,due,past,cs}=whList(y,m);
   const done=cs.filter(x=>x.r.st==='완료').length;
-  const row=({c,r})=>{const k=`wh|${ym}|${c.id}`,ok=r.st==='완료';return `<tr class="${ok?'ok':''}"><td class="nm" data-client="${c.id}"><b>${esc(c.name)}</b></td>
+  const row=({c,r})=>{const k=`wh|${ym}|${c.id}`,ok=r.st==='완료';return `<tr class="${ok?'ok':''}"><td class="nm" data-client="${c.id}"><button class="kp clw" data-claude="${ym}|${c.id}" title="급여신고 명령어 복사">복사</button><b>${esc(c.name)}</b></td>
     <td><button class="st ${ok?'d':past?'l':''}" data-rpt="${k}|st">${ok?'✓ 완료':past?'미완료':'진행 전'}</button></td>
     <td><button class="ox ${r.전달?'on':''}" data-rpt="${k}|전달" title="납부서·신고서 전달">${r.전달?'○':''}</button></td>
     <td class="kinds">${WF.map(([f,n])=>`<button class="kp ${r[f]?'on':''}" data-rpt="${k}|${f}">${n}</button>`).join('')}</td>
@@ -2225,6 +2226,7 @@ document.addEventListener('click',e=>{
   if((el=q('[data-paycell]'))){const [c,ym]=el.dataset.paycell.split('|');openPayCell(c,ym);return;}
   if((el=q('[data-pset]'))){setPay(el.dataset.pset);return;}
   if((el=q('[data-allck]'))){const ev=ui.dayEvents[+el.dataset.allck],all=doneCnt(ev)===ev.ids.length;ev.ids.forEach(id=>{const k=ev.key+'|'+id;if(all)delete S.checks[k];else S.checks[k]=Date.now();});save();openDay(ui.openDay);return;}
+  if((el=q('[data-claude]'))){const [ym,cid]=el.dataset.claude.split('|'),c=S.clients.find(x=>x.id===cid);if(c){const cmd=`${ym.slice(0,4)}.${ym.slice(5,7)} ${c.name} 급여신고 진행`;(navigator.clipboard?navigator.clipboard.writeText(cmd):Promise.reject()).then(()=>toast('복사했어요: '+cmd),()=>prompt('이 문장을 복사하세요',cmd));}return;}
   if((el=q('[data-client]'))){openClient(el.dataset.client);return;}
   if((el=q('[data-ck]'))){const k=el.dataset.ck;if(S.checks[k])delete S.checks[k];else S.checks[k]=Date.now();save();refreshDrawer();return;}
   if((el=q('[data-day]'))){openDay(el.dataset.day);return;}
