@@ -1312,8 +1312,8 @@ function whDocsScan(){const ym=ui.whYm;if(AR().some(x=>x.kind==='docs'&&x.ym===y
 /* 업체 요청(카톡)·신고서 전송 표시 — PC Claude가 기록 */
 window.__whMark={set:(ym,name,o)=>{const k=nmKey(name),c=S.clients.find(x=>nmKey(x.name)===k)||S.clients.find(x=>{const a=nmKey(x.name);return a&&(a.includes(k)||k.includes(a));});if(!c)return false;
     S.rpt.wh[ym]=S.rpt.wh[ym]||{};const r=S.rpt.wh[ym][c.id]=S.rpt.wh[ym][c.id]||{};
-    if(o&&o.ask)r.ask=typeof o.ask==='string'?o.ask:md(todayStr()).replace(/\(.*/,'');if(o&&o.made)r.made=Date.now();if(o&&o.sent)r.sent=Date.now();if(o&&o.askNo)r.askNo=String(o.askNo).slice(0,60);
-    save();if(!ui.drawer)render();return c.name;}};
+    if(o&&o.ask)r.ask=typeof o.ask==='string'?o.ask:md(todayStr()).replace(/\(.*/,'');if(o&&o.made)r.made=Date.now();if(o&&o.sent){r.sent=Date.now();r.st='완료';}if(o&&Array.isArray(o.kinds))o.kinds.forEach(f=>{if(WF.some(w=>w[0]===f))r[f]='○';});if(o&&o.deliv)r.전달='○';if(o&&o.askNo)r.askNo=String(o.askNo).slice(0,60);
+    if(typeof rptSync==='function')rptSync('wh',ym,c.id,r);save();if(!ui.drawer)render();return c.name;}};
 window.__autoReq={list:(st)=>AR().filter(r=>!st||r.status===st).map(r=>({...r,created:new Date(r.created).toISOString()})),
   update:(id,p)=>{const r=AR().find(x=>x.id===id);if(!r)return false;['status','result'].forEach(k=>{if(p[k]!==undefined)r[k]=p[k]});if(r.status==='done'||r.status==='check')r.doneAt=Date.now();save();render();return true;}};
 function autoHead(){const q=AR().slice().sort((a,b)=>b.created-a.created)[0];const show=q&&(q.status==='doing'||q.status==='wait'||Date.now()-(q.doneAt||0)<3*864e5);
